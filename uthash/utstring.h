@@ -37,7 +37,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+
+#ifndef oom
 #define oom() exit(-1)
+#endif
 
 typedef struct {
     char *d;
@@ -149,26 +152,20 @@ _UNUSED_ static void utstring_printf(UT_string *s, const char *fmt, ...) {
    va_end(ap);
 }
 
-static inline void
-utstring_append_len(UT_string *s, const char *c, size_t len)
-{
-	while (s->n-s->i <= len) {
-		utstring_reserve(s,(s->n)*2);
-	}
-	memcpy(&s->d[s->i], c, len);
-	s->i += len;
-	s->d[s->i] = '\0';
-}
+#define utstring_append_len(dst, src, len)                                    \
+do {                                                                           \
+    while ((dst)->n-(dst)->i <= (len)) utstring_reserve((dst),((dst)->n)*2);   \
+    memcpy(&(dst)->d[(dst)->i], (src), (len));                                 \
+    (dst)->i+=(len);                                                           \
+    (dst)->d[(dst)->i]='\0';                                                   \
+} while(0)
 
-static inline void
-utstring_append_c(UT_string *s, char c)
-{
-	if (s->i >= s->n) {
-		utstring_reserve(s,(s->n)*2);
-	}
-	s->d[s->i++] = c;
-	s->d[s->i] = '\0';
-}
+#define utstring_append_c(dst, c)                                             \
+do {                                                                           \
+    if ((dst)->i >= (dst)->n) utstring_reserve((dst),((dst)->n)*2);            \
+    (dst)->d[(dst)->i++] = (c);                                                \
+    (dst)->d[(dst)->i]='\0';                                                   \
+} while(0)
 
 /*******************************************************************************
  * begin substring search functions                                            *
