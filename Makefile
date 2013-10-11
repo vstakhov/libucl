@@ -28,9 +28,13 @@ $(OBJDIR)/ucl_parser.o: $(SRCDIR)/ucl_parser.c $(OBJDIR)
 	$(CC) -o $(OBJDIR)/ucl_parser.o $(CPPFLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_parser.c
 $(OBJDIR)/ucl_emitter.o: $(SRCDIR)/ucl_emitter.c $(OBJDIR)
 	$(CC) -o $(OBJDIR)/ucl_emitter.o $(CPPFLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_emitter.c
+
 clean:
-	$(RM) $(OBJDIR)/*.o $(OBJDIR)/$(SONAME)
+	$(RM) $(OBJDIR)/*.o $(OBJDIR)/$(SONAME) $(OBJDIR)/chargen
 	$(RMDIR) $(OBJDIR)
+	
+chargen:
+	$(CC) -o $(OBJDIR)/chargen $(CPPFLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) utils/chargen.c
 
 install: $(OBJDIR)/$(SONAME)
 	$(INSTALL) -m0755 $(SONAME) $(DESTDIR)/lib/$(SONAME)

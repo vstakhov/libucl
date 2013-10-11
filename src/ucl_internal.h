@@ -36,6 +36,7 @@
 #include <ctype.h>
 
 #include "utlist.h"
+#include "ucl.h"
 #ifdef HAVE_OPENSSL
 #include <openssl/evp.h>
 #endif
@@ -60,6 +61,17 @@ enum ucl_parser_state {
 	UCL_STATE_MACRO_NAME,
 	UCL_STATE_MACRO,
 	UCL_STATE_ERROR
+};
+
+enum ucl_character_type {
+	UCL_CHARACTER_DENIED = 0,
+	UCL_CHARACTER_KEY = 1,
+	UCL_CHARACTER_KEY_START = 1 << 1,
+	UCL_CHARACTER_WHITESPACE = 1 << 2,
+	UCL_CHARACTER_VALUE_END = 1 << 3,
+	UCL_CHARACTER_VALUE_STR = 1 << 4,
+	UCL_CHARACTER_VALUE_DIGIT = 1 << 5,
+	UCL_CHARACTER_VALUE_DIGIT_START = 1 << 6
 };
 
 struct ucl_macro {

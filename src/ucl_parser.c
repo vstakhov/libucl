@@ -23,6 +23,7 @@
 
 #include "ucl.h"
 #include "ucl_internal.h"
+#include "ucl_chartable.h"
 
 /**
  * @file rcl_parser.c
@@ -56,6 +57,12 @@ ucl_set_err (struct ucl_chunk *chunk, int code, const char *str, UT_string **err
 {
 	ucl_create_err (err, "error on line %d at column %d: '%s', character: '%c'",
 			chunk->line, chunk->column, str, *chunk->pos);
+}
+
+static inline bool
+ucl_test_character (unsigned char c, int type_flags)
+{
+	return (ucl_chartable[c] & type_flags) != 0;
 }
 
 static bool
@@ -194,12 +201,7 @@ ucl_lex_time_multiplier (const unsigned char c) {
 static inline bool
 ucl_lex_is_atom_end (const unsigned char c)
 {
-	if (isspace (c) || c == ',' || c == ';' || c == '#' ||
-			c == ']' || c == '}')  {
-		return true;
-	}
-
-	return false;
+	return ucl_test_character (c, UCL_CHARACTER_VALUE_END);
 }
 
 static inline bool
@@ -545,7 +547,7 @@ ucl_parse_key (struct ucl_parser *parser,
 			return true;
 		}
 		else if (c == NULL) {
-			if (isalpha (*p)) {
+			if (ucl_test_character (*p, UCL_CHARACTER_KEY_START)) {
 				/* The first symbol */
 				c = p;
 				ucl_chunk_skipc (chunk, *p);
@@ -567,7 +569,7 @@ ucl_parse_key (struct ucl_parser *parser,
 		else {
 			/* Parse the body of a key */
 			if (!got_quote) {
-				if (isalnum (*p)) {
+				if (ucl_test_character (*p, UCL_CHARACTER_KEY)) {
 					ucl_chunk_skipc (chunk, *p);
 					p ++;
 				}
@@ -599,7 +601,7 @@ ucl_parse_key (struct ucl_parser *parser,
 
 	/* We are now at the end of the key, need to parse the rest */
 	while (p < chunk->end) {
-		if (isspace (*p)) {
+		if (ucl_test_character (*p, UCL_CHARACTER_WHITESPACE)) {
 			ucl_chunk_skipc (chunk, *p);
 			p ++;
 		}
@@ -834,9 +836,9 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 			break;
 		default:
 			/* Skip any spaces and comments */
-			if (isspace (*p) ||
+			if (ucl_test_character (*p, UCL_CHARACTER_WHITESPACE) ||
 					ucl_lex_is_comment (p[0], p[1])) {
-				while (p < chunk->end && isspace (*p)) {
+				while (p < chunk->end && ucl_test_character (*p, UCL_CHARACTER_WHITESPACE)) {
 					ucl_chunk_skipc (chunk, *p);
 					p ++;
 				}
@@ -847,7 +849,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 				continue;
 			}
 			/* Parse atom */
-			if (isdigit (*p) || *p == '-') {
+			if (ucl_test_character (*p, UCL_CHARACTER_VALUE_DIGIT_START)) {
 				if (!ucl_lex_number (parser, chunk, obj, err)) {
 					if (parser->state == UCL_STATE_ERROR) {
 						return false;
@@ -1025,7 +1027,7 @@ ucl_parse_macro_value (struct ucl_parser *parser,
 		p ++;
 		/* Skip spaces at the beginning */
 		while (p < chunk->end) {
-			if (isspace (*p)) {
+			if (ucl_test_character (*p, UCL_CHARACTER_WHITESPACE)) {
 				ucl_chunk_skipc (chunk, *p);
 				p ++;
 			}
@@ -1064,7 +1066,7 @@ ucl_parse_macro_value (struct ucl_parser *parser,
 	/* We are at the end of a macro */
 	/* Skip ';' and space characters and return to previous state */
 	while (p < chunk->end) {
-		if (!isspace (*p) && *p != ';') {
+		if (!ucl_test_character (*p, UCL_CHARACTER_WHITESPACE) && *p != ';') {
 			break;
 		}
 		ucl_chunk_skipc (chunk, *p);
@@ -1131,7 +1133,7 @@ ucl_state_machine (struct ucl_parser *parser, UT_string **err)
 			break;
 		case UCL_STATE_KEY:
 			/* Skip any spaces */
-			while (p < chunk->end && isspace (*p)) {
+			while (p < chunk->end && ucl_test_character (*p, UCL_CHARACTER_WHITESPACE)) {
 				ucl_chunk_skipc (chunk, *p);
 				p ++;
 			}
@@ -1185,7 +1187,7 @@ ucl_state_machine (struct ucl_parser *parser, UT_string **err)
 			p = chunk->pos;
 			break;
 		case UCL_STATE_MACRO_NAME:
-			if (!isspace (*p)) {
+			if (!ucl_test_character (*p, UCL_CHARACTER_WHITESPACE)) {
 				ucl_chunk_skipc (chunk, *p);
 				p ++;
 			}
@@ -1199,7 +1201,7 @@ ucl_state_machine (struct ucl_parser *parser, UT_string **err)
 				}
 				/* Now we need to skip all spaces */
 				while (p < chunk->end) {
-					if (!isspace (*p)) {
+					if (!ucl_test_character (*p, UCL_CHARACTER_WHITESPACE)) {
 						if (ucl_lex_is_comment (p[0], p[1])) {
 							/* Skip comment */
 							if (!ucl_skip_comments (parser, err)) {
