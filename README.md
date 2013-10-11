@@ -1,9 +1,7 @@
 ## Introduction
 
-After long live with XML format I've finally decided to improve the configuration
-system to avoid various issues related to the configuration extending and readability.
-In this post I try to describe the main features and principles of the configuration
-language which I've called `UCL` - universal configuration language.
+This document describes the main features and principles of the configuration
+language called `UCL` - universal configuration language.
 
 ## Basic structure
 
@@ -16,22 +14,22 @@ For example, you can write the same configuration in the following ways:
 ```nginx
 param = value;
 section {
-        param = value;
-        param1 = value1;
-        flag = true;
-        number = 10k;
-        time = 0.2s;
-        string = "something";
-        subsection {
-                host = {
-                        host = "hostname"; 
-                        port = 900;
-                }
-                host = {
-                        host = "hostname";
-                        port = 901;
-                }
+    param = value;
+    param1 = value1;
+    flag = true;
+    number = 10k;
+    time = 0.2s;
+    string = "something";
+    subsection {
+        host = {
+            host = "hostname"; 
+            port = 900;
         }
+        host = {
+            host = "hostname";
+            port = 901;
+        }
+    }
 }
 ```
 
@@ -39,77 +37,77 @@ section {
 
 ```json
 {
-        "param": "value",
-        "param1": "value1",
-        "flag": true,
-        "subsection": {
-                "host": [
-                        {
-                                "host": "hostname",
-                                "port": 900
-                        },
-                        {
-                                "host": "hostname",
-                                "port": 901
-                        }
-                ]
+    "param": "value",
+    "param1": "value1",
+    "flag": true,
+    "subsection": {
+        "host": [
+        {
+            "host": "hostname",
+            "port": 900
+        },
+        {
+            "host": "hostname",
+            "port": 901
         }
+        ]
+    }
 }
 ```
 
 ## Improvements to the json notation.
 
-There are various things that makes json parsing more convenient for editing:
+There are various things that make ucl configuration more convenient for editing than strict json:
 
-* Braces are not necessary to enclose the top object: it is automatically treated as object:
+* Braces are not necessary to enclose a top object: it is automatically treated as an object:
 
 ```json
 "key": "value"
 ```
-is the equialent to:
+is equal to:
 ```json
 {"key": "value"}
 ```
 
-* There is no requirement of quotes for strings and keys, moreover, `:` sign may be replaced with `=` sign or even skipped for objects:
+* There is no requirement of quotes for strings and keys, moreover, `:` may be replaced `=` or even be skipped for objects:
 
 ```nginx
 key = value;
 section {
-        key = value;
+    key = value;
 }
 ```
-is the equialent to:
+is equal to:
 ```json
 {
-        "key": "value",
-        "section": {
-                "key": "value"
-        }
-}
-```
-
-* No commas mess: you can safely place a comma or semicolon for the last element in array or object:
-
-```json
-{
-        "key1": "value",
-        "key2": "value",
+    "key": "value",
+    "section": {
+        "key": "value"
+    }
 }
 ```
 
-* Non-unique keys in an object are allowed and automatically converted to the arrays internally:
+* No commas mess: you can safely place a comma or semicolon for the last element in an array or an object:
 
 ```json
 {
-        "key": "value1",
-        "key": "value2"
+    "key1": "value",
+    "key2": "value",
+}
+```
+
+* Non-unique keys in an object are allowed and are automatically converted to the arrays internally:
+
+```json
+{
+    "key": "value1",
+    "key": "value2"
 }
 ```
 is converted to:
 ```json
 {
-                "key": ["value1", "value2"]
+    "key": ["value1", "value2"]
 }
 ```
 
@@ -141,8 +139,8 @@ UCL supports external macroes both multiline and single line ones:
 ```nginx
 .macro "sometext";
 .macro {
-        Some long text
-        ....
+     Some long text
+     ....
 };
 ```
 There are two internal macroes provided by UCL:
