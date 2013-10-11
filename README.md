@@ -150,7 +150,7 @@ UCL configuration;
 * `includes` - read a file or an url like the previous macro, but fetch and check the signature file (which is obtained
 by `.sig` suffix appending).
 
-Public key (or keys) used for the last command are specified by the concrete UCL user (by rspamd for example).
+Public keys which are used for the last command are specified by the concrete UCL user.
 
 ## Emitter
 
