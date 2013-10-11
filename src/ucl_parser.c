@@ -88,9 +88,9 @@ start:
 		}
 	}
 	else if (*p == '/' && chunk->remain >= 2) {
-		ucl_chunk_skipc (chunk, *++p);
-		if (*p == '/' && parser->state != UCL_STATE_SCOMMENT &&
+		if (p[1] == '/' && parser->state != UCL_STATE_SCOMMENT &&
 				parser->state != UCL_STATE_MCOMMENT) {
+			ucl_chunk_skipc (chunk, *++p);
 			chunk->pos = p;
 			while (p < chunk->end) {
 				if (*p == '\n') {
@@ -100,7 +100,8 @@ start:
 				ucl_chunk_skipc (chunk, *++p);
 			}
 		}
-		else if (*p == '*') {
+		else if (p[1] == '*') {
+			ucl_chunk_skipc (chunk, *++p);
 			comments_nested ++;
 			ucl_chunk_skipc (chunk, *++p);
 
@@ -692,7 +693,7 @@ ucl_parse_string_value (struct ucl_parser *parser,
 	p = chunk->pos;
 
 	while (p < chunk->end) {
-		if (ucl_lex_is_atom_end (*p)) {
+		if (ucl_lex_is_atom_end (*p) || ucl_lex_is_comment (p[0], p[1])) {
 			break;
 		}
 		ucl_chunk_skipc (chunk, *p);
@@ -774,6 +775,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 	const unsigned char *p, *c;
 	struct ucl_stack *st;
 	ucl_object_t *obj = NULL;
+	unsigned int stripped_spaces;
 
 	p = chunk->pos;
 
@@ -859,8 +861,14 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 						return false;
 					}
 					if (!ucl_maybe_parse_boolean (obj, c, chunk->pos - c)) {
-						obj->value.sv = malloc (chunk->pos - c + 1);
-						ucl_strlcpy (obj->value.sv, c, chunk->pos - c + 1);
+						/* Cut trailing spaces */
+						stripped_spaces = 0;
+						while (ucl_test_character (*(chunk->pos - 1 - stripped_spaces),
+								UCL_CHARACTER_WHITESPACE)) {
+							stripped_spaces ++;
+						}
+						obj->value.sv = malloc (chunk->pos - c + 1 - stripped_spaces);
+						ucl_strlcpy (obj->value.sv, c, chunk->pos - c + 1 - stripped_spaces);
 						ucl_unescape_json_string (obj->value.sv);
 						obj->type = UCL_STRING;
 					}

@@ -70,7 +70,7 @@ main (int argc, char **argv)
 		if (isalnum (i) || i == '-' || i == '_' || i >= 0x80) {
 			r += print_flag ("UCL_CHARACTER_KEY", &need_or, valbuf + r);
 		}
-		if (i == 0 || i == '\r' || i == '\n' || i == '{' || i == '[' || i == ';' || i == '#') {
+		if (i == 0 || i == '\r' || i == '\n' || i == ']' || i == '}' || i == ';' || i == ',' || i == '#') {
 			r += print_flag ("UCL_CHARACTER_VALUE_END", &need_or, valbuf + r);
 		}
 		else {
