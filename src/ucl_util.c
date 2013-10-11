@@ -21,10 +21,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "rcl.h"
-#include "rcl_internal.h"
-#include "util.h"
+#include "ucl.h"
+#include "ucl_internal.h"
 
 #ifdef HAVE_OPENSSL
 #include <openssl/err.h>
@@ -41,34 +39,34 @@
 
 
 static void
-rspamd_cl_obj_free_internal (rspamd_cl_object_t *obj, gboolean allow_rec)
+ucl_obj_free_internal (ucl_object_t *obj, bool allow_rec)
 {
-	rspamd_cl_object_t *sub, *tmp;
+	ucl_object_t *sub, *tmp;
 
 	while (obj != NULL) {
 		if (obj->key != NULL) {
-			g_free (obj->key);
+			free (obj->key);
 		}
 
-		if (obj->type == RSPAMD_CL_STRING) {
-			g_free (obj->value.sv);
+		if (obj->type == UCL_STRING) {
+			free (obj->value.sv);
 		}
-		else if (obj->type == RSPAMD_CL_ARRAY) {
+		else if (obj->type == UCL_ARRAY) {
 			sub = obj->value.ov;
 			while (sub != NULL) {
 				tmp = sub->next;
-				rspamd_cl_obj_free_internal (sub, FALSE);
+				ucl_obj_free_internal (sub, false);
 				sub = tmp;
 			}
 		}
-		else if (obj->type == RSPAMD_CL_OBJECT) {
+		else if (obj->type == UCL_OBJECT) {
 			HASH_ITER (hh, obj->value.ov, sub, tmp) {
 				HASH_DELETE (hh, obj->value.ov, sub);
-				rspamd_cl_obj_free_internal (sub, TRUE);
+				ucl_obj_free_internal (sub, true);
 			}
 		}
 		tmp = obj->next;
-		g_slice_free1 (sizeof (rspamd_cl_object_t), obj);
+		UCL_FREE (sizeof (ucl_object_t), obj);
 		obj = tmp;
 
 		if (!allow_rec) {
@@ -78,16 +76,16 @@ rspamd_cl_obj_free_internal (rspamd_cl_object_t *obj, gboolean allow_rec)
 }
 
 void
-rspamd_cl_obj_free (rspamd_cl_object_t *obj)
+ucl_obj_free (ucl_object_t *obj)
 {
-	rspamd_cl_obj_free_internal (obj, TRUE);
+	ucl_obj_free_internal (obj, true);
 }
 
 void
-rspamd_cl_unescape_json_string (gchar *str)
+ucl_unescape_json_string (char *str)
 {
-	gchar *t = str, *h = str;
-	gint i, uval;
+	char *t = str, *h = str;
+	int i, uval;
 
 	/* t is target (tortoise), h is source (hare) */
 
@@ -121,7 +119,7 @@ rspamd_cl_unescape_json_string (gchar *str)
 				uval = 0;
 				for (i = 0; i < 4; i++) {
 					uval <<= 4;
-					if (g_ascii_isdigit (h[i])) {
+					if (isdigit (h[i])) {
 						uval += h[i] - '0';
 					}
 					else if (h[i] >= 'a' && h[i] <= 'f') {
@@ -171,85 +169,85 @@ rspamd_cl_unescape_json_string (gchar *str)
 	}
 }
 
-rspamd_cl_object_t*
-rspamd_cl_parser_get_object (struct rspamd_cl_parser *parser, GError **err)
+ucl_object_t*
+ucl_parser_get_object (struct ucl_parser *parser, UT_string **err)
 {
-	if (parser->state != RSPAMD_RCL_STATE_INIT && parser->state != RSPAMD_RCL_STATE_ERROR) {
-		return rspamd_cl_obj_ref (parser->top_obj);
+	if (parser->state != UCL_STATE_INIT && parser->state != UCL_STATE_ERROR) {
+		return ucl_obj_ref (parser->top_obj);
 	}
 
 	return NULL;
 }
 
 void
-rspamd_cl_parser_free (struct rspamd_cl_parser *parser)
+ucl_parser_free (struct ucl_parser *parser)
 {
-	struct rspamd_cl_stack *stack, *stmp;
-	struct rspamd_cl_macro *macro, *mtmp;
-	struct rspamd_cl_chunk *chunk, *ctmp;
-	struct rspamd_cl_pubkey *key, *ktmp;
+	struct ucl_stack *stack, *stmp;
+	struct ucl_macro *macro, *mtmp;
+	struct ucl_chunk *chunk, *ctmp;
+	struct ucl_pubkey *key, *ktmp;
 
 	if (parser->top_obj != NULL) {
-		rspamd_cl_obj_unref (parser->top_obj);
+		ucl_obj_unref (parser->top_obj);
 	}
 
 	LL_FOREACH_SAFE (parser->stack, stack, stmp) {
-		g_slice_free1 (sizeof (struct rspamd_cl_stack), stack);
+		free (stack);
 	}
 	HASH_ITER (hh, parser->macroes, macro, mtmp) {
-		g_slice_free1 (sizeof (struct rspamd_cl_macro), macro);
+		UCL_FREE (sizeof (struct ucl_macro), macro);
 	}
 	LL_FOREACH_SAFE (parser->chunks, chunk, ctmp) {
-		g_slice_free1 (sizeof (struct rspamd_cl_chunk), chunk);
+		UCL_FREE (sizeof (struct ucl_chunk), chunk);
 	}
 	LL_FOREACH_SAFE (parser->keys, key, ktmp) {
-		g_slice_free1 (sizeof (struct rspamd_cl_pubkey), key);
+		UCL_FREE (sizeof (struct ucl_pubkey), key);
 	}
 
-	g_slice_free1 (sizeof (struct rspamd_cl_parser), parser);
+	UCL_FREE (sizeof (struct ucl_parser), parser);
 }
 
-gboolean
-rspamd_cl_pubkey_add (struct rspamd_cl_parser *parser, const guchar *key, gsize len, GError **err)
+bool
+ucl_pubkey_add (struct ucl_parser *parser, const unsigned char *key, size_t len, UT_string **err)
 {
-	struct rspamd_cl_pubkey *nkey;
+	struct ucl_pubkey *nkey;
 #ifndef HAVE_OPENSSL
-	g_set_error (err, RCL_ERROR, RSPAMD_CL_EINTERNAL, "cannot check signatures without openssl");
-	return FALSE;
+	ucl_create_err (err, "cannot check signatures without openssl");
+	return false;
 #else
 # if (OPENSSL_VERSION_NUMBER < 0x10000000L)
-	g_set_error (err, RCL_ERROR, RSPAMD_CL_EINTERNAL, "cannot check signatures, openssl version is unsupported");
+	ucl_create_err (err, "cannot check signatures, openssl version is unsupported");
 	return EXIT_FAILURE;
 # else
 	BIO *mem;
 
 	mem = BIO_new_mem_buf ((void *)key, len);
-	nkey = g_slice_alloc0 (sizeof (struct rspamd_cl_pubkey));
+	nkey = UCL_ALLOC (sizeof (struct ucl_pubkey));
 	nkey->key = PEM_read_bio_PUBKEY (mem, &nkey->key, NULL, NULL);
 	BIO_free (mem);
 	if (nkey->key == NULL) {
-		g_slice_free1 (sizeof (struct rspamd_cl_pubkey), nkey);
-		g_set_error (err, RCL_ERROR, RSPAMD_CL_ESSL, "%s",
+		UCL_FREE (sizeof (struct ucl_pubkey), nkey);
+		ucl_create_err (err, "%s",
 				ERR_error_string (ERR_get_error (), NULL));
-		return FALSE;
+		return false;
 	}
 	LL_PREPEND (parser->keys, nkey);
 # endif
 #endif
-	return TRUE;
+	return true;
 }
 
 #ifdef CURL_FOUND
-struct rspamd_cl_curl_cbdata {
-	guchar *buf;
-	gsize buflen;
+struct ucl_curl_cbdata {
+	unsigned char *buf;
+	size_t buflen;
 };
 
-static gsize
-rspamd_cl_curl_write_callback (gpointer contents, gsize size, gsize nmemb, gpointer ud)
+static size_t
+ucl_curl_write_callback (void* contents, size_t size, size_t nmemb, void* ud)
 {
-	struct rspamd_cl_curl_cbdata *cbdata = ud;
-	gsize realsize = size * nmemb;
+	struct ucl_curl_cbdata *cbdata = ud;
+	size_t realsize = size * nmemb;
 
 	cbdata->buf = g_realloc (cbdata->buf, cbdata->buflen + realsize + 1);
 	if (cbdata->buf == NULL) {
@@ -272,8 +270,8 @@ rspamd_cl_curl_write_callback (gpointer contents, gsize size, gsize nmemb, gpoin
  * @param buflen target length
  * @return
  */
-static gboolean
-rspamd_cl_fetch_url (const guchar *url, guchar **buf, gsize *buflen, GError **err)
+static bool
+ucl_fetch_url (const unsigned char *url, unsigned char **buf, size_t *buflen, UT_string **err)
 {
 
 #ifdef HAVE_FETCH_H
@@ -283,74 +281,74 @@ rspamd_cl_fetch_url (const guchar *url, guchar **buf, gsize *buflen, GError **er
 
 	fetch_url = fetchParseURL (url);
 	if (fetch_url == NULL) {
-		g_set_error (err, RCL_ERROR, RSPAMD_CL_EIO, "invalid URL %s: %s",
+		ucl_create_err (err, "invalid URL %s: %s",
 				url, strerror (errno));
-		return FALSE;
+		return false;
 	}
 	if ((in = fetchXGet (fetch_url, &us, "")) == NULL) {
-		g_set_error (err, RCL_ERROR, RSPAMD_CL_EIO, "cannot fetch URL %s: %s",
+		ucl_create_err (err, "cannot fetch URL %s: %s",
 				url, strerror (errno));
 		fetchFreeURL (fetch_url);
-		return FALSE;
+		return false;
 	}
 
 	*buflen = us.size;
 	*buf = g_malloc (*buflen);
 	if (*buf == NULL) {
-		g_set_error (err, RCL_ERROR, RSPAMD_CL_EIO, "cannot allocate buffer for URL %s: %s",
+		ucl_create_err (err, "cannot allocate buffer for URL %s: %s",
 				url, strerror (errno));
 		fclose (in);
 		fetchFreeURL (fetch_url);
-		return FALSE;
+		return false;
 	}
 
 	if (fread (*buf, *buflen, 1, in) != 1) {
-		g_set_error (err, RCL_ERROR, RSPAMD_CL_EIO, "cannot read URL %s: %s",
+		ucl_create_err (err, "cannot read URL %s: %s",
 				url, strerror (errno));
 		fclose (in);
 		fetchFreeURL (fetch_url);
-		return FALSE;
+		return false;
 	}
 
 	fetchFreeURL (fetch_url);
-	return TRUE;
+	return true;
 #elif defined(CURL_FOUND)
 	CURL *curl;
-	gint r;
-	struct rspamd_cl_curl_cbdata cbdata;
+	int r;
+	struct ucl_curl_cbdata cbdata;
 
 	curl = curl_easy_init ();
 	if (curl == NULL) {
-		g_set_error (err, RCL_ERROR, RSPAMD_CL_EINTERNAL, "CURL interface is broken");
-		return FALSE;
+		ucl_create_err (err, "CURL interface is broken");
+		return false;
 	}
 	if ((r = curl_easy_setopt (curl, CURLOPT_URL, url)) != CURLE_OK) {
-		g_set_error (err, RCL_ERROR, RSPAMD_CL_EIO, "invalid URL %s: %s",
+		ucl_create_err (err, "invalid URL %s: %s",
 				url, curl_easy_strerror (r));
 		curl_easy_cleanup (curl);
-		return FALSE;
+		return false;
 	}
-	curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, rspamd_cl_curl_write_callback);
+	curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, ucl_curl_write_callback);
 	cbdata.buf = *buf;
 	cbdata.buflen = *buflen;
 	curl_easy_setopt (curl, CURLOPT_WRITEDATA, &cbdata);
 
 	if ((r = curl_easy_perform (curl)) != CURLE_OK) {
-		g_set_error (err, RCL_ERROR, RSPAMD_CL_EIO, "error fetching URL %s: %s",
+		ucl_create_err (err, "error fetching URL %s: %s",
 				url, curl_easy_strerror (r));
 		curl_easy_cleanup (curl);
 		if (buf != NULL) {
-			g_free (buf);
+			free (buf);
 		}
-		return FALSE;
+		return false;
 	}
 	*buf = cbdata.buf;
 	*buflen = cbdata.buflen;
 
-	return TRUE;
+	return true;
 #else
-	g_set_error (err, RCL_ERROR, RSPAMD_CL_EINTERNAL, "URL support is disabled");
-	return FALSE;
+	ucl_create_err (err, "URL support is disabled");
+	return false;
 #endif
 }
 
@@ -362,43 +360,43 @@ rspamd_cl_fetch_url (const guchar *url, guchar **buf, gsize *buflen, GError **er
  * @param buflen target length
  * @return
  */
-static gboolean
-rspamd_cl_fetch_file (const guchar *filename, guchar **buf, gsize *buflen, GError **err)
+static bool
+ucl_fetch_file (const unsigned char *filename, unsigned char **buf, size_t *buflen, UT_string **err)
 {
-	gint fd;
+	int fd;
 	struct stat st;
 
 	if (stat (filename, &st) == -1) {
-		g_set_error (err, RCL_ERROR, RSPAMD_CL_EIO, "cannot stat file %s: %s",
+		ucl_create_err (err, "cannot stat file %s: %s",
 				filename, strerror (errno));
-		return FALSE;
+		return false;
 	}
 	if ((fd = open (filename, O_RDONLY)) == -1) {
-		g_set_error (err, RCL_ERROR, RSPAMD_CL_EIO, "cannot open file %s: %s",
+		ucl_create_err (err, "cannot open file %s: %s",
 				filename, strerror (errno));
-		return FALSE;
+		return false;
 	}
 	if ((*buf = mmap (NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {
 		close (fd);
-		g_set_error (err, RCL_ERROR, RSPAMD_CL_EIO, "cannot mmap file %s: %s",
+		ucl_create_err (err, "cannot mmap file %s: %s",
 				filename, strerror (errno));
-		return FALSE;
+		return false;
 	}
 	*buflen = st.st_size;
 	close (fd);
 
-	return TRUE;
+	return true;
 }
 
 
 #if (defined(HAVE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10000000L)
-static inline gboolean
-rspamd_cl_sig_check (const guchar *data, gsize datalen,
-		const guchar *sig, gsize siglen, struct rspamd_cl_parser *parser)
+static inline bool
+ucl_sig_check (const unsigned char *data, size_t datalen,
+		const unsigned char *sig, size_t siglen, struct ucl_parser *parser)
 {
-	struct rspamd_cl_pubkey *key;
-	gchar dig[EVP_MAX_MD_SIZE];
-	guint diglen;
+	struct ucl_pubkey *key;
+	char dig[EVP_MAX_MD_SIZE];
+	unsigned int diglen;
 	EVP_PKEY_CTX *key_ctx;
 	EVP_MD_CTX *sign_ctx = NULL;
 
@@ -426,7 +424,7 @@ rspamd_cl_sig_check (const guchar *data, gsize datalen,
 			if (EVP_PKEY_verify (key_ctx, sig, siglen, dig, diglen) == 1) {
 				EVP_MD_CTX_destroy (sign_ctx);
 				EVP_PKEY_CTX_free (key_ctx);
-				return TRUE;
+				return true;
 			}
 
 			EVP_PKEY_CTX_free (key_ctx);
@@ -435,7 +433,7 @@ rspamd_cl_sig_check (const guchar *data, gsize datalen,
 
 	EVP_MD_CTX_destroy (sign_ctx);
 
-	return FALSE;
+	return false;
 }
 #endif
 
@@ -447,51 +445,51 @@ rspamd_cl_sig_check (const guchar *data, gsize datalen,
  * @param err
  * @return
  */
-static gboolean
-rspamd_cl_include_url (const guchar *data, gsize len,
-		struct rspamd_cl_parser *parser, gboolean check_signature, GError **err)
+static bool
+ucl_include_url (const unsigned char *data, size_t len,
+		struct ucl_parser *parser, bool check_signature, UT_string **err)
 {
 
-	gboolean res;
-	guchar *buf = NULL, *sigbuf = NULL;
-	gsize buflen = 0, siglen = 0;
-	struct rspamd_cl_chunk *chunk;
-	gchar urlbuf[PATH_MAX];
+	bool res;
+	unsigned char *buf = NULL, *sigbuf = NULL;
+	size_t buflen = 0, siglen = 0;
+	struct ucl_chunk *chunk;
+	char urlbuf[PATH_MAX];
 
-	rspamd_snprintf (urlbuf, sizeof (urlbuf), "%*s", len, data);
+	snprintf (urlbuf, sizeof (urlbuf), "%.*s", (int)len, data);
 
-	if (!rspamd_cl_fetch_url (urlbuf, &buf, &buflen, err)) {
-		return FALSE;
+	if (!ucl_fetch_url (urlbuf, &buf, &buflen, err)) {
+		return false;
 	}
 
 	if (check_signature) {
 #if (defined(HAVE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10000000L)
 		/* We need to check signature first */
-		rspamd_snprintf (urlbuf, sizeof (urlbuf), "%*s.sig", len, data);
-		if (!rspamd_cl_fetch_file (urlbuf, &sigbuf, &siglen, err)) {
-			return FALSE;
+		snprintf (urlbuf, sizeof (urlbuf), "%.*s.sig", (int)len, data);
+		if (!ucl_fetch_file (urlbuf, &sigbuf, &siglen, err)) {
+			return false;
 		}
-		if (!rspamd_cl_sig_check (buf, buflen, sigbuf, siglen, parser)) {
-			g_set_error (err, RCL_ERROR, RSPAMD_CL_ESSL, "cannot verify url %s: %s",
+		if (!ucl_sig_check (buf, buflen, sigbuf, siglen, parser)) {
+			ucl_create_err (err, "cannot verify url %s: %s",
 							urlbuf,
 							ERR_error_string (ERR_get_error (), NULL));
 			munmap (sigbuf, siglen);
-			return FALSE;
+			return false;
 		}
 		munmap (sigbuf, siglen);
 #endif
 	}
 
-	res = rspamd_cl_parser_add_chunk (parser, buf, buflen, err);
-	if (res == TRUE) {
+	res = ucl_parser_add_chunk (parser, buf, buflen, err);
+	if (res == true) {
 		/* Remove chunk from the stack */
 		chunk = parser->chunks;
 		if (chunk != NULL) {
 			parser->chunks = chunk->next;
-			g_slice_free1 (sizeof (struct rspamd_cl_chunk), chunk);
+			UCL_FREE (sizeof (struct ucl_chunk), chunk);
 		}
 	}
-	g_free (buf);
+	free (buf);
 
 	return res;
 }
@@ -504,53 +502,53 @@ rspamd_cl_include_url (const guchar *data, gsize len,
  * @param err
  * @return
  */
-static gboolean
-rspamd_cl_include_file (const guchar *data, gsize len,
-		struct rspamd_cl_parser *parser, gboolean check_signature, GError **err)
+static bool
+ucl_include_file (const unsigned char *data, size_t len,
+		struct ucl_parser *parser, bool check_signature, UT_string **err)
 {
-	gboolean res;
-	struct rspamd_cl_chunk *chunk;
-	guchar *buf = NULL, *sigbuf = NULL;
-	gsize buflen, siglen;
-	gchar filebuf[PATH_MAX], realbuf[PATH_MAX];
+	bool res;
+	struct ucl_chunk *chunk;
+	unsigned char *buf = NULL, *sigbuf = NULL;
+	size_t buflen, siglen;
+	char filebuf[PATH_MAX], realbuf[PATH_MAX];
 
-	rspamd_snprintf (filebuf, sizeof (filebuf), "%*s", len, data);
+	snprintf (filebuf, sizeof (filebuf), "%.*s", (int)len, data);
 	if (realpath (filebuf, realbuf) == NULL) {
-		g_set_error (err, RCL_ERROR, RSPAMD_CL_EIO, "cannot open file %s: %s",
+		ucl_create_err (err, "cannot open file %s: %s",
 									filebuf,
 									strerror (errno));
-		return FALSE;
+		return false;
 	}
 
-	if (!rspamd_cl_fetch_file (realbuf, &buf, &buflen, err)) {
-		return FALSE;
+	if (!ucl_fetch_file (realbuf, &buf, &buflen, err)) {
+		return false;
 	}
 
 	if (check_signature) {
 #if (defined(HAVE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10000000L)
 		/* We need to check signature first */
-		rspamd_snprintf (filebuf, sizeof (filebuf), "%s.sig", realbuf);
-		if (!rspamd_cl_fetch_file (filebuf, &sigbuf, &siglen, err)) {
-			return FALSE;
+		snprintf (filebuf, sizeof (filebuf), "%s.sig", realbuf);
+		if (!ucl_fetch_file (filebuf, &sigbuf, &siglen, err)) {
+			return false;
 		}
-		if (!rspamd_cl_sig_check (buf, buflen, sigbuf, siglen, parser)) {
-			g_set_error (err, RCL_ERROR, RSPAMD_CL_ESSL, "cannot verify file %s: %s",
+		if (!ucl_sig_check (buf, buflen, sigbuf, siglen, parser)) {
+			ucl_create_err (err, "cannot verify file %s: %s",
 							filebuf,
 							ERR_error_string (ERR_get_error (), NULL));
 			munmap (sigbuf, siglen);
-			return FALSE;
+			return false;
 		}
 		munmap (sigbuf, siglen);
 #endif
 	}
 
-	res = rspamd_cl_parser_add_chunk (parser, buf, buflen, err);
-	if (res == TRUE) {
+	res = ucl_parser_add_chunk (parser, buf, buflen, err);
+	if (res == true) {
 		/* Remove chunk from the stack */
 		chunk = parser->chunks;
 		if (chunk != NULL) {
 			parser->chunks = chunk->next;
-			g_slice_free1 (sizeof (struct rspamd_cl_chunk), chunk);
+			UCL_FREE (sizeof (struct ucl_chunk), chunk);
 		}
 	}
 	munmap (buf, buflen);
@@ -566,17 +564,17 @@ rspamd_cl_include_file (const guchar *data, gsize len,
  * @param err error ptr
  * @return
  */
-gboolean
-rspamd_cl_include_handler (const guchar *data, gsize len, gpointer ud, GError **err)
+bool
+ucl_include_handler (const unsigned char *data, size_t len, void* ud, UT_string **err)
 {
-	struct rspamd_cl_parser *parser = ud;
+	struct ucl_parser *parser = ud;
 
 	if (*data == '/' || *data == '.') {
 		/* Try to load a file */
-		return rspamd_cl_include_file (data, len, parser, FALSE, err);
+		return ucl_include_file (data, len, parser, false, err);
 	}
 
-	return rspamd_cl_include_url (data, len, parser, FALSE, err);
+	return ucl_include_url (data, len, parser, false, err);
 }
 
 /**
@@ -587,34 +585,80 @@ rspamd_cl_include_handler (const guchar *data, gsize len, gpointer ud, GError **
  * @param err error ptr
  * @return
  */
-gboolean
-rspamd_cl_includes_handler (const guchar *data, gsize len, gpointer ud, GError **err)
+bool
+ucl_includes_handler (const unsigned char *data, size_t len, void* ud, UT_string **err)
 {
-	struct rspamd_cl_parser *parser = ud;
+	struct ucl_parser *parser = ud;
 
 	if (*data == '/' || *data == '.') {
 		/* Try to load a file */
-		return rspamd_cl_include_file (data, len, parser, TRUE, err);
+		return ucl_include_file (data, len, parser, true, err);
 	}
 
-	return rspamd_cl_include_url (data, len, parser, TRUE, err);
+	return ucl_include_url (data, len, parser, true, err);
 }
 
-gboolean
-rspamd_cl_parser_add_file (struct rspamd_cl_parser *parser, const gchar *filename,
-		GError **err)
+bool
+ucl_parser_add_file (struct ucl_parser *parser, const char *filename,
+		UT_string **err)
 {
-	guchar *buf;
-	gsize len;
-	gboolean ret;
+	unsigned char *buf;
+	size_t len;
+	bool ret;
 
-	if (!rspamd_cl_fetch_file (filename, &buf, &len, err)) {
-		return FALSE;
+	if (!ucl_fetch_file (filename, &buf, &len, err)) {
+		return false;
 	}
 
-	ret = rspamd_cl_parser_add_chunk (parser, buf, len, err);
+	ret = ucl_parser_add_chunk (parser, buf, len, err);
 
 	munmap (buf, len);
 
 	return ret;
+}
+
+size_t
+ucl_strlcpy (char *dst, const char *src, size_t siz)
+{
+	char *d = dst;
+	const char *s = src;
+	size_t n = siz;
+
+	/* Copy as many bytes as will fit */
+	if (n != 0) {
+		while (--n != 0) {
+			if ((*d++ = *s++) == '\0') {
+				break;
+			}
+		}
+	}
+
+	if (n == 0 && siz != 0) {
+		*d = '\0';
+	}
+
+	return (s - src - 1);    /* count does not include NUL */
+}
+
+size_t
+ucl_strlcpy_tolower (char *dst, const char *src, size_t siz)
+{
+	char *d = dst;
+	const char *s = src;
+	size_t n = siz;
+
+	/* Copy as many bytes as will fit */
+	if (n != 0) {
+		while (--n != 0) {
+			if ((*d++ = tolower (*s++)) == '\0') {
+				break;
+			}
+		}
+	}
+
+	if (n == 0 && siz != 0) {
+		*d = '\0';
+	}
+
+	return (s - src - 1);    /* count does not include NUL */
 }

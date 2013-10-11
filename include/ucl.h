@@ -24,8 +24,29 @@
 #ifndef RCL_H_
 #define RCL_H_
 
-#include "config.h"
+#include <string.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdarg.h>
+#include <stdio.h>
+
 #include "uthash.h"
+#include "utstring.h"
+
+/**
+ * Memory allocation utilities
+ * UCL_ALLOC(size) - allocate memory for UCL
+ * UCL_FREE(size, ptr) - free memory of specified size at ptr
+ * Default: malloc and free
+ */
+#ifndef UCL_ALLOC
+#define UCL_ALLOC(size) malloc(size)
+#endif
+#ifndef UCL_FREE
+#define UCL_FREE(size, ptr) free(ptr)
+#endif
 
 /**
  * @file rcl.h
@@ -34,65 +55,66 @@
  * using as a configuration language
  */
 
-enum rspamd_cl_error {
-	RSPAMD_CL_EOK = 0,
-	RSPAMD_CL_ESYNTAX,
-	RSPAMD_CL_EIO,
-	RSPAMD_CL_ESTATE,
-	RSPAMD_CL_ENESTED,
-	RSPAMD_CL_EMACRO,
-	RSPAMD_CL_ERECURSION,
-	RSPAMD_CL_EINTERNAL,
-	RSPAMD_CL_ESSL
+enum ucl_error {
+	UCL_EOK = 0,   //!< UCL_EOK
+	UCL_ESYNTAX,   //!< UCL_ESYNTAX
+	UCL_EIO,       //!< UCL_EIO
+	UCL_ESTATE,    //!< UCL_ESTATE
+	UCL_ENESTED,   //!< UCL_ENESTED
+	UCL_EMACRO,    //!< UCL_EMACRO
+	UCL_ERECURSION,//!< UCL_ERECURSION
+	UCL_EINTERNAL, //!< UCL_EINTERNAL
+	UCL_ESSL       //!< UCL_ESSL
 };
 
-enum rspamd_cl_type {
-	RSPAMD_CL_OBJECT = 0,
-	RSPAMD_CL_ARRAY,
-	RSPAMD_CL_INT,
-	RSPAMD_CL_FLOAT,
-	RSPAMD_CL_STRING,
-	RSPAMD_CL_BOOLEAN,
-	RSPAMD_CL_TIME,
-	RSPAMD_CL_USERDATA
+enum ucl_type {
+	UCL_OBJECT = 0,
+	UCL_ARRAY,
+	UCL_INT,
+	UCL_FLOAT,
+	UCL_STRING,
+	UCL_BOOLEAN,
+	UCL_TIME,
+	UCL_USERDATA
 };
 
-enum rspamd_cl_emitter {
-	RSPAMD_CL_EMIT_JSON = 0,
-	RSPAMD_CL_EMIT_JSON_COMPACT,
-	RSPAMD_CL_EMIT_CONFIG
+enum ucl_emitter {
+	UCL_EMIT_JSON = 0,
+	UCL_EMIT_JSON_COMPACT,
+	UCL_EMIT_CONFIG
 };
 
-enum rspamd_cl_flags {
-	RSPAMD_CL_FLAG_KEY_LOWERCASE = 0x1
+enum ucl_flags {
+	UCL_FLAG_KEY_LOWERCASE = 0x1
 };
 
-typedef struct rspamd_cl_object_s {
-	gchar *key;								/**< the key of an object */
+typedef struct ucl_object_s {
+	char *key;								/**< the key of an object */
 	union {
-		gint64 iv;							/**< int value of an object */
-		gchar *sv;							/**< string value of an object */
-		gdouble dv;							/**< double value of an object */
-		struct rspamd_cl_object_s *ov;		/**< array or hash 			*/
-		gpointer ud;						/**< opaque user data		*/
+		int64_t iv;							/**< int value of an object */
+		char *sv;							/**< string value of an object */
+		double dv;							/**< double value of an object */
+		struct ucl_object_s *ov;		/**< array or hash 			*/
+		void* ud;						/**< opaque user data		*/
 	} value;
-	enum rspamd_cl_type type;				/**< real type				*/
-	gint ref;								/**< reference count		*/
-	struct rspamd_cl_object_s *next;		/**< array handle			*/
+	enum ucl_type type;				/**< real type				*/
+	int ref;								/**< reference count		*/
+	struct ucl_object_s *next;		/**< array handle			*/
 	UT_hash_handle hh;						/**< hash handle			*/
-} rspamd_cl_object_t;
+} ucl_object_t;
 
 
 /**
  * Creates a new object
  * @return new object
  */
-static inline rspamd_cl_object_t *
-rspamd_cl_object_new (void)
+static inline ucl_object_t *
+ucl_object_new (void)
 {
-	rspamd_cl_object_t *new;
-	new = g_slice_alloc0 (sizeof (rspamd_cl_object_t));
+	ucl_object_t *new;
+	new = malloc (sizeof (ucl_object_t));
 	if (new != NULL) {
+		memset (new, 0, sizeof (ucl_object_t));
 		new->ref = 1;
 	}
 	return new;
@@ -103,40 +125,40 @@ rspamd_cl_object_new (void)
  * Converts an object to double value
  * @param obj CL object
  * @param target target double variable
- * @return TRUE if conversion was successful
+ * @return true if conversion was successful
  */
-static inline gboolean
-rspamd_cl_obj_todouble_safe (rspamd_cl_object_t *obj, gdouble *target)
+static inline bool
+ucl_obj_todouble_safe (ucl_object_t *obj, double *target)
 {
 	if (obj == NULL) {
-		return FALSE;
+		return false;
 	}
 	switch (obj->type) {
-	case RSPAMD_CL_INT:
+	case UCL_INT:
 		*target = obj->value.iv; /* Probaly could cause overflow */
 		break;
-	case RSPAMD_CL_FLOAT:
-	case RSPAMD_CL_TIME:
+	case UCL_FLOAT:
+	case UCL_TIME:
 		*target = obj->value.dv;
 		break;
 	default:
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 /**
- * Unsafe version of \ref rspamd_cl_obj_todouble_safe
+ * Unsafe version of \ref ucl_obj_todouble_safe
  * @param obj CL object
  * @return double value
  */
-static inline gdouble
-rspamd_cl_obj_todouble (rspamd_cl_object_t *obj)
+static inline double
+ucl_obj_todouble (ucl_object_t *obj)
 {
-	gdouble result = 0.;
+	double result = 0.;
 
-	rspamd_cl_obj_todouble_safe (obj, &result);
+	ucl_obj_todouble_safe (obj, &result);
 	return result;
 }
 
@@ -144,40 +166,40 @@ rspamd_cl_obj_todouble (rspamd_cl_object_t *obj)
  * Converts an object to integer value
  * @param obj CL object
  * @param target target integer variable
- * @return TRUE if conversion was successful
+ * @return true if conversion was successful
  */
-static inline gboolean
-rspamd_cl_obj_toint_safe (rspamd_cl_object_t *obj, gint64 *target)
+static inline bool
+ucl_obj_toint_safe (ucl_object_t *obj, int64_t *target)
 {
 	if (obj == NULL) {
-		return FALSE;
+		return false;
 	}
 	switch (obj->type) {
-	case RSPAMD_CL_INT:
+	case UCL_INT:
 		*target = obj->value.iv;
 		break;
-	case RSPAMD_CL_FLOAT:
-	case RSPAMD_CL_TIME:
+	case UCL_FLOAT:
+	case UCL_TIME:
 		*target = obj->value.dv; /* Loosing of decimal points */
 		break;
 	default:
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 /**
- * Unsafe version of \ref rspamd_cl_obj_toint_safe
+ * Unsafe version of \ref ucl_obj_toint_safe
  * @param obj CL object
  * @return int value
  */
-static inline gint64
-rspamd_cl_obj_toint (rspamd_cl_object_t *obj)
+static inline int64_t
+ucl_obj_toint (ucl_object_t *obj)
 {
-	gint64 result = 0;
+	int64_t result = 0;
 
-	rspamd_cl_obj_toint_safe (obj, &result);
+	ucl_obj_toint_safe (obj, &result);
 	return result;
 }
 
@@ -185,36 +207,36 @@ rspamd_cl_obj_toint (rspamd_cl_object_t *obj)
  * Converts an object to boolean value
  * @param obj CL object
  * @param target target boolean variable
- * @return TRUE if conversion was successful
+ * @return true if conversion was successful
  */
-static inline gboolean
-rspamd_cl_obj_toboolean_safe (rspamd_cl_object_t *obj, gboolean *target)
+static inline bool
+ucl_obj_toboolean_safe (ucl_object_t *obj, bool *target)
 {
 	if (obj == NULL) {
-		return FALSE;
+		return false;
 	}
 	switch (obj->type) {
-	case RSPAMD_CL_BOOLEAN:
-		*target = (obj->value.iv == TRUE);
+	case UCL_BOOLEAN:
+		*target = (obj->value.iv == true);
 		break;
 	default:
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 /**
- * Unsafe version of \ref rspamd_cl_obj_toboolean_safe
+ * Unsafe version of \ref ucl_obj_toboolean_safe
  * @param obj CL object
  * @return boolean value
  */
-static inline gboolean
-rspamd_cl_obj_toboolean (rspamd_cl_object_t *obj)
+static inline bool
+ucl_obj_toboolean (ucl_object_t *obj)
 {
-	gboolean result = FALSE;
+	bool result = false;
 
-	rspamd_cl_obj_toboolean_safe (obj, &result);
+	ucl_obj_toboolean_safe (obj, &result);
 	return result;
 }
 
@@ -222,52 +244,52 @@ rspamd_cl_obj_toboolean (rspamd_cl_object_t *obj)
  * Converts an object to string value
  * @param obj CL object
  * @param target target string variable, no need to free value
- * @return TRUE if conversion was successful
+ * @return true if conversion was successful
  */
-static inline gboolean
-rspamd_cl_obj_tostring_safe (rspamd_cl_object_t *obj, const gchar **target)
+static inline bool
+ucl_obj_tostring_safe (ucl_object_t *obj, const char **target)
 {
 	if (obj == NULL) {
-		return FALSE;
+		return false;
 	}
 	switch (obj->type) {
-	case RSPAMD_CL_STRING:
+	case UCL_STRING:
 		*target = obj->value.sv;
 		break;
 	default:
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 /**
- * Unsafe version of \ref rspamd_cl_obj_tostring_safe
+ * Unsafe version of \ref ucl_obj_tostring_safe
  * @param obj CL object
  * @return string value
  */
-static inline const gchar *
-rspamd_cl_obj_tostring (rspamd_cl_object_t *obj)
+static inline const char *
+ucl_obj_tostring (ucl_object_t *obj)
 {
-	const gchar *result = NULL;
+	const char *result = NULL;
 
-	rspamd_cl_obj_tostring_safe (obj, &result);
+	ucl_obj_tostring_safe (obj, &result);
 	return result;
 }
 
 /**
  * Return object identified by a key in the specified object
- * @param obj object to get a key from (must be of type RSPAMD_CL_OBJECT)
+ * @param obj object to get a key from (must be of type UCL_OBJECT)
  * @param key key to search
  * @return object matched the specified key or NULL if key is not found
  */
-static inline rspamd_cl_object_t *
-rspamd_cl_obj_get_key (rspamd_cl_object_t *obj, const gchar *key)
+static inline ucl_object_t *
+ucl_obj_get_key (ucl_object_t *obj, const char *key)
 {
-	gsize keylen;
-	rspamd_cl_object_t *ret;
+	size_t keylen;
+	ucl_object_t *ret;
 
-	if (obj == NULL || obj->type != RSPAMD_CL_OBJECT || key == NULL) {
+	if (obj == NULL || obj->type != UCL_OBJECT || key == NULL) {
 		return NULL;
 	}
 
@@ -283,19 +305,19 @@ rspamd_cl_obj_get_key (rspamd_cl_object_t *obj, const gchar *key)
  * @param len the length of content
  * @param ud opaque user data
  * @param err error pointer
- * @return TRUE if macro has been parsed
+ * @return true if macro has been parsed
  */
-typedef gboolean (*rspamd_cl_macro_handler) (const guchar *data, gsize len, gpointer ud, GError **err);
+typedef bool (*ucl_macro_handler) (const unsigned char *data, size_t len, void* ud, UT_string **err);
 
 /* Opaque parser */
-struct rspamd_cl_parser;
+struct ucl_parser;
 
 /**
  * Creates new parser object
  * @param pool pool to allocate memory from
  * @return new parser object
  */
-struct rspamd_cl_parser* rspamd_cl_parser_new (gint flags);
+struct ucl_parser* ucl_parser_new (int flags);
 
 /**
  * Register new handler for a macro
@@ -304,8 +326,8 @@ struct rspamd_cl_parser* rspamd_cl_parser_new (gint flags);
  * @param handler handler (it is called immediately after macro is parsed)
  * @param ud opaque user data for a handler
  */
-void rspamd_cl_parser_register_macro (struct rspamd_cl_parser *parser, const gchar *macro,
-		rspamd_cl_macro_handler handler, gpointer ud);
+void ucl_parser_register_macro (struct ucl_parser *parser, const char *macro,
+		ucl_macro_handler handler, void* ud);
 
 /**
  * Load new chunk to a parser
@@ -313,20 +335,20 @@ void rspamd_cl_parser_register_macro (struct rspamd_cl_parser *parser, const gch
  * @param data the pointer to the beginning of a chunk
  * @param len the length of a chunk
  * @param err if *err is NULL it is set to parser error
- * @return TRUE if chunk has been added and FALSE in case of error
+ * @return true if chunk has been added and false in case of error
  */
-gboolean rspamd_cl_parser_add_chunk (struct rspamd_cl_parser *parser, const guchar *data,
-		gsize len, GError **err);
+bool ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
+		size_t len, UT_string **err);
 
 /**
  * Load and add data from a file
  * @param parser parser structure
  * @param filename the name of file
  * @param err if *err is NULL it is set to parser error
- * @return TRUE if chunk has been added and FALSE in case of error
+ * @return true if chunk has been added and false in case of error
  */
-gboolean rspamd_cl_parser_add_file (struct rspamd_cl_parser *parser, const gchar *filename,
-		GError **err);
+bool ucl_parser_add_file (struct ucl_parser *parser, const char *filename,
+		UT_string **err);
 
 /**
  * Get a top object for a parser
@@ -334,26 +356,26 @@ gboolean rspamd_cl_parser_add_file (struct rspamd_cl_parser *parser, const gchar
  * @param err if *err is NULL it is set to parser error
  * @return top parser object or NULL
  */
-rspamd_cl_object_t* rspamd_cl_parser_get_object (struct rspamd_cl_parser *parser, GError **err);
+ucl_object_t* ucl_parser_get_object (struct ucl_parser *parser, UT_string **err);
 
 /**
  * Free cl parser object
  * @param parser parser object
  */
-void rspamd_cl_parser_free (struct rspamd_cl_parser *parser);
+void ucl_parser_free (struct ucl_parser *parser);
 
 /**
  * Free cl object
  * @param obj cl object to free
  */
-void rspamd_cl_obj_free (rspamd_cl_object_t *obj);
+void ucl_obj_free (ucl_object_t *obj);
 
 /**
  * Icrease reference count for an object
  * @param obj object to ref
  */
-static inline rspamd_cl_object_t *
-rspamd_cl_obj_ref (rspamd_cl_object_t *obj) {
+static inline ucl_object_t *
+ucl_obj_ref (ucl_object_t *obj) {
 	obj->ref ++;
 	return obj;
 }
@@ -363,20 +385,20 @@ rspamd_cl_obj_ref (rspamd_cl_object_t *obj) {
  * @param obj object to unref
  */
 static inline void
-rspamd_cl_obj_unref (rspamd_cl_object_t *obj) {
+ucl_obj_unref (ucl_object_t *obj) {
 	if (--obj->ref <= 0) {
-		rspamd_cl_obj_free (obj);
+		ucl_obj_free (obj);
 	}
 }
 
 /**
  * Emit object to a string
  * @param obj object
- * @param emit_type if type is RSPAMD_CL_EMIT_JSON then emit json, if type is
- * RSPAMD_CL_EMIT_CONFIG then emit config like object
+ * @param emit_type if type is UCL_EMIT_JSON then emit json, if type is
+ * UCL_EMIT_CONFIG then emit config like object
  * @return dump of an object (must be freed after using) or NULL in case of error
  */
-guchar *rspamd_cl_object_emit (rspamd_cl_object_t *obj, enum rspamd_cl_emitter emit_type);
+unsigned char *ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type);
 
 /**
  * Add new public key to parser for signatures check
@@ -384,8 +406,8 @@ guchar *rspamd_cl_object_emit (rspamd_cl_object_t *obj, enum rspamd_cl_emitter e
  * @param key PEM representation of a key
  * @param len length of the key
  * @param err if *err is NULL it is set to parser error
- * @return TRUE if a key has been successfully added
+ * @return true if a key has been successfully added
  */
-gboolean rspamd_cl_pubkey_add (struct rspamd_cl_parser *parser, const guchar *key, gsize len, GError **err);
+bool ucl_pubkey_add (struct ucl_parser *parser, const unsigned char *key, size_t len, UT_string **err);
 
 #endif /* RCL_H_ */

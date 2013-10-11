@@ -21,9 +21,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "rcl.h"
-#include "rcl_internal.h"
+#include "ucl.h"
+#include "ucl_internal.h"
 
 /**
  * @file rcl_emitter.c
@@ -31,9 +30,9 @@
  */
 
 
-static void rspamd_cl_elt_write_json (rspamd_cl_object_t *obj, GString *buf, guint tabs, gboolean start_tabs, gboolean compact);
-static void rspamd_cl_obj_write_json (rspamd_cl_object_t *obj, GString *buf, guint tabs, gboolean start_tabs, gboolean compact);
-static void rspamd_cl_elt_write_rcl (rspamd_cl_object_t *obj, GString *buf, guint tabs, gboolean start_tabs, gboolean is_top);
+static void ucl_elt_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool compact);
+static void ucl_obj_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool compact);
+static void ucl_elt_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool is_top);
 
 /**
  * Add tabulation to the output buffer
@@ -41,10 +40,10 @@ static void rspamd_cl_elt_write_rcl (rspamd_cl_object_t *obj, GString *buf, guin
  * @param tabs number of tabs to add
  */
 static inline void
-rspamd_cl_add_tabs (GString *buf, guint tabs, gboolean compact)
+ucl_add_tabs (UT_string *buf, unsigned int tabs, bool compact)
 {
 	while (!compact && tabs--) {
-		g_string_append_len (buf, "    ", 4);
+		utstring_append_len (buf, "    ", 4);
 	}
 }
 
@@ -54,41 +53,41 @@ rspamd_cl_add_tabs (GString *buf, guint tabs, gboolean compact)
  * @param buf target buffer
  */
 static void
-rspamd_cl_elt_string_write_json (const gchar *str, GString *buf)
+ucl_elt_string_write_json (const char *str, UT_string *buf)
 {
-	const gchar *p = str;
+	const char *p = str;
 
-	g_string_append_c (buf, '"');
+	utstring_append_c (buf, '"');
 	while (*p != '\0') {
 		switch (*p) {
 		case '\n':
-			g_string_append_len (buf, "\\n", 2);
+			utstring_append_len (buf, "\\n", 2);
 			break;
 		case '\r':
-			g_string_append_len (buf, "\\r", 2);
+			utstring_append_len (buf, "\\r", 2);
 			break;
 		case '\b':
-			g_string_append_len (buf, "\\b", 2);
+			utstring_append_len (buf, "\\b", 2);
 			break;
 		case '\t':
-			g_string_append_len (buf, "\\t", 2);
+			utstring_append_len (buf, "\\t", 2);
 			break;
 		case '\f':
-			g_string_append_len (buf, "\\f", 2);
+			utstring_append_len (buf, "\\f", 2);
 			break;
 		case '\\':
-			g_string_append_len (buf, "\\\\", 2);
+			utstring_append_len (buf, "\\\\", 2);
 			break;
 		case '"':
-			g_string_append_len (buf, "\\\"", 2);
+			utstring_append_len (buf, "\\\"", 2);
 			break;
 		default:
-			g_string_append_c (buf, *p);
+			utstring_append_c (buf, *p);
 			break;
 		}
 		p ++;
 	}
-	g_string_append_c (buf, '"');
+	utstring_append_c (buf, '"');
 }
 
 /**
@@ -97,43 +96,43 @@ rspamd_cl_elt_string_write_json (const gchar *str, GString *buf)
  * @param buf target buffer
  */
 static void
-rspamd_cl_elt_obj_write_json (rspamd_cl_object_t *obj, GString *buf, guint tabs, gboolean start_tabs, gboolean compact)
+ucl_elt_obj_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool compact)
 {
-	rspamd_cl_object_t *cur, *tmp;
+	ucl_object_t *cur, *tmp;
 
 	if (start_tabs) {
-		rspamd_cl_add_tabs (buf, tabs, compact);
+		ucl_add_tabs (buf, tabs, compact);
 	}
 	if (compact) {
-		g_string_append_c (buf, '{');
+		utstring_append_c (buf, '{');
 	}
 	else {
-		g_string_append_len (buf, "{\n", 2);
+		utstring_append_len (buf, "{\n", 2);
 	}
 	HASH_ITER (hh, obj, cur, tmp) {
-		rspamd_cl_add_tabs (buf, tabs + 1, compact);
-		rspamd_cl_elt_string_write_json (cur->key, buf);
+		ucl_add_tabs (buf, tabs + 1, compact);
+		ucl_elt_string_write_json (cur->key, buf);
 		if (compact) {
-			g_string_append_c (buf, ':');
+			utstring_append_c (buf, ':');
 		}
 		else {
-			g_string_append_len (buf, ": ", 2);
+			utstring_append_len (buf, ": ", 2);
 		}
-		rspamd_cl_obj_write_json (cur, buf, tabs + 1, FALSE, compact);
+		ucl_obj_write_json (cur, buf, tabs + 1, false, compact);
 		if (cur->hh.next != NULL) {
 			if (compact) {
-				g_string_append_c (buf, ',');
+				utstring_append_c (buf, ',');
 			}
 			else {
-				g_string_append_len (buf, ",\n", 2);
+				utstring_append_len (buf, ",\n", 2);
 			}
 		}
 		else if (!compact) {
-			g_string_append_c (buf, '\n');
+			utstring_append_c (buf, '\n');
 		}
 	}
-	rspamd_cl_add_tabs (buf, tabs, compact);
-	g_string_append_c (buf, '}');
+	ucl_add_tabs (buf, tabs, compact);
+	utstring_append_c (buf, '}');
 }
 
 /**
@@ -142,36 +141,36 @@ rspamd_cl_elt_obj_write_json (rspamd_cl_object_t *obj, GString *buf, guint tabs,
  * @param buf target buffer
  */
 static void
-rspamd_cl_elt_array_write_json (rspamd_cl_object_t *obj, GString *buf, guint tabs, gboolean start_tabs, gboolean compact)
+ucl_elt_array_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool compact)
 {
-	rspamd_cl_object_t *cur = obj;
+	ucl_object_t *cur = obj;
 
 	if (start_tabs) {
-		rspamd_cl_add_tabs (buf, tabs, compact);
+		ucl_add_tabs (buf, tabs, compact);
 	}
 	if (compact) {
-		g_string_append_c (buf, '[');
+		utstring_append_c (buf, '[');
 	}
 	else {
-		g_string_append_len (buf, "[\n", 2);
+		utstring_append_len (buf, "[\n", 2);
 	}
 	while (cur) {
-		rspamd_cl_elt_write_json (cur, buf, tabs + 1, TRUE, compact);
+		ucl_elt_write_json (cur, buf, tabs + 1, true, compact);
 		if (cur->next != NULL) {
 			if (compact) {
-				g_string_append_c (buf, ',');
+				utstring_append_c (buf, ',');
 			}
 			else {
-				g_string_append_len (buf, ",\n", 2);
+				utstring_append_len (buf, ",\n", 2);
 			}
 		}
 		else if (!compact) {
-			g_string_append_c (buf, '\n');
+			utstring_append_c (buf, '\n');
 		}
 		cur = cur->next;
 	}
-	rspamd_cl_add_tabs (buf, tabs, compact);
-	g_string_append_c (buf, ']');
+	ucl_add_tabs (buf, tabs, compact);
+	utstring_append_c (buf, ']');
 }
 
 /**
@@ -180,46 +179,46 @@ rspamd_cl_elt_array_write_json (rspamd_cl_object_t *obj, GString *buf, guint tab
  * @param buf buffer
  */
 static void
-rspamd_cl_elt_write_json (rspamd_cl_object_t *obj, GString *buf, guint tabs, gboolean start_tabs, gboolean compact)
+ucl_elt_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool compact)
 {
 	switch (obj->type) {
-	case RSPAMD_CL_INT:
+	case UCL_INT:
 		if (start_tabs) {
-			rspamd_cl_add_tabs (buf, tabs, compact);
+			ucl_add_tabs (buf, tabs, compact);
 		}
-		g_string_append_printf (buf, "%ld", (long int)rspamd_cl_obj_toint (obj));
+		utstring_printf (buf, "%ld", (long int)ucl_obj_toint (obj));
 		break;
-	case RSPAMD_CL_FLOAT:
+	case UCL_FLOAT:
 		if (start_tabs) {
-			rspamd_cl_add_tabs (buf, tabs, compact);
+			ucl_add_tabs (buf, tabs, compact);
 		}
-		g_string_append_printf (buf, "%lf", rspamd_cl_obj_todouble (obj));
+		utstring_printf (buf, "%lf", ucl_obj_todouble (obj));
 		break;
-	case RSPAMD_CL_TIME:
+	case UCL_TIME:
 		if (start_tabs) {
-			rspamd_cl_add_tabs (buf, tabs, compact);
+			ucl_add_tabs (buf, tabs, compact);
 		}
-		g_string_append_printf (buf, "%lf", rspamd_cl_obj_todouble (obj));
+		utstring_printf (buf, "%lf", ucl_obj_todouble (obj));
 		break;
-	case RSPAMD_CL_BOOLEAN:
+	case UCL_BOOLEAN:
 		if (start_tabs) {
-			rspamd_cl_add_tabs (buf, tabs, compact);
+			ucl_add_tabs (buf, tabs, compact);
 		}
-		g_string_append_printf (buf, "%s", rspamd_cl_obj_toboolean (obj) ? "true" : "false");
+		utstring_printf (buf, "%s", ucl_obj_toboolean (obj) ? "true" : "false");
 		break;
-	case RSPAMD_CL_STRING:
+	case UCL_STRING:
 		if (start_tabs) {
-			rspamd_cl_add_tabs (buf, tabs, compact);
+			ucl_add_tabs (buf, tabs, compact);
 		}
-		rspamd_cl_elt_string_write_json (rspamd_cl_obj_tostring (obj), buf);
+		ucl_elt_string_write_json (ucl_obj_tostring (obj), buf);
 		break;
-	case RSPAMD_CL_OBJECT:
-		rspamd_cl_elt_obj_write_json (obj->value.ov, buf, tabs, start_tabs, compact);
+	case UCL_OBJECT:
+		ucl_elt_obj_write_json (obj->value.ov, buf, tabs, start_tabs, compact);
 		break;
-	case RSPAMD_CL_ARRAY:
-		rspamd_cl_elt_array_write_json (obj->value.ov, buf, tabs, start_tabs, compact);
+	case UCL_ARRAY:
+		ucl_elt_array_write_json (obj->value.ov, buf, tabs, start_tabs, compact);
 		break;
-	case RSPAMD_CL_USERDATA:
+	case UCL_USERDATA:
 		break;
 	}
 }
@@ -230,39 +229,39 @@ rspamd_cl_elt_write_json (rspamd_cl_object_t *obj, GString *buf, guint tabs, gbo
  * @param buf target buffer
  */
 static void
-rspamd_cl_obj_write_json (rspamd_cl_object_t *obj, GString *buf, guint tabs, gboolean start_tabs, gboolean compact)
+ucl_obj_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool compact)
 {
-	rspamd_cl_object_t *cur;
-	gboolean is_array = (obj->next != NULL);
+	ucl_object_t *cur;
+	bool is_array = (obj->next != NULL);
 
 	if (is_array) {
 		/* This is an array actually */
 		if (start_tabs) {
-			rspamd_cl_add_tabs (buf, tabs, compact);
+			ucl_add_tabs (buf, tabs, compact);
 		}
 
 		if (compact) {
-			g_string_append_c (buf, '[');
+			utstring_append_c (buf, '[');
 		}
 		else {
-			g_string_append_len (buf, "[\n", 2);
+			utstring_append_len (buf, "[\n", 2);
 		}
 		cur = obj;
 		while (cur != NULL) {
-			rspamd_cl_elt_write_json (cur, buf, tabs + 1, TRUE, compact);
+			ucl_elt_write_json (cur, buf, tabs + 1, true, compact);
 			if (cur->next) {
-				g_string_append_c (buf, ',');
+				utstring_append_c (buf, ',');
 			}
 			if (!compact) {
-				g_string_append_c (buf, '\n');
+				utstring_append_c (buf, '\n');
 			}
 			cur = cur->next;
 		}
-		rspamd_cl_add_tabs (buf, tabs, compact);
-		g_string_append_c (buf, ']');
+		ucl_add_tabs (buf, tabs, compact);
+		utstring_append_c (buf, ']');
 	}
 	else {
-		rspamd_cl_elt_write_json (obj, buf, tabs, start_tabs, compact);
+		ucl_elt_write_json (obj, buf, tabs, start_tabs, compact);
 	}
 
 }
@@ -272,19 +271,19 @@ rspamd_cl_obj_write_json (rspamd_cl_object_t *obj, GString *buf, guint tabs, gbo
  * @param obj object
  * @return json output (should be freed after using)
  */
-static guchar *
-rspamd_cl_object_emit_json (rspamd_cl_object_t *obj, gboolean compact)
+static unsigned char *
+ucl_object_emit_json (ucl_object_t *obj, bool compact)
 {
-	GString *buf;
-	guchar *res;
+	UT_string *buf;
+	unsigned char *res;
 
 	/* Allocate large enough buffer */
-	buf = g_string_sized_new (BUFSIZ);
+	utstring_new (buf);
 
-	rspamd_cl_obj_write_json (obj, buf, 0, FALSE, compact);
+	ucl_obj_write_json (obj, buf, 0, false, compact);
 
-	res = buf->str;
-	g_string_free (buf, FALSE);
+	res = utstring_body (buf);
+	utstring_free (buf);
 
 	return res;
 }
@@ -295,40 +294,40 @@ rspamd_cl_object_emit_json (rspamd_cl_object_t *obj, gboolean compact)
  * @param buf target buffer
  */
 static void
-rspamd_cl_elt_obj_write_rcl (rspamd_cl_object_t *obj, GString *buf, guint tabs, gboolean start_tabs, gboolean is_top)
+ucl_elt_obj_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool is_top)
 {
-	rspamd_cl_object_t *cur, *tmp;
+	ucl_object_t *cur, *tmp;
 
 	if (start_tabs) {
-		rspamd_cl_add_tabs (buf, tabs, is_top);
+		ucl_add_tabs (buf, tabs, is_top);
 	}
 	if (!is_top) {
-		g_string_append_len (buf, "{\n", 2);
+		utstring_append_len (buf, "{\n", 2);
 	}
 
 	while (obj) {
 		HASH_ITER (hh, obj, cur, tmp) {
-			rspamd_cl_add_tabs (buf, tabs + 1, is_top);
-			g_string_append (buf, cur->key);
-			if (cur->type != RSPAMD_CL_OBJECT && cur->type != RSPAMD_CL_ARRAY) {
-				g_string_append_len (buf, " = ", 3);
+			ucl_add_tabs (buf, tabs + 1, is_top);
+			utstring_append_len (buf, cur->key, strlen (cur->key));
+			if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
+				utstring_append_len (buf, " = ", 3);
 			}
 			else {
-				g_string_append_c (buf, ' ');
+				utstring_append_c (buf, ' ');
 			}
-			rspamd_cl_elt_write_rcl (cur, buf, is_top ? tabs : tabs + 1, FALSE, FALSE);
-			if (cur->type != RSPAMD_CL_OBJECT && cur->type != RSPAMD_CL_ARRAY) {
-				g_string_append_len (buf, ";\n", 2);
+			ucl_elt_write_rcl (cur, buf, is_top ? tabs : tabs + 1, false, false);
+			if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
+				utstring_append_len (buf, ";\n", 2);
 			}
 			else {
-				g_string_append_c (buf, '\n');
+				utstring_append_c (buf, '\n');
 			}
 		}
 		obj = obj->next;
 	}
-	rspamd_cl_add_tabs (buf, tabs, is_top);
+	ucl_add_tabs (buf, tabs, is_top);
 	if (!is_top) {
-		g_string_append_c (buf, '}');
+		utstring_append_c (buf, '}');
 	}
 }
 
@@ -338,22 +337,22 @@ rspamd_cl_elt_obj_write_rcl (rspamd_cl_object_t *obj, GString *buf, guint tabs, 
  * @param buf target buffer
  */
 static void
-rspamd_cl_elt_array_write_rcl (rspamd_cl_object_t *obj, GString *buf, guint tabs, gboolean start_tabs, gboolean is_top)
+ucl_elt_array_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool is_top)
 {
-	rspamd_cl_object_t *cur = obj;
+	ucl_object_t *cur = obj;
 
 	if (start_tabs) {
-		rspamd_cl_add_tabs (buf, tabs, FALSE);
+		ucl_add_tabs (buf, tabs, false);
 	}
 
-	g_string_append_len (buf, "[\n", 2);
+	utstring_append_len (buf, "[\n", 2);
 	while (cur) {
-		rspamd_cl_elt_write_rcl (cur, buf, tabs + 1, TRUE, FALSE);
-		g_string_append_len (buf, ",\n", 2);
+		ucl_elt_write_rcl (cur, buf, tabs + 1, true, false);
+		utstring_append_len (buf, ",\n", 2);
 		cur = cur->next;
 	}
-	rspamd_cl_add_tabs (buf, tabs, FALSE);
-	g_string_append_c (buf, ']');
+	ucl_add_tabs (buf, tabs, false);
+	utstring_append_c (buf, ']');
 }
 
 /**
@@ -362,46 +361,46 @@ rspamd_cl_elt_array_write_rcl (rspamd_cl_object_t *obj, GString *buf, guint tabs
  * @param buf buffer
  */
 static void
-rspamd_cl_elt_write_rcl (rspamd_cl_object_t *obj, GString *buf, guint tabs, gboolean start_tabs, gboolean is_top)
+ucl_elt_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool is_top)
 {
 	switch (obj->type) {
-	case RSPAMD_CL_INT:
+	case UCL_INT:
 		if (start_tabs) {
-			rspamd_cl_add_tabs (buf, tabs, FALSE);
+			ucl_add_tabs (buf, tabs, false);
 		}
-		g_string_append_printf (buf, "%ld", (long int)rspamd_cl_obj_toint (obj));
+		utstring_printf (buf, "%ld", (long int)ucl_obj_toint (obj));
 		break;
-	case RSPAMD_CL_FLOAT:
+	case UCL_FLOAT:
 		if (start_tabs) {
-			rspamd_cl_add_tabs (buf, tabs, FALSE);
+			ucl_add_tabs (buf, tabs, false);
 		}
-		g_string_append_printf (buf, "%.4lf", rspamd_cl_obj_todouble (obj));
+		utstring_printf (buf, "%.4lf", ucl_obj_todouble (obj));
 		break;
-	case RSPAMD_CL_TIME:
+	case UCL_TIME:
 		if (start_tabs) {
-			rspamd_cl_add_tabs (buf, tabs, FALSE);
+			ucl_add_tabs (buf, tabs, false);
 		}
-		g_string_append_printf (buf, "%.4lf", rspamd_cl_obj_todouble (obj));
+		utstring_printf (buf, "%.4lf", ucl_obj_todouble (obj));
 		break;
-	case RSPAMD_CL_BOOLEAN:
+	case UCL_BOOLEAN:
 		if (start_tabs) {
-			rspamd_cl_add_tabs (buf, tabs, FALSE);
+			ucl_add_tabs (buf, tabs, false);
 		}
-		g_string_append_printf (buf, "%s", rspamd_cl_obj_toboolean (obj) ? "true" : "false");
+		utstring_printf (buf, "%s", ucl_obj_toboolean (obj) ? "true" : "false");
 		break;
-	case RSPAMD_CL_STRING:
+	case UCL_STRING:
 		if (start_tabs) {
-			rspamd_cl_add_tabs (buf, tabs, FALSE);
+			ucl_add_tabs (buf, tabs, false);
 		}
-		rspamd_cl_elt_string_write_json (rspamd_cl_obj_tostring (obj), buf);
+		ucl_elt_string_write_json (ucl_obj_tostring (obj), buf);
 		break;
-	case RSPAMD_CL_OBJECT:
-		rspamd_cl_elt_obj_write_rcl (obj->value.ov, buf, tabs, start_tabs, is_top);
+	case UCL_OBJECT:
+		ucl_elt_obj_write_rcl (obj->value.ov, buf, tabs, start_tabs, is_top);
 		break;
-	case RSPAMD_CL_ARRAY:
-		rspamd_cl_elt_array_write_rcl (obj->value.ov, buf, tabs, start_tabs, is_top);
+	case UCL_ARRAY:
+		ucl_elt_array_write_rcl (obj->value.ov, buf, tabs, start_tabs, is_top);
 		break;
-	case RSPAMD_CL_USERDATA:
+	case UCL_USERDATA:
 		break;
 	}
 }
@@ -411,34 +410,34 @@ rspamd_cl_elt_write_rcl (rspamd_cl_object_t *obj, GString *buf, guint tabs, gboo
  * @param obj object
  * @return rcl output (should be freed after using)
  */
-static guchar *
-rspamd_cl_object_emit_rcl (rspamd_cl_object_t *obj)
+static unsigned char *
+ucl_object_emit_rcl (ucl_object_t *obj)
 {
-	GString *buf;
-	guchar *res;
+	UT_string *buf;
+	unsigned char *res;
 
 	/* Allocate large enough buffer */
-	buf = g_string_sized_new (BUFSIZ);
+	utstring_new (buf);
 
-	rspamd_cl_elt_write_rcl (obj, buf, 0, FALSE, TRUE);
+	ucl_elt_write_rcl (obj, buf, 0, false, true);
 
-	res = buf->str;
-	g_string_free (buf, FALSE);
+	res = utstring_body (buf);
+	utstring_free (buf);
 
 	return res;
 }
 
-guchar *
-rspamd_cl_object_emit (rspamd_cl_object_t *obj, enum rspamd_cl_emitter emit_type)
+unsigned char *
+ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type)
 {
-	if (emit_type == RSPAMD_CL_EMIT_JSON) {
-		return rspamd_cl_object_emit_json (obj, FALSE);
+	if (emit_type == UCL_EMIT_JSON) {
+		return ucl_object_emit_json (obj, false);
 	}
-	else if (emit_type == RSPAMD_CL_EMIT_JSON_COMPACT) {
-		return rspamd_cl_object_emit_json (obj, TRUE);
+	else if (emit_type == UCL_EMIT_JSON_COMPACT) {
+		return ucl_object_emit_json (obj, true);
 	}
 	else {
-		return rspamd_cl_object_emit_rcl (obj);
+		return ucl_object_emit_rcl (obj);
 	}
 
 	return NULL;

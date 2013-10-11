@@ -21,10 +21,20 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RCL_INTERNAL_H_
-#define RCL_INTERNAL_H_
+#ifndef UCL_INTERNAL_H_
+#define UCL_INTERNAL_H_
 
-#include "rcl.h"
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+
+#include <limits.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <ctype.h>
+
 #include "utlist.h"
 #ifdef HAVE_OPENSSL
 #include <openssl/evp.h>
@@ -32,84 +42,77 @@
 
 /**
  * @file rcl_internal.h
- * Internal structures and functions of RCL library
+ * Internal structures and functions of UCL library
  */
 
-#define RCL_ERROR rcl_error_quark ()
-static inline GQuark
-rcl_error_quark (void)
-{
-	return g_quark_from_static_string ("rcl-error-quark");
-}
+#define UCL_MAX_RECURSION 16
 
-#define RCL_MAX_RECURSION 16
-
-enum rspamd_cl_parser_state {
-	RSPAMD_RCL_STATE_INIT = 0,
-	RSPAMD_RCL_STATE_OBJECT,
-	RSPAMD_RCL_STATE_ARRAY,
-	RSPAMD_RCL_STATE_KEY,
-	RSPAMD_RCL_STATE_VALUE,
-	RSPAMD_RCL_STATE_AFTER_VALUE,
-	RSPAMD_RCL_STATE_ARRAY_VALUE,
-	RSPAMD_RCL_STATE_SCOMMENT,
-	RSPAMD_RCL_STATE_MCOMMENT,
-	RSPAMD_RCL_STATE_MACRO_NAME,
-	RSPAMD_RCL_STATE_MACRO,
-	RSPAMD_RCL_STATE_ERROR
+enum ucl_parser_state {
+	UCL_STATE_INIT = 0,
+	UCL_STATE_OBJECT,
+	UCL_STATE_ARRAY,
+	UCL_STATE_KEY,
+	UCL_STATE_VALUE,
+	UCL_STATE_AFTER_VALUE,
+	UCL_STATE_ARRAY_VALUE,
+	UCL_STATE_SCOMMENT,
+	UCL_STATE_MCOMMENT,
+	UCL_STATE_MACRO_NAME,
+	UCL_STATE_MACRO,
+	UCL_STATE_ERROR
 };
 
-struct rspamd_cl_macro {
-	gchar *name;
-	rspamd_cl_macro_handler handler;
-	gpointer ud;
+struct ucl_macro {
+	char *name;
+	ucl_macro_handler handler;
+	void* ud;
 	UT_hash_handle hh;
 };
 
-struct rspamd_cl_stack {
-	rspamd_cl_object_t *obj;
-	struct rspamd_cl_stack *next;
+struct ucl_stack {
+	ucl_object_t *obj;
+	struct ucl_stack *next;
 };
 
-struct rspamd_cl_chunk {
-	const guchar *begin;
-	const guchar *end;
-	const guchar *pos;
-	gsize remain;
-	guint line;
-	guint column;
-	struct rspamd_cl_chunk *next;
+struct ucl_chunk {
+	const unsigned char *begin;
+	const unsigned char *end;
+	const unsigned char *pos;
+	size_t remain;
+	unsigned int line;
+	unsigned int column;
+	struct ucl_chunk *next;
 };
 
 #ifdef HAVE_OPENSSL
-struct rspamd_cl_pubkey {
+struct ucl_pubkey {
 	EVP_PKEY *key;
-	struct rspamd_cl_pubkey *next;
+	struct ucl_pubkey *next;
 };
 #else
-struct rspamd_cl_pubkey {
-	struct rspamd_cl_pubkey *next;
+struct ucl_pubkey {
+	struct ucl_pubkey *next;
 };
 #endif
 
-struct rspamd_cl_parser {
-	enum rspamd_cl_parser_state state;
-	enum rspamd_cl_parser_state prev_state;
-	guint recursion;
-	gint flags;
-	rspamd_cl_object_t *top_obj;
-	rspamd_cl_object_t *cur_obj;
-	struct rspamd_cl_macro *macroes;
-	struct rspamd_cl_stack *stack;
-	struct rspamd_cl_chunk *chunks;
-	struct rspamd_cl_pubkey *keys;
+struct ucl_parser {
+	enum ucl_parser_state state;
+	enum ucl_parser_state prev_state;
+	unsigned int recursion;
+	int flags;
+	ucl_object_t *top_obj;
+	ucl_object_t *cur_obj;
+	struct ucl_macro *macroes;
+	struct ucl_stack *stack;
+	struct ucl_chunk *chunks;
+	struct ucl_pubkey *keys;
 };
 
 /**
  * Unescape json string inplace
  * @param str
  */
-void rspamd_cl_unescape_json_string (gchar *str);
+void ucl_unescape_json_string (char *str);
 
 /**
  * Handle include macro
@@ -119,7 +122,7 @@ void rspamd_cl_unescape_json_string (gchar *str);
  * @param err error ptr
  * @return
  */
-gboolean rspamd_cl_include_handler (const guchar *data, gsize len, gpointer ud, GError **err);
+bool ucl_include_handler (const unsigned char *data, size_t len, void* ud, UT_string **err);
 
 /**
  * Handle includes macro
@@ -129,6 +132,28 @@ gboolean rspamd_cl_include_handler (const guchar *data, gsize len, gpointer ud, 
  * @param err error ptr
  * @return
  */
-gboolean rspamd_cl_includes_handler (const guchar *data, gsize len, gpointer ud, GError **err);
+bool ucl_includes_handler (const unsigned char *data, size_t len, void* ud, UT_string **err);
 
-#endif /* RCL_INTERNAL_H_ */
+size_t ucl_strlcpy (char *dst, const char *src, size_t siz);
+size_t ucl_strlcpy_tolower (char *dst, const char *src, size_t siz);
+
+#ifdef __GNUC__
+static inline void
+ucl_create_err (UT_string **err, const char *fmt, ...)
+__attribute__ (( format( printf, 2, 3) ));
+#endif
+
+static inline void
+ucl_create_err (UT_string **err, const char *fmt, ...)
+
+{
+	if (*err == NULL) {
+		utstring_new (*err);
+		va_list ap;
+		va_start (ap, fmt);
+		utstring_printf_va (*err, fmt, ap);
+		va_end (ap);
+	}
+}
+
+#endif /* UCL_INTERNAL_H_ */

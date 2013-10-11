@@ -149,6 +149,27 @@ _UNUSED_ static void utstring_printf(UT_string *s, const char *fmt, ...) {
    va_end(ap);
 }
 
+static inline void
+utstring_append_len(UT_string *s, const char *c, size_t len)
+{
+	while (s->n-s->i <= len) {
+		utstring_reserve(s,(s->n)*2);
+	}
+	memcpy(&s->d[s->i], c, len);
+	s->i += len;
+	s->d[s->i] = '\0';
+}
+
+static inline void
+utstring_append_c(UT_string *s, char c)
+{
+	if (s->i >= s->n) {
+		utstring_reserve(s,(s->n)*2);
+	}
+	s->d[s->i++] = c;
+	s->d[s->i] = '\0';
+}
+
 /*******************************************************************************
  * begin substring search functions                                            *
  ******************************************************************************/
