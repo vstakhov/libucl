@@ -74,13 +74,14 @@ ucl_skip_comments (struct ucl_parser *parser, UT_string **err)
 
 	p = chunk->pos;
 
+start:
 	if (*p == '#') {
 		if (parser->state != UCL_STATE_SCOMMENT &&
 				parser->state != UCL_STATE_MCOMMENT) {
 			while (p < chunk->end) {
 				if (*p == '\n') {
 					ucl_chunk_skipc (chunk, *++p);
-					break;
+					goto start;
 				}
 				ucl_chunk_skipc (chunk, *++p);
 			}
@@ -94,7 +95,7 @@ ucl_skip_comments (struct ucl_parser *parser, UT_string **err)
 			while (p < chunk->end) {
 				if (*p == '\n') {
 					ucl_chunk_skipc (chunk, *++p);
-					break;
+					goto start;
 				}
 				ucl_chunk_skipc (chunk, *++p);
 			}
@@ -110,7 +111,7 @@ ucl_skip_comments (struct ucl_parser *parser, UT_string **err)
 						comments_nested --;
 						if (comments_nested == 0) {
 							ucl_chunk_skipc (chunk, *++p);
-							break;
+							goto start;
 						}
 					}
 					ucl_chunk_skipc (chunk, *++p);
