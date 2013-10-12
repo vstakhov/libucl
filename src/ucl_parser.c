@@ -638,6 +638,10 @@ ucl_parse_key (struct ucl_parser *parser,
 	/* Create a new object */
 	nobj = ucl_object_new ();
 	nobj->key = malloc (end - c + 1);
+	if (nobj->key == NULL) {
+		ucl_set_err (chunk, 0, "cannot allocate memory for a key", err);
+		return false;
+	}
 	if (parser->flags & UCL_FLAG_KEY_LOWERCASE) {
 		ucl_strlcpy_tolower (nobj->key, c, end - c + 1);
 	}
@@ -764,6 +768,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 	struct ucl_stack *st;
 	ucl_object_t *obj = NULL;
 	unsigned int stripped_spaces;
+	int str_len;
 
 	p = chunk->pos;
 
@@ -855,9 +860,17 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 								UCL_CHARACTER_WHITESPACE)) {
 							stripped_spaces ++;
 						}
-						obj->value.sv = malloc (chunk->pos - c + 1 - stripped_spaces);
-						ucl_strlcpy (obj->value.sv, c, chunk->pos - c + 1 - stripped_spaces);
-						ucl_unescape_json_string (obj->value.sv);
+						str_len = chunk->pos - c + 1 - stripped_spaces;
+						if (str_len <= 0) {
+							ucl_set_err (chunk, 0, "string value must not be empty", err);
+							return false;
+						}
+						obj->value.sv = malloc (str_len);
+						if (obj->value.sv == NULL) {
+							ucl_set_err (chunk, 0, "cannot allocate memory for a string", err);
+							return false;
+						}
+						ucl_strlcpy (obj->value.sv, c, str_len);
 						obj->type = UCL_STRING;
 					}
 					parser->state = UCL_STATE_AFTER_VALUE;
@@ -873,9 +886,24 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 					return false;
 				}
 				if (!ucl_maybe_parse_boolean (obj, c, chunk->pos - c)) {
-					obj->value.sv = malloc (chunk->pos - c + 1);
-					ucl_strlcpy (obj->value.sv, c, chunk->pos - c + 1);
-					ucl_unescape_json_string (obj->value.sv);
+					/* TODO: remove cut&paste */
+					/* Cut trailing spaces */
+					stripped_spaces = 0;
+					while (ucl_test_character (*(chunk->pos - 1 - stripped_spaces),
+							UCL_CHARACTER_WHITESPACE)) {
+						stripped_spaces ++;
+					}
+					str_len = chunk->pos - c + 1 - stripped_spaces;
+					if (str_len <= 0) {
+						ucl_set_err (chunk, 0, "string value must not be empty", err);
+						return false;
+					}
+					obj->value.sv = malloc (str_len);
+					if (obj->value.sv == NULL) {
+						ucl_set_err (chunk, 0, "cannot allocate memory for a string", err);
+						return false;
+					}
+					ucl_strlcpy (obj->value.sv, c, str_len);
 					obj->type = UCL_STRING;
 				}
 				parser->state = UCL_STATE_AFTER_VALUE;
@@ -1024,7 +1052,7 @@ ucl_parse_macro_value (struct ucl_parser *parser,
 		p ++;
 		/* Skip spaces at the beginning */
 		while (p < chunk->end) {
-			if (ucl_test_character (*p, UCL_CHARACTER_WHITESPACE)) {
+			if (ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 				ucl_chunk_skipc (chunk, *p);
 				p ++;
 			}
@@ -1063,7 +1091,7 @@ ucl_parse_macro_value (struct ucl_parser *parser,
 	/* We are at the end of a macro */
 	/* Skip ';' and space characters and return to previous state */
 	while (p < chunk->end) {
-		if (!ucl_test_character (*p, UCL_CHARACTER_WHITESPACE) && *p != ';') {
+		if (!ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE) && *p != ';') {
 			break;
 		}
 		ucl_chunk_skipc (chunk, *p);
@@ -1130,7 +1158,7 @@ ucl_state_machine (struct ucl_parser *parser, UT_string **err)
 			break;
 		case UCL_STATE_KEY:
 			/* Skip any spaces */
-			while (p < chunk->end && ucl_test_character (*p, UCL_CHARACTER_WHITESPACE)) {
+			while (p < chunk->end && ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 				ucl_chunk_skipc (chunk, *p);
 				p ++;
 			}
@@ -1184,7 +1212,7 @@ ucl_state_machine (struct ucl_parser *parser, UT_string **err)
 			p = chunk->pos;
 			break;
 		case UCL_STATE_MACRO_NAME:
-			if (!ucl_test_character (*p, UCL_CHARACTER_WHITESPACE)) {
+			if (!ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 				ucl_chunk_skipc (chunk, *p);
 				p ++;
 			}
@@ -1198,7 +1226,7 @@ ucl_state_machine (struct ucl_parser *parser, UT_string **err)
 				}
 				/* Now we need to skip all spaces */
 				while (p < chunk->end) {
-					if (!ucl_test_character (*p, UCL_CHARACTER_WHITESPACE)) {
+					if (!ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 						if (ucl_lex_is_comment (p[0], p[1])) {
 							/* Skip comment */
 							if (!ucl_skip_comments (parser, err)) {
