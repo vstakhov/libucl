@@ -61,7 +61,7 @@ main (int argc, char **argv)
 		r = 0;
 		/* UCL_CHARACTER_VALUE_END */
 
-		if (isspace (i)) {
+		if (i == ' ' || i == '\t') {
 			r += print_flag ("UCL_CHARACTER_WHITESPACE", &need_or, valbuf + r);
 		}
 		if (isalpha (i) || i >= 0x80) {

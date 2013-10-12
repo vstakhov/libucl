@@ -33,7 +33,7 @@ clean:
 	$(RM) $(OBJDIR)/*.o $(OBJDIR)/$(SONAME) $(OBJDIR)/chargen
 	$(RMDIR) $(OBJDIR)
 	
-chargen:
+chargen: $(OBJDIR) utils/chargen.c
 	$(CC) -o $(OBJDIR)/chargen $(CPPFLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) utils/chargen.c
 
 install: $(OBJDIR)/$(SONAME)
