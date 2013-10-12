@@ -122,7 +122,7 @@ is converted to:
 
 UCL supports different style of comments:
 
-* single line: `#` or `//`
+* single line: `#` 
 * multiline: `/* ... */`
 
 Multiline comments may be nested:

@@ -88,19 +88,7 @@ start:
 		}
 	}
 	else if (*p == '/' && chunk->remain >= 2) {
-		if (p[1] == '/' && parser->state != UCL_STATE_SCOMMENT &&
-				parser->state != UCL_STATE_MCOMMENT) {
-			ucl_chunk_skipc (chunk, *++p);
-			chunk->pos = p;
-			while (p < chunk->end) {
-				if (*p == '\n') {
-					ucl_chunk_skipc (chunk, *++p);
-					goto start;
-				}
-				ucl_chunk_skipc (chunk, *++p);
-			}
-		}
-		else if (p[1] == '*') {
+		if (p[1] == '*') {
 			ucl_chunk_skipc (chunk, *++p);
 			comments_nested ++;
 			ucl_chunk_skipc (chunk, *++p);
@@ -210,7 +198,7 @@ static inline bool
 ucl_lex_is_comment (const unsigned char c1, const unsigned char c2)
 {
 	if (c1 == '/') {
-		if (c2 == '/' || c2 == '*') {
+		if (c2 == '*') {
 			return true;
 		}
 	}
