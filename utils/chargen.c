@@ -64,6 +64,9 @@ main (int argc, char **argv)
 		if (i == ' ' || i == '\t') {
 			r += print_flag ("UCL_CHARACTER_WHITESPACE", &need_or, valbuf + r);
 		}
+		if (isspace (i)) {
+			r += print_flag ("UCL_CHARACTER_WHITESPACE_UNSAFE", &need_or, valbuf + r);
+		}
 		if (isalpha (i) || i >= 0x80) {
 			r += print_flag ("UCL_CHARACTER_KEY_START", &need_or, valbuf + r);
 		}
