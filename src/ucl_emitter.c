@@ -33,6 +33,7 @@
 static void ucl_elt_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool compact);
 static void ucl_obj_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool compact);
 static void ucl_elt_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool is_top);
+static void ucl_elt_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool compact);
 
 /**
  * Add tabulation to the output buffer
@@ -427,6 +428,146 @@ ucl_object_emit_rcl (ucl_object_t *obj)
 	return res;
 }
 
+
+/**
+ * Write a single object to the buffer
+ * @param obj object to write
+ * @param buf target buffer
+ */
+static void
+ucl_elt_obj_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool is_top)
+{
+	ucl_object_t *cur, *tmp;
+
+	if (start_tabs) {
+		ucl_add_tabs (buf, tabs, is_top);
+	}
+	if (!is_top) {
+		utstring_append_len (buf, ": {\n", 4);
+	}
+
+	while (obj) {
+		HASH_ITER (hh, obj, cur, tmp) {
+			ucl_add_tabs (buf, tabs + 1, is_top);
+			utstring_append_len (buf, cur->key, strlen (cur->key));
+			if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
+				utstring_append_len (buf, " : ", 3);
+			}
+			else {
+				utstring_append_c (buf, ' ');
+			}
+			ucl_elt_write_yaml (cur, buf, is_top ? tabs : tabs + 1, false, false);
+			if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
+				utstring_append_len (buf, ",\n", 2);
+			}
+			else {
+				utstring_append_c (buf, '\n');
+			}
+		}
+		obj = obj->next;
+	}
+	ucl_add_tabs (buf, tabs, is_top);
+	if (!is_top) {
+		utstring_append_c (buf, '}');
+	}
+}
+
+/**
+ * Write a single array to the buffer
+ * @param obj array to write
+ * @param buf target buffer
+ */
+static void
+ucl_elt_array_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool is_top)
+{
+	ucl_object_t *cur = obj;
+
+	if (start_tabs) {
+		ucl_add_tabs (buf, tabs, false);
+	}
+
+	utstring_append_len (buf, ": [\n", 4);
+	while (cur) {
+		ucl_elt_write_yaml (cur, buf, tabs + 1, true, false);
+		utstring_append_len (buf, ",\n", 2);
+		cur = cur->next;
+	}
+	ucl_add_tabs (buf, tabs, false);
+	utstring_append_c (buf, ']');
+}
+
+/**
+ * Emit a single element
+ * @param obj object
+ * @param buf buffer
+ */
+static void
+ucl_elt_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool is_top)
+{
+	switch (obj->type) {
+	case UCL_INT:
+		if (start_tabs) {
+			ucl_add_tabs (buf, tabs, false);
+		}
+		utstring_printf (buf, "%ld", (long int)ucl_obj_toint (obj));
+		break;
+	case UCL_FLOAT:
+		if (start_tabs) {
+			ucl_add_tabs (buf, tabs, false);
+		}
+		utstring_printf (buf, "%.4lf", ucl_obj_todouble (obj));
+		break;
+	case UCL_TIME:
+		if (start_tabs) {
+			ucl_add_tabs (buf, tabs, false);
+		}
+		utstring_printf (buf, "%.4lf", ucl_obj_todouble (obj));
+		break;
+	case UCL_BOOLEAN:
+		if (start_tabs) {
+			ucl_add_tabs (buf, tabs, false);
+		}
+		utstring_printf (buf, "%s", ucl_obj_toboolean (obj) ? "true" : "false");
+		break;
+	case UCL_STRING:
+		if (start_tabs) {
+			ucl_add_tabs (buf, tabs, false);
+		}
+		ucl_elt_string_write_json (ucl_obj_tostring (obj), buf);
+		break;
+	case UCL_OBJECT:
+		ucl_elt_obj_write_yaml (obj->value.ov, buf, tabs, start_tabs, is_top);
+		break;
+	case UCL_ARRAY:
+		ucl_elt_array_write_yaml (obj->value.ov, buf, tabs, start_tabs, is_top);
+		break;
+	case UCL_USERDATA:
+		break;
+	}
+}
+
+/**
+ * Emit an object to rcl
+ * @param obj object
+ * @return rcl output (should be freed after using)
+ */
+static unsigned char *
+ucl_object_emit_yaml (ucl_object_t *obj)
+{
+	UT_string *buf;
+	unsigned char *res;
+
+	/* Allocate large enough buffer */
+	utstring_new (buf);
+
+	ucl_elt_write_yaml (obj, buf, 0, false, true);
+
+	res = utstring_body (buf);
+	utstring_free (buf);
+
+	return res;
+}
+
 unsigned char *
 ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type)
 {
@@ -435,6 +576,9 @@ ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type)
 	}
 	else if (emit_type == UCL_EMIT_JSON_COMPACT) {
 		return ucl_object_emit_json (obj, true);
+	}
+	else if (emit_type == UCL_EMIT_YAML) {
+		return ucl_object_emit_yaml (obj);
 	}
 	else {
 		return ucl_object_emit_rcl (obj);

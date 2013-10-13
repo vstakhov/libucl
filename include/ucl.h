@@ -81,7 +81,8 @@ enum ucl_type {
 enum ucl_emitter {
 	UCL_EMIT_JSON = 0,
 	UCL_EMIT_JSON_COMPACT,
-	UCL_EMIT_CONFIG
+	UCL_EMIT_CONFIG,
+	UCL_EMIT_YAML
 };
 
 enum ucl_flags {
