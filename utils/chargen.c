@@ -67,10 +67,10 @@ main (int argc, char **argv)
 		if (isspace (i)) {
 			r += print_flag ("UCL_CHARACTER_WHITESPACE_UNSAFE", &need_or, valbuf + r);
 		}
-		if (isalpha (i) || i >= 0x80) {
+		if (isalnum (i) || i >= 0x80 || i == '/' || i == '_') {
 			r += print_flag ("UCL_CHARACTER_KEY_START", &need_or, valbuf + r);
 		}
-		if (isalnum (i) || i == '-' || i == '_' || i >= 0x80) {
+		if (isalnum (i) || i == '-' || i == '_' || i == '/' || i == '.' || i >= 0x80) {
 			r += print_flag ("UCL_CHARACTER_KEY", &need_or, valbuf + r);
 		}
 		if (i == 0 || i == '\r' || i == '\n' || i == ']' || i == '}' || i == ';' || i == ',' || i == '#') {

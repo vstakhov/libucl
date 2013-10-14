@@ -526,19 +526,25 @@ ucl_parse_key (struct ucl_parser *parser,
 
 	p = chunk->pos;
 
+	if (*p == '.') {
+		/* It is macro actually */
+		ucl_chunk_skipc (chunk, *p);
+		parser->prev_state = parser->state;
+		parser->state = UCL_STATE_MACRO_NAME;
+		return true;
+	}
 	while (p < chunk->end) {
 		/*
-		 * A key must start with alpha and end with space character
+		 * A key must start with alpha, number, '/' or '_' and end with space character
 		 */
-		if (*p == '.') {
-			/* It is macro actually */
-			ucl_chunk_skipc (chunk, *p);
-			parser->prev_state = parser->state;
-			parser->state = UCL_STATE_MACRO_NAME;
-			return true;
-		}
-		else if (c == NULL) {
-			if (ucl_test_character (*p, UCL_CHARACTER_KEY_START)) {
+		if (c == NULL) {
+			if (ucl_lex_is_comment (p[0], p[1])) {
+				if (!ucl_skip_comments (parser, err)) {
+					return false;
+				}
+				p = chunk->pos;
+			}
+			else if (ucl_test_character (*p, UCL_CHARACTER_KEY_START)) {
 				/* The first symbol */
 				c = p;
 				ucl_chunk_skipc (chunk, *p);
@@ -550,12 +556,6 @@ ucl_parse_key (struct ucl_parser *parser,
 				got_quote = true;
 				ucl_chunk_skipc (chunk, *p);
 				p ++;
-			}
-			else if (ucl_lex_is_comment (p[0], p[1])) {
-				if (!ucl_skip_comments (parser, err)) {
-					return false;
-				}
-				p = chunk->pos;
 			}
 			else {
 				/* Invalid identifier */
