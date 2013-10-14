@@ -25,5 +25,5 @@ key = "some string";
 key1 = "/some/path";
 key3 = "111some";
 key4 = "s1";
-key5 = "\n\r1232323";
+key5 = "\n\r123";
 
