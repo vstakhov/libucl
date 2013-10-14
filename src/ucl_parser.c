@@ -551,6 +551,12 @@ ucl_parse_key (struct ucl_parser *parser,
 				ucl_chunk_skipc (chunk, *p);
 				p ++;
 			}
+			else if (ucl_lex_is_comment (p[0], p[1])) {
+				if (!ucl_skip_comments (parser, err)) {
+					return false;
+				}
+				p = chunk->pos;
+			}
 			else {
 				/* Invalid identifier */
 				ucl_set_err (chunk, UCL_ESYNTAX, "key must begin with a letter", err);

@@ -54,9 +54,8 @@ main (int argc, char **argv)
 	parser = ucl_parser_new (UCL_FLAG_KEY_LOWERCASE);
 
 	while (!feof (in)) {
-		if (fread (inbuf, sizeof (inbuf), 1, in) == 1) {
-			ucl_parser_add_chunk (parser, inbuf, strlen (inbuf), &err);
-		}
+		fread (inbuf, sizeof (inbuf), 1, in);
+		ucl_parser_add_chunk (parser, inbuf, strlen (inbuf), &err);
 	}
 	fclose (in);
 
