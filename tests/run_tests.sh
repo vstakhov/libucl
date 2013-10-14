@@ -22,4 +22,5 @@ for _t in $TESTS ; do
 			exit 1
 		fi
 	fi
+	rm ${TEST_DIR}/$_t.out
 done

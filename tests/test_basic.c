@@ -63,6 +63,11 @@ main (int argc, char **argv)
 	if (out == NULL) {
 		exit (-errno);
 	}
+	if (err != NULL) {
+		fprintf (out, "Error occured: %s\n", err->d);
+		ret = 1;
+		goto end;
+	}
 	obj = ucl_parser_get_object (parser, &err);
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
 	ucl_parser_free (parser);
