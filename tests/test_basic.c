@@ -88,8 +88,10 @@ main (int argc, char **argv)
 	free (emitted);
 
 end:
-	ucl_parser_free (parser2);
-	ucl_obj_unref (obj);
+	if (parser2 != NULL) {
+		ucl_parser_free (parser2);
+		ucl_obj_unref (obj);
+	}
 	fclose (out);
 
 	return ret;

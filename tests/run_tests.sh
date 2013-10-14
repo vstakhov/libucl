@@ -10,8 +10,9 @@ for _tin in ${TEST_DIR}/*.in ; do
 	_t=`echo $_tin | sed -e 's/.in$//'`
 	$1 $_t.in $_t.out
 	if [ $? -ne 0 ] ; then
+		echo "Test: $_t failed, output:"
+		cat $_t.out
 		rm $_t.out
-		echo "Test: $_t failed"
 		exit 1
 	fi
 	if [ -f $_t.res ] ; then

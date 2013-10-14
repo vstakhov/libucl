@@ -167,6 +167,7 @@ ucl_unescape_json_string (char *str)
 			*t++ = *h++;
 		}
 	}
+	*t = '\0';
 }
 
 ucl_object_t*
