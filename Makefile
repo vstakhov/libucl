@@ -30,11 +30,11 @@ $(OBJDIR):
 	@$(MKDIR) -p $(OBJDIR)
 
 # Compile rules
-$(OBJDIR)/ucl_util.o: $(SRCDIR)/ucl_util.c
+$(OBJDIR)/ucl_util.o: $(SRCDIR)/ucl_util.c $(SRCDIR)/ucl_chartable.h $(SRCDIR)/ucl_internal.h
 	$(CC) -o $(OBJDIR)/ucl_util.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_util.c
-$(OBJDIR)/ucl_parser.o: $(SRCDIR)/ucl_parser.c
+$(OBJDIR)/ucl_parser.o: $(SRCDIR)/ucl_parser.c $(SRCDIR)/ucl_chartable.h $(SRCDIR)/ucl_internal.h
 	$(CC) -o $(OBJDIR)/ucl_parser.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_parser.c
-$(OBJDIR)/ucl_emitter.o: $(SRCDIR)/ucl_emitter.c
+$(OBJDIR)/ucl_emitter.o: $(SRCDIR)/ucl_emitter.c $(SRCDIR)/ucl_chartable.h $(SRCDIR)/ucl_internal.h
 	$(CC) -o $(OBJDIR)/ucl_emitter.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_emitter.c
 
 clean:
@@ -51,7 +51,7 @@ chargen: $(OBJDIR) utils/chargen.c
 test: $(OBJDIR)/test_basic
 	TEST_DIR=$(TESTDIR) $(TESTDIR)/run_tests.sh $(OBJDIR)/test_basic
 	
-$(OBJDIR)/test_basic: $(TESTDIR)/test_basic.c $(OBJDIR)/$(SONAME)
+$(OBJDIR)/test_basic: $(TESTDIR)/test_basic.c $(OBJDIR)/$(SONAME) $(OBJDIR)
 	$(CC) -o $(OBJDIR)/test_basic $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_basic.c -L$(OBJDIR) -Wl,-rpath,$(OBJDIR) -lucl
 
 install: $(OBJDIR)/$(SONAME)
