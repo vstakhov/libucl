@@ -664,8 +664,8 @@ ucl_parse_key (struct ucl_parser *parser,
 	HASH_FIND_STR (container, nobj->key, tobj);
 	if (tobj != NULL) {
 		/* Just insert a new object as the next element */
-		LL_PREPEND (tobj, nobj);
 		HASH_DELETE (hh, container, tobj);
+		LL_PREPEND (tobj, nobj);
 	}
 
 	HASH_ADD_KEYPTR (hh, container, nobj->key, strlen (nobj->key), nobj);
