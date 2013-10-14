@@ -65,6 +65,8 @@ main (int argc, char **argv)
 	}
 	obj = ucl_parser_get_object (parser, &err);
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
+	ucl_parser_free (parser);
+	ucl_obj_unref (obj);
 	parser2 = ucl_parser_new (UCL_FLAG_KEY_LOWERCASE);
 	ucl_parser_add_chunk (parser2, emitted, strlen (emitted), &err);
 
@@ -82,6 +84,7 @@ main (int argc, char **argv)
 
 end:
 	ucl_parser_free (parser2);
+	ucl_obj_unref (obj);
 	fclose (out);
 
 	return ret;

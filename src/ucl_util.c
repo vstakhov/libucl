@@ -195,6 +195,7 @@ ucl_parser_free (struct ucl_parser *parser)
 		free (stack);
 	}
 	HASH_ITER (hh, parser->macroes, macro, mtmp) {
+		free (macro->name);
 		UCL_FREE (sizeof (struct ucl_macro), macro);
 	}
 	LL_FOREACH_SAFE (parser->chunks, chunk, ctmp) {
