@@ -283,7 +283,7 @@ ucl_object_emit_json (ucl_object_t *obj, bool compact)
 
 	ucl_obj_write_json (obj, buf, 0, false, compact);
 
-	res = utstring_body (buf);
+	res = strdup(utstring_body (buf));
 	utstring_free (buf);
 
 	return res;
@@ -422,7 +422,7 @@ ucl_object_emit_rcl (ucl_object_t *obj)
 
 	ucl_elt_write_rcl (obj, buf, 0, false, true);
 
-	res = utstring_body (buf);
+	res = strdup(utstring_body (buf));
 	utstring_free (buf);
 
 	return res;
@@ -562,7 +562,7 @@ ucl_object_emit_yaml (ucl_object_t *obj)
 
 	ucl_elt_write_yaml (obj, buf, 0, false, true);
 
-	res = utstring_body (buf);
+	res = strdup(utstring_body (buf));
 	utstring_free (buf);
 
 	return res;
