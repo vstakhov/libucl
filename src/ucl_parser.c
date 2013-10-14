@@ -842,9 +842,9 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 			break;
 		default:
 			/* Skip any spaces and comments */
-			if (ucl_test_character (*p, UCL_CHARACTER_WHITESPACE) ||
+			if (ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE) ||
 					ucl_lex_is_comment (p[0], p[1])) {
-				while (p < chunk->end && ucl_test_character (*p, UCL_CHARACTER_WHITESPACE)) {
+				while (p < chunk->end && ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 					ucl_chunk_skipc (chunk, *p);
 					p ++;
 				}
