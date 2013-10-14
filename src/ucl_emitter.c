@@ -458,7 +458,12 @@ ucl_elt_obj_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bo
 			}
 			ucl_elt_write_yaml (cur, buf, is_top ? tabs : tabs + 1, false, false);
 			if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
-				utstring_append_len (buf, ",\n", 2);
+				if (!is_top) {
+					utstring_append_len (buf, ",\n", 2);
+				}
+				else {
+					utstring_append_c (buf, '\n');
+				}
 			}
 			else {
 				utstring_append_c (buf, '\n');
