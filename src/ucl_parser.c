@@ -653,7 +653,7 @@ ucl_parse_key (struct ucl_parser *parser,
 		ucl_strlcpy_tolower (nobj->key, c, end - c + 1);
 	}
 	else {
-		ucl_strlcpy (nobj->key, c, end - c + 1);
+		ucl_strlcpy_unsafe (nobj->key, c, end - c + 1);
 	}
 
 	if (need_unescape) {
@@ -802,7 +802,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 				return false;
 			}
 			obj->value.sv = malloc (chunk->pos - c - 1);
-			ucl_strlcpy (obj->value.sv, c + 1, chunk->pos - c - 1);
+			ucl_strlcpy_unsafe (obj->value.sv, c + 1, chunk->pos - c - 1);
 			if (need_unescape) {
 				ucl_unescape_json_string (obj->value.sv);
 			}
@@ -880,7 +880,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 							ucl_set_err (chunk, 0, "cannot allocate memory for a string", err);
 							return false;
 						}
-						ucl_strlcpy (obj->value.sv, c, str_len);
+						ucl_strlcpy_unsafe (obj->value.sv, c, str_len);
 						obj->type = UCL_STRING;
 					}
 					parser->state = UCL_STATE_AFTER_VALUE;
@@ -913,7 +913,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 						ucl_set_err (chunk, 0, "cannot allocate memory for a string", err);
 						return false;
 					}
-					ucl_strlcpy (obj->value.sv, c, str_len);
+					ucl_strlcpy_unsafe (obj->value.sv, c, str_len);
 					obj->type = UCL_STRING;
 				}
 				parser->state = UCL_STATE_AFTER_VALUE;

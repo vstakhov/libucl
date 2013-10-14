@@ -148,6 +148,7 @@ bool ucl_include_handler (const unsigned char *data, size_t len, void* ud, UT_st
 bool ucl_includes_handler (const unsigned char *data, size_t len, void* ud, UT_string **err);
 
 size_t ucl_strlcpy (char *dst, const char *src, size_t siz);
+size_t ucl_strlcpy_unsafe (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_tolower (char *dst, const char *src, size_t siz);
 
 #ifdef __GNUC__
