@@ -570,9 +570,8 @@ ucl_object_emit_yaml (ucl_object_t *obj)
 
 	ucl_elt_write_yaml (obj, buf, 0, false, true);
 
-	res = malloc (utstring_len (buf) + 1);
-	ucl_strlcpy_unsafe (res, utstring_body (buf), utstring_len (buf) + 1);
-	utstring_free (buf);
+	res = utstring_body(buf);
+	free (buf);
 
 	return res;
 }
