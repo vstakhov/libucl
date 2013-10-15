@@ -162,7 +162,7 @@ do {                                                                           \
 
 #define utstring_append_c(dst, c)                                             \
 do {                                                                           \
-    if ((dst)->i >= (dst)->n) utstring_reserve((dst),((dst)->n)*2);            \
+    if ((dst)->n-(dst)->i < 2) utstring_reserve((dst),((dst)->n)*2);            \
     (dst)->d[(dst)->i++] = (c);                                                \
     (dst)->d[(dst)->i]='\0';                                                   \
 } while(0)
