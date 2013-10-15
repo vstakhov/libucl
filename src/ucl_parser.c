@@ -712,6 +712,19 @@ ucl_parse_string_value (struct ucl_parser *parser,
 				continue;
 			}
 		}
+		/* Skip pairs of square braces */
+		else if (*p == '[') {
+			braces[UCL_BRACE_SQUARE][0] ++;
+		}
+		else if (*p == ']') {
+			braces[UCL_BRACE_SQUARE][1] ++;
+			if (braces[UCL_BRACE_SQUARE][1] == braces[UCL_BRACE_SQUARE][0]) {
+				/* This is not a termination symbol, continue */
+				ucl_chunk_skipc (chunk, *p);
+				p ++;
+				continue;
+			}
+		}
 
 		if (ucl_lex_is_atom_end (*p) || ucl_lex_is_comment (p[0], p[1])) {
 			break;

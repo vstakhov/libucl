@@ -1,4 +1,5 @@
 packagesite = "http://pkg-test.freebsd.org/pkg-test/${ABI}/latest";
+squaretest = "some[]value";
 alias {
     all-depends = "query %dn-%dv";
     annotations = "info -A";
