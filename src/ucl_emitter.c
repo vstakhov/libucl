@@ -272,22 +272,17 @@ ucl_obj_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool s
  * @param obj object
  * @return json output (should be freed after using)
  */
-static unsigned char *
+static UT_string *
 ucl_object_emit_json (ucl_object_t *obj, bool compact)
 {
 	UT_string *buf;
-	unsigned char *res;
 
 	/* Allocate large enough buffer */
 	utstring_new (buf);
 
 	ucl_obj_write_json (obj, buf, 0, false, compact);
 
-	res = malloc (utstring_len (buf) + 1);
-	ucl_strlcpy_unsafe (res, utstring_body (buf), utstring_len (buf) + 1);
-	utstring_free (buf);
-
-	return res;
+	return buf;
 }
 
 /**
@@ -412,23 +407,17 @@ ucl_elt_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool st
  * @param obj object
  * @return rcl output (should be freed after using)
  */
-static unsigned char *
+static UT_string *
 ucl_object_emit_rcl (ucl_object_t *obj)
 {
 	UT_string *buf;
-	unsigned char *res;
 
 	/* Allocate large enough buffer */
 	utstring_new (buf);
 
 	ucl_elt_write_rcl (obj, buf, 0, false, true);
 
-	res = malloc (utstring_len (buf) + 1);
-	ucl_strlcpy_unsafe (res, utstring_body (buf), utstring_len (buf) + 1);
-
-	utstring_free (buf);
-
-	return res;
+	return buf;
 }
 
 
@@ -559,39 +548,42 @@ ucl_elt_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool s
  * @param obj object
  * @return rcl output (should be freed after using)
  */
-static unsigned char *
+static UT_string *
 ucl_object_emit_yaml (ucl_object_t *obj)
 {
 	UT_string *buf;
-	unsigned char *res;
 
 	/* Allocate large enough buffer */
 	utstring_new (buf);
 
 	ucl_elt_write_yaml (obj, buf, 0, false, true);
 
-	res = malloc (utstring_len (buf) + 1);
-	ucl_strlcpy_unsafe (res, utstring_body (buf), utstring_len (buf) + 1);
-	utstring_free (buf);
-
-	return res;
+	return buf;
 }
 
 unsigned char *
 ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type)
 {
+	UT_string *buf = NULL;
+	unsigned char *res = NULL;
+
 	if (emit_type == UCL_EMIT_JSON) {
-		return ucl_object_emit_json (obj, false);
+		buf = ucl_object_emit_json (obj, false);
 	}
 	else if (emit_type == UCL_EMIT_JSON_COMPACT) {
-		return ucl_object_emit_json (obj, true);
+		buf = ucl_object_emit_json (obj, true);
 	}
 	else if (emit_type == UCL_EMIT_YAML) {
-		return ucl_object_emit_yaml (obj);
+		buf = ucl_object_emit_yaml (obj);
 	}
 	else {
-		return ucl_object_emit_rcl (obj);
+		buf = ucl_object_emit_rcl (obj);
 	}
 
-	return NULL;
+	if (buf != NULL) {
+		res = utstring_body (buf);
+		free (buf);
+	}
+
+	return res;
 }
