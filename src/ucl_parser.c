@@ -688,10 +688,31 @@ ucl_parse_string_value (struct ucl_parser *parser,
 		struct ucl_chunk *chunk, UT_string **err)
 {
 	const unsigned char *p;
+	enum {
+		UCL_BRACE_ROUND = 0,
+		UCL_BRACE_SQUARE,
+		UCL_BRACE_FIGURE
+	};
+	int braces[3][2] = {{0, 0}, {0, 0}, {0, 0}};
 
 	p = chunk->pos;
 
 	while (p < chunk->end) {
+
+		/* Skip pairs of figure braces */
+		if (*p == '{') {
+			braces[UCL_BRACE_FIGURE][0] ++;
+		}
+		else if (*p == '}') {
+			braces[UCL_BRACE_FIGURE][1] ++;
+			if (braces[UCL_BRACE_FIGURE][1] == braces[UCL_BRACE_FIGURE][0]) {
+				/* This is not a termination symbol, continue */
+				ucl_chunk_skipc (chunk, *p);
+				p ++;
+				continue;
+			}
+		}
+
 		if (ucl_lex_is_atom_end (*p) || ucl_lex_is_comment (p[0], p[1])) {
 			break;
 		}

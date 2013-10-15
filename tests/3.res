@@ -1,4 +1,4 @@
-packagesite = "http//pkg.freebsd.org/freebsd-9-amd64/latest";
+packagesite = "http://pkg-test.freebsd.org/pkg-test/${ABI}/latest";
 alias {
     all-depends = "query %dn-%dv";
     annotations = "info -A";
