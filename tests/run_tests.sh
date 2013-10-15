@@ -25,3 +25,21 @@ for _tin in ${TEST_DIR}/*.in ; do
 	fi
 	rm $_t.out
 done
+
+if [ $# -gt 1 -a -x "/usr/bin/xz" ] ; then
+	echo 'Running speed tests'
+	for _tin in ${TEST_DIR}/*.xz ; do
+		echo "Unpacking $_tin..."
+		xz -cd < $_tin > ${TEST_DIR}/test_file
+		# Preread file to cheat benchmark!
+		cat ${TEST_DIR}/test_file > /dev/null
+		echo "Starting benchmarking for $_tin..."
+		$2 ${TEST_DIR}/test_file
+		if [ $? -ne 0 ] ; then
+			echo "Test: $_tin failed"
+			rm ${TEST_DIR}/test_file
+			exit 1
+		fi
+		rm ${TEST_DIR}/test_file
+	done
+fi
