@@ -160,6 +160,36 @@ Each UCL object can be serialized to one of the three supported formats:
 * `Compacted JSON` - compact json notation (without spaces or newlines);
 * `Configuration` - nginx like notation.
 
+## Performance
+
+Are UCL parser and emitter fast enough? Well, there are some numbers.
+I got a 19Mb file that consist of ~700 thousands lines of json (obtained via
+http://www.json-generator.com/). Then I checked jansson library that performs json
+parsing and emitting and compared it with UCL. Here are results:
+
+```
+jansson: parsed json in 1.3899 seconds
+jansson: emitted object in 0.2609 seconds
+
+ucl: parsed input in 0.6649 seconds
+ucl: emitted config in 0.2423 seconds
+ucl: emitted json in 0.2329 seconds
+ucl: emitted compact json in 0.1811 seconds
+ucl: emitted yaml in 0.2489 seconds
+```
+
+So far, UCL seems to be significantly faster than jansson on parsing and slightly faster on emitting. Moreover,
+UCL compiled with optimizations (-O3) performs significantly faster:
+```
+ucl: parsed input in 0.3002 seconds
+ucl: emitted config in 0.1174 seconds
+ucl: emitted json in 0.1174 seconds
+ucl: emitted compact json in 0.0991 seconds
+ucl: emitted yaml in 0.1354 seconds
+```
+
+You can do your own benchmarks by running `make test` in libucl top directory.
+
 ## Conclusion
 
 UCL has clear design that should be very convenient for reading and writing. At the same time it is compatible with
