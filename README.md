@@ -59,6 +59,8 @@ section {
 
 There are various things that make ucl configuration more convenient for editing than strict json:
 
+### General syntax sugar
+
 * Braces are not necessary to enclose a top object: it is automatically treated as an object:
 
 ```json
@@ -95,6 +97,7 @@ is equal to:
     "key2": "value",
 }
 ```
+### Automatic arrays creation
 
 * Non-unique keys in an object are allowed and are automatically converted to the arrays internally:
 
@@ -111,6 +114,8 @@ is converted to:
 }
 ```
 
+### Convenient numbers and booleans
+
 * Numbers can have suffixes to specify standard multipliers:
     + `[kKmMgG]` - standard 10 base multipliers (so `1k` is translated to 1000)
     + `[kKmMgG]b` - 2 power multipliers (so `1kb` is translated to 1024)
@@ -119,6 +124,8 @@ is converted to:
 * It is still possible to treat numbers and booleans as strings by enclosing them in double quotes.
 
 ## General improvements
+
+### Commments
 
 UCL supports different style of comments:
 
@@ -135,7 +142,9 @@ Multiline comments may be nested:
 */
 ```
 
-UCL supports external macroes both multiline and single line ones:
+### Macros support
+
+UCL supports external macros both multiline and single line ones:
 ```nginx
 .macro "sometext";
 .macro {
@@ -143,7 +152,7 @@ UCL supports external macroes both multiline and single line ones:
      ....
 };
 ```
-There are two internal macroes provided by UCL:
+There are two internal macros provided by UCL:
 
 * `include` - read a file `/path/to/file` or an url `http://example.com/file` and include it to the current place of
 UCL configuration;
@@ -152,13 +161,41 @@ by `.sig` suffix appending).
 
 Public keys which are used for the last command are specified by the concrete UCL user.
 
+### Multiline strings
+
+UCL can handle multiline strings as well as single line ones. It uses shell/perl like notation for such objects:
+```shell
+key = <<EOD
+some text
+splitted to
+lines
+EOD
+```
+
+In this example `key` will be interpreted as the following string: `some text\nsplitted to\nlines\n`.
+Here are some rules for this syntax:
+
+* Multiline terminator must start just after `<<` symbols and it must consist of capital letters only (e.g. <<eof or << EOF won't work);
+* Terminator must end with a single newline character (and no spaces are allowed between terminator and newline character);
+* To finish multiline string you need to include a terminator string just after newline and followed by a newline (no spaces or other characters are allowed as well);
+* The initial and the final newlines are not inserted to the resulting string, but you can still specify newlines at the begin and at the end of a value, for example:
+```shell
+key <<EOD
+
+some
+text
+
+EOD
+```
+
 ## Emitter
 
 Each UCL object can be serialized to one of the three supported formats:
 
 * `JSON` - canonic json notation (with spaces indented structure);
 * `Compacted JSON` - compact json notation (without spaces or newlines);
-* `Configuration` - nginx like notation.
+* `Configuration` - nginx like notation;
+* `YAML` - yaml inlined notation.
 
 ## Performance
 
