@@ -172,7 +172,7 @@ lines
 EOD
 ```
 
-In this example `key` will be interpreted as the following string: `some text\nsplitted to\nlines\n`.
+In this example `key` will be interpreted as the following string: `some text\nsplitted to\nlines`.
 Here are some rules for this syntax:
 
 * Multiline terminator must start just after `<<` symbols and it must consist of capital letters only (e.g. `<<eof` or `<< EOF` won't work);
