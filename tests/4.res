@@ -31,4 +31,6 @@ scripts {
     pre-deinstall = "cd /usr/local\nn";
     post-deinstall = "cd /usr/local\nn";
 }
+multiline-key = "test\ntest\ntest\\n\n/* comment like */\n# Some invalid endings\n EOD\nEOD   \nEOF\n# Valid ending + empty string\n";
+normal-key = "<<EODnot";
 

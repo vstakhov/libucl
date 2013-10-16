@@ -742,6 +742,55 @@ ucl_parse_string_value (struct ucl_parser *parser,
 }
 
 /**
+ * Parse multiline string ending with \n{term}\n
+ * @param parser
+ * @param chunk
+ * @param term
+ * @param term_len
+ * @param err
+ * @return size of multiline string or 0 in case of error
+ */
+static int
+ucl_parse_multiline_string (struct ucl_parser *parser,
+		struct ucl_chunk *chunk, const unsigned char *term,
+		int term_len, unsigned char const **beg, UT_string **err)
+{
+	const unsigned char *p, *c;
+	bool newline = false;
+	int len = 0;
+
+	p = chunk->pos;
+
+	c = p;
+
+	while (p < chunk->end) {
+		if (newline) {
+			if (chunk->end - p < term_len) {
+				return 0;
+			}
+			else if (memcmp (p, term, term_len) == 0 && (p[term_len] == '\n' || p[term_len] == '\r')) {
+				len = p - c;
+				chunk->remain -= term_len;
+				chunk->pos = p + term_len;
+				chunk->column = term_len;
+				*beg = c;
+				break;
+			}
+		}
+		if (*p == '\n') {
+			newline = true;
+		}
+		else {
+			newline = false;
+		}
+		ucl_chunk_skipc (chunk, *p);
+		p ++;
+	}
+
+	return len;
+}
+
+/**
  * Check whether a given string contains a boolean value
  * @param obj object to set
  * @param start start of a string
@@ -874,6 +923,40 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 			p ++;
 			return true;
 			break;
+		case '<':
+			/* We have something like multiline value, which must be <<[A-Z]+\n */
+			if (chunk->end - p > 3) {
+				if (memcmp (p, "<<", 2) == 0) {
+					p += 2;
+					/* We allow only uppercase characters in multiline definitions */
+					while (p < chunk->end && *p >= 'A' && *p <= 'Z') {
+						p ++;
+					}
+					if (*p =='\n') {
+						/* Set chunk positions and start multiline parsing */
+						c += 2;
+						chunk->remain -= p - c;
+						chunk->pos = p + 1;
+						chunk->column = 0;
+						chunk->line ++;
+						if ((str_len = ucl_parse_multiline_string (parser, chunk, c,
+								p - c, &c, err)) == 0) {
+							ucl_set_err (chunk, UCL_ESYNTAX, "unterminated multiline value", err);
+							return false;
+						}
+						obj->value.sv = malloc (str_len);
+						if (obj->value.sv == NULL) {
+							ucl_set_err (chunk, 0, "cannot allocate memory for a string", err);
+							return false;
+						}
+						ucl_strlcpy_unsafe (obj->value.sv, c, str_len);
+						obj->type = UCL_STRING;
+						parser->state = UCL_STATE_AFTER_VALUE;
+						return true;
+					}
+				}
+			}
+			/* Fallback to ordinary strings */
 		default:
 			/* Skip any spaces and comments */
 			if (ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE) ||

@@ -31,3 +31,17 @@ scripts : {
     pre-deinstall : "cd /usr/local\nn",
     post-deinstall : "cd /usr/local\nn",
 }
+multiline-key : <<EOD
+test
+test
+test\n
+/* comment like */
+# Some invalid endings
+ EOD
+EOD   
+EOF
+# Valid ending + empty string
+
+EOD
+
+normal-key : <<EODnot
