@@ -247,6 +247,8 @@ ucl_lex_number (struct ucl_parser *parser,
 				else {
 					got_dot = true;
 					need_double = true;
+					ucl_chunk_skipc (chunk, *p);
+					p ++;
 				}
 			}
 			else if (*p == 'e' || *p == 'E') {
@@ -262,9 +264,14 @@ ucl_lex_number (struct ucl_parser *parser,
 					if (p >= chunk->end) {
 						return false;
 					}
-					if (!isdigit (*p) && *p != '+' && *p == '-') {
+					if (!isdigit (*p) && *p != '+' && *p != '-') {
 						/* Wrong exponent sign */
+						ucl_set_err (chunk, UCL_ESYNTAX, "wrong character after exponent", err);
 						return false;
+					}
+					else {
+						ucl_chunk_skipc (chunk, *p);
+						p ++;
 					}
 				}
 			}
