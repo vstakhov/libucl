@@ -164,7 +164,7 @@ Public keys which are used for the last command are specified by the concrete UC
 ### Multiline strings
 
 UCL can handle multiline strings as well as single line ones. It uses shell/perl like notation for such objects:
-```shell
+```
 key = <<EOD
 some text
 splitted to
@@ -175,11 +175,12 @@ EOD
 In this example `key` will be interpreted as the following string: `some text\nsplitted to\nlines\n`.
 Here are some rules for this syntax:
 
-* Multiline terminator must start just after `<<` symbols and it must consist of capital letters only (e.g. <<eof or << EOF won't work);
+* Multiline terminator must start just after `<<` symbols and it must consist of capital letters only (e.g. `<<eof` or `<< EOF` won't work);
 * Terminator must end with a single newline character (and no spaces are allowed between terminator and newline character);
 * To finish multiline string you need to include a terminator string just after newline and followed by a newline (no spaces or other characters are allowed as well);
 * The initial and the final newlines are not inserted to the resulting string, but you can still specify newlines at the begin and at the end of a value, for example:
-```shell
+
+```
 key <<EOD
 
 some
