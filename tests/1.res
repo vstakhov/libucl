@@ -6,5 +6,7 @@ key1 [
     -1e-10,
     1,
     true,
+    false,
+    true,
 ]
 
