@@ -32,46 +32,53 @@ ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
 {
 	int num = shift * 4 + 5;
 	char *pre = (char *) malloc (num * sizeof(char));
+	ucl_object_t *cur, *tmp;
+
 	pre[--num] = 0x00;
 	while (num--)
 		pre[num] = 0x20;
 
 	while (obj != NULL ) {
 		printf ("%sucl object address: %p\n", pre + 4, obj);
-		printf ("%skey: %s\n", pre, obj->key);
+		if (obj->key != NULL) {
+			printf ("%skey: \"%s\"\n", pre, obj->key);
+		}
 		printf ("%sref: %d\n", pre, obj->ref);
 		printf ("%sprev: %p\n", pre, obj->prev);
 		printf ("%snext: %p\n", pre, obj->next);
 		if (obj->type == UCL_OBJECT) {
 			printf ("%stype: UCL_OBJECT\n", pre);
 			printf ("%svalue: %p\n", pre, obj->value.ov);
+			HASH_ITER (hh, obj->value.ov, cur, tmp) {
+				ucl_obj_dump (cur, shift + 2);
+			}
 		}
-		if (obj->type == UCL_ARRAY) {
+		else if (obj->type == UCL_ARRAY) {
 			printf ("%stype: UCL_ARRAY\n", pre);
 			printf ("%svalue: %p\n", pre, obj->value.ov);
 			ucl_obj_dump (obj->value.ov, shift + 2);
 		}
-		if (obj->type == UCL_INT) {
+		else if (obj->type == UCL_INT) {
 			printf ("%stype: UCL_INT\n", pre);
 			printf ("%svalue: %ld\n", pre, obj->value.iv);
 		}
-		if (obj->type == UCL_FLOAT) {
+		else if (obj->type == UCL_FLOAT) {
 			printf ("%stype: UCL_FLOAT\n", pre);
 			printf ("%svalue: %f\n", pre, obj->value.dv);
 		}
-		if (obj->type == UCL_STRING) {
+		else if (obj->type == UCL_STRING) {
 			printf ("%stype: UCL_STRING\n", pre);
 			printf ("%svalue: \"%s\"\n", pre, obj->value.sv);
 		}
-		if (obj->type == UCL_BOOLEAN) {
+		else if (obj->type == UCL_BOOLEAN) {
 			printf ("%stype: UCL_BOOLEAN\n", pre);
 			printf ("%svalue: %s\n", pre, (obj->value.iv) ? "true" : "false");
 		}
-		if (obj->type == UCL_TIME) {
+		else if (obj->type == UCL_TIME) {
 			printf ("%stype: UCL_TIME\n", pre);
 			printf ("%svalue: %f\n", pre, obj->value.dv);
 		}
-		if (obj->type == UCL_USERDATA) {
+		else if (obj->type == UCL_USERDATA) {
 			printf ("%stype: UCL_USERDATA\n", pre);
 			printf ("%svalue: %p\n", pre, obj->value.ud);
 		}
@@ -85,6 +92,7 @@ int
 main(int argc, char **argv)
 {
 	const char *fn = NULL;
+	char inbuf[8192];
 	struct ucl_parser *parser;
 	UT_string *err = NULL;
 	int k, ret = 0;
@@ -107,7 +115,11 @@ main(int argc, char **argv)
 	}
 
 	parser = ucl_parser_new (0);
-	ucl_parser_add_file (parser, fn, &err);
+	while (!feof (in)) {
+		fread (inbuf, sizeof (inbuf), 1, in);
+		ucl_parser_add_chunk (parser, inbuf, strlen (inbuf), &err);
+	}
+	fclose (in);
 	if (err != NULL ) {
 		printf ("Error occured: %s\n", err->d);
 		ret = 1;
@@ -121,14 +133,20 @@ main(int argc, char **argv)
 		goto end;
 	}
 
-	for (k = 2; k < argc; k++) {
-		printf ("search for \"%s\"... ", argv[k]);
-		par = ucl_obj_get_key (obj, argv[k]);
-		printf ("%sfound\n", (par == NULL )?"not ":"");
-		ucl_obj_dump (par, 0);
+	if (argc >= 2) {
+		for (k = 2; k < argc; k++) {
+			printf ("search for \"%s\"... ", argv[k]);
+			par = ucl_obj_get_key (obj, argv[k]);
+			printf ("%sfound\n", (par == NULL )?"not ":"");
+			ucl_obj_dump (par, 0);
+		}
+	}
+	else {
+		ucl_obj_dump (obj, 0);
 	}
 
-	end: if (parser != NULL ) {
+end:
+	if (parser != NULL ) {
 		ucl_parser_free (parser);
 	}
 	if (obj != NULL ) {
