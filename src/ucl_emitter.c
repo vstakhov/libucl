@@ -47,8 +47,19 @@ static void ucl_elt_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int 
 static inline void
 ucl_add_tabs (UT_string *buf, unsigned int tabs, bool compact)
 {
-	while (!compact && tabs--) {
-		utstring_append_len (buf, "    ", 4);
+	char *p;
+	unsigned int i;
+
+	if (!compact) {
+		while (buf->n - buf->i <= tabs * 4) {
+			utstring_reserve (buf, buf->n * 2);
+		}
+		p = &buf->d[buf->i];
+		for (i = 0; i < tabs; i ++) {
+			memset (&p[i * 4], ' ', 4);
+		}
+		buf->i += i * 4;
+		buf->d[buf->i] = '\0';
 	}
 }
 
