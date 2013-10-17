@@ -30,6 +30,13 @@
  * The implementation of rcl parser
  */
 
+struct ucl_parser_saved_state {
+	unsigned int line;
+	unsigned int column;
+	size_t remain;
+	const unsigned char *pos;
+};
+
 /**
  * Move up to len characters
  * @param parser
@@ -50,6 +57,34 @@ ucl_chunk_skipc (struct ucl_chunk *chunk, unsigned char c)
 
 	chunk->pos ++;
 	chunk->remain --;
+}
+
+/**
+ * Save parser state
+ * @param chunk
+ * @param s
+ */
+static inline void
+ucl_chunk_save_state (struct ucl_chunk *chunk, struct ucl_parser_saved_state *s)
+{
+	s->column = chunk->column;
+	s->pos = chunk->pos;
+	s->line = chunk->line;
+	s->remain = chunk->remain;
+}
+
+/**
+ * Restore parser state
+ * @param chunk
+ * @param s
+ */
+static inline void
+ucl_chunk_restore_state (struct ucl_chunk *chunk, struct ucl_parser_saved_state *s)
+{
+	chunk->column = s->column;
+	chunk->pos = s->pos;
+	chunk->line = s->line;
+	chunk->remain = s->remain;
 }
 
 static inline void
@@ -224,6 +259,9 @@ ucl_lex_number (struct ucl_parser *parser,
 	bool got_dot = false, got_exp = false, need_double = false, is_date = false;
 	double dv;
 	int64_t lv;
+	struct ucl_parser_saved_state s;
+
+	ucl_chunk_save_state (chunk, &s);
 
 	if (*p == '-') {
 		ucl_chunk_skipc (chunk, *p);
@@ -237,11 +275,13 @@ ucl_lex_number (struct ucl_parser *parser,
 		else {
 			if (p == c) {
 				/* Empty digits sequence, not a number */
+				ucl_chunk_restore_state (chunk, &s);
 				return false;
 			}
 			else if (*p == '.') {
 				if (got_dot) {
 					/* Double dots, not a number */
+					ucl_chunk_restore_state (chunk, &s);
 					return false;
 				}
 				else {
@@ -262,11 +302,13 @@ ucl_lex_number (struct ucl_parser *parser,
 					ucl_chunk_skipc (chunk, *p);
 					p ++;
 					if (p >= chunk->end) {
+						ucl_chunk_restore_state (chunk, &s);
 						return false;
 					}
 					if (!isdigit (*p) && *p != '+' && *p != '-') {
 						/* Wrong exponent sign */
 						ucl_set_err (chunk, UCL_ESYNTAX, "wrong character after exponent", err);
+						ucl_chunk_restore_state (chunk, &s);
 						return false;
 					}
 					else {
@@ -293,6 +335,7 @@ ucl_lex_number (struct ucl_parser *parser,
 		ucl_set_err (chunk, UCL_ESYNTAX, "numeric value is out of range", err);
 		parser->prev_state = parser->state;
 		parser->state = UCL_STATE_ERROR;
+		ucl_chunk_restore_state (chunk, &s);
 		return false;
 	}
 
