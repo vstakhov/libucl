@@ -133,7 +133,7 @@ main(int argc, char **argv)
 		goto end;
 	}
 
-	if (argc >= 2) {
+	if (argc > 2) {
 		for (k = 2; k < argc; k++) {
 			printf ("search for \"%s\"... ", argv[k]);
 			par = ucl_obj_get_key (obj, argv[k]);

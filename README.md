@@ -119,7 +119,7 @@ is converted to:
 * Numbers can have suffixes to specify standard multipliers:
     + `[kKmMgG]` - standard 10 base multipliers (so `1k` is translated to 1000)
     + `[kKmMgG]b` - 2 power multipliers (so `1kb` is translated to 1024)
-    + `[s|min|d|w|y]` - time multipliers, all time values are translated to float number of seconds, for example `10min` is translated to 3600.0 and `10ms` is translated to 0.01
+    + `[s|min|d|w|y]` - time multipliers, all time values are translated to float number of seconds, for example `10min` is translated to 600.0 and `10ms` is translated to 0.01
 * Booleans can be specified as `true` or `yes` or `on` and `false` or `no` or `off`.
 * It is still possible to treat numbers and booleans as strings by enclosing them in double quotes.
 
