@@ -25,6 +25,7 @@
 #include <math.h>
 #include "ucl.h"
 #include "ucl_internal.h"
+#include "ucl_chartable.h"
 
 /**
  * @file rcl_emitter.c
@@ -71,37 +72,48 @@ ucl_add_tabs (UT_string *buf, unsigned int tabs, bool compact)
 static void
 ucl_elt_string_write_json (const char *str, UT_string *buf)
 {
-	const char *p = str;
+	const char *p = str, *c = str;
+	size_t len = 0;
 
 	utstring_append_c (buf, '"');
 	while (*p != '\0') {
-		switch (*p) {
-		case '\n':
-			utstring_append_len (buf, "\\n", 2);
-			break;
-		case '\r':
-			utstring_append_len (buf, "\\r", 2);
-			break;
-		case '\b':
-			utstring_append_len (buf, "\\b", 2);
-			break;
-		case '\t':
-			utstring_append_len (buf, "\\t", 2);
-			break;
-		case '\f':
-			utstring_append_len (buf, "\\f", 2);
-			break;
-		case '\\':
-			utstring_append_len (buf, "\\\\", 2);
-			break;
-		case '"':
-			utstring_append_len (buf, "\\\"", 2);
-			break;
-		default:
-			utstring_append_c (buf, *p);
-			break;
+		if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE)) {
+			if (len > 0) {
+				utstring_append_len (buf, c, len);
+			}
+			switch (*p) {
+			case '\n':
+				utstring_append_len (buf, "\\n", 2);
+				break;
+			case '\r':
+				utstring_append_len (buf, "\\r", 2);
+				break;
+			case '\b':
+				utstring_append_len (buf, "\\b", 2);
+				break;
+			case '\t':
+				utstring_append_len (buf, "\\t", 2);
+				break;
+			case '\f':
+				utstring_append_len (buf, "\\f", 2);
+				break;
+			case '\\':
+				utstring_append_len (buf, "\\\\", 2);
+				break;
+			case '"':
+				utstring_append_len (buf, "\\\"", 2);
+				break;
+			}
+			len = 0;
+			c = ++p;
 		}
-		p ++;
+		else {
+			p ++;
+			len ++;
+		}
+	}
+	if (len > 0) {
+		utstring_append_len (buf, c, len);
 	}
 	utstring_append_c (buf, '"');
 }
@@ -319,6 +331,7 @@ static void
 ucl_elt_obj_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool is_top)
 {
 	ucl_object_t *cur, *tmp;
+	size_t keylen;
 
 	if (start_tabs) {
 		ucl_add_tabs (buf, tabs, is_top);
@@ -329,7 +342,8 @@ ucl_elt_obj_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs, boo
 
 	HASH_ITER (hh, obj, cur, tmp) {
 		ucl_add_tabs (buf, tabs + 1, is_top);
-		utstring_append_len (buf, cur->key, strlen (cur->key));
+		keylen = strlen (cur->key);
+		utstring_append_len (buf, cur->key, keylen);
 		if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
 			utstring_append_len (buf, " = ", 3);
 		}
@@ -454,6 +468,7 @@ static void
 ucl_elt_obj_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool is_top)
 {
 	ucl_object_t *cur, *tmp;
+	size_t keylen;
 
 	if (start_tabs) {
 		ucl_add_tabs (buf, tabs, is_top);
@@ -464,7 +479,8 @@ ucl_elt_obj_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bo
 
 	HASH_ITER (hh, obj, cur, tmp) {
 		ucl_add_tabs (buf, tabs + 1, is_top);
-		utstring_append_len (buf, cur->key, strlen (cur->key));
+		keylen = strlen (cur->key);
+		utstring_append_len (buf, cur->key, keylen);
 		if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
 			utstring_append_len (buf, " : ", 3);
 		}

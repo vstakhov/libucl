@@ -90,12 +90,6 @@ ucl_set_err (struct ucl_chunk *chunk, int code, const char *str, UT_string **err
 			chunk->line, chunk->column, str, *chunk->pos);
 }
 
-static inline bool
-ucl_test_character (unsigned char c, int type_flags)
-{
-	return (ucl_chartable[c] & type_flags) != 0;
-}
-
 static bool
 ucl_skip_comments (struct ucl_parser *parser, UT_string **err)
 {
