@@ -49,11 +49,13 @@ chargen: $(OBJDIR) utils/chargen.c
 # Tests
 
 test: $(OBJDIR)/test_basic $(OBJDIR)/test_speed
+
+run-test: test
 	TEST_DIR=$(TESTDIR) $(TESTDIR)/run_tests.sh $(OBJDIR)/test_basic $(OBJDIR)/test_speed
 	
-$(OBJDIR)/test_basic: $(TESTDIR)/test_basic.c $(OBJDIR)/$(SONAME) $(OBJDIR)
+$(OBJDIR)/test_basic: $(TESTDIR)/test_basic.c $(OBJDIR)/$(SONAME)
 	$(CC) -o $(OBJDIR)/test_basic $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_basic.c -L$(OBJDIR) -Wl,-rpath,$(OBJDIR) -lucl
-$(OBJDIR)/test_speed: $(TESTDIR)/test_speed.c $(OBJDIR)/$(SONAME) $(OBJDIR)
+$(OBJDIR)/test_speed: $(TESTDIR)/test_speed.c $(OBJDIR)/$(SONAME)
 	$(CC) -o $(OBJDIR)/test_speed $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_speed.c -L$(OBJDIR) -Wl,-rpath,$(OBJDIR) -lucl -lrt
 
 install: $(OBJDIR)/$(SONAME)
