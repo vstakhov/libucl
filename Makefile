@@ -16,6 +16,7 @@ RM ?= rm
 RMDIR ?= rmdir
 LN ?= ln
 LD_SHARED_FLAGS ?= -Wl,-soname,$(SONAME) -shared -lm
+LD_UCL_FLAGS ?= -L$(OBJDIR) -Wl,-rpath,$(OBJDIR) -lucl
 COPT_FLAGS ?= -g -O0
 
 all: $(OBJDIR) $(OBJDIR)/$(SONAME)
@@ -38,13 +39,15 @@ $(OBJDIR)/ucl_emitter.o: $(SRCDIR)/ucl_emitter.c $(SRCDIR)/ucl_chartable.h $(SRC
 	$(CC) -o $(OBJDIR)/ucl_emitter.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_emitter.c
 
 clean:
-	$(RM) $(OBJDIR)/*.o $(OBJDIR)/$(SONAME_FULL) $(OBJDIR)/$(SONAME) $(OBJDIR)/chargen $(OBJDIR)/test_basic $(OBJDIR)/test_speed
+	$(RM) $(OBJDIR)/*.o $(OBJDIR)/$(SONAME_FULL) $(OBJDIR)/$(SONAME) $(OBJDIR)/chargen $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/objdump
 	$(RMDIR) $(OBJDIR)
 	
 # Utils
 
-chargen: $(OBJDIR) utils/chargen.c
+chargen: utils/chargen.c $(OBJDIR)/$(SONAME)
 	$(CC) -o $(OBJDIR)/chargen $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) utils/chargen.c
+objdump: utils/objdump.c $(OBJDIR)/$(SONAME)
+	$(CC) -o $(OBJDIR)/objdump $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) utils/objdump.c $(LD_UCL_FLAGS)
 
 # Tests
 
@@ -54,9 +57,9 @@ run-test: test
 	TEST_DIR=$(TESTDIR) $(TESTDIR)/run_tests.sh $(OBJDIR)/test_basic $(OBJDIR)/test_speed
 	
 $(OBJDIR)/test_basic: $(TESTDIR)/test_basic.c $(OBJDIR)/$(SONAME)
-	$(CC) -o $(OBJDIR)/test_basic $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_basic.c -L$(OBJDIR) -Wl,-rpath,$(OBJDIR) -lucl
+	$(CC) -o $(OBJDIR)/test_basic $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_basic.c $(LD_UCL_FLAGS)
 $(OBJDIR)/test_speed: $(TESTDIR)/test_speed.c $(OBJDIR)/$(SONAME)
-	$(CC) -o $(OBJDIR)/test_speed $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_speed.c -L$(OBJDIR) -Wl,-rpath,$(OBJDIR) -lucl -lrt
+	$(CC) -o $(OBJDIR)/test_speed $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_speed.c $(LD_UCL_FLAGS) -lrt
 
 install: $(OBJDIR)/$(SONAME)
 	$(INSTALL) -m0755 $(SONAME) $(DESTDIR)/lib/$(SONAME)
