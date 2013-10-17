@@ -316,26 +316,24 @@ ucl_elt_obj_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs, boo
 		utstring_append_len (buf, "{\n", 2);
 	}
 
-	while (obj) {
-		HASH_ITER (hh, obj, cur, tmp) {
-			ucl_add_tabs (buf, tabs + 1, is_top);
-			utstring_append_len (buf, cur->key, strlen (cur->key));
-			if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
-				utstring_append_len (buf, " = ", 3);
-			}
-			else {
-				utstring_append_c (buf, ' ');
-			}
-			ucl_elt_write_rcl (cur, buf, is_top ? tabs : tabs + 1, false, false, true);
-			if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
-				utstring_append_len (buf, ";\n", 2);
-			}
-			else {
-				utstring_append_c (buf, '\n');
-			}
+	HASH_ITER (hh, obj, cur, tmp) {
+		ucl_add_tabs (buf, tabs + 1, is_top);
+		utstring_append_len (buf, cur->key, strlen (cur->key));
+		if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
+			utstring_append_len (buf, " = ", 3);
 		}
-		obj = obj->next;
+		else {
+			utstring_append_c (buf, ' ');
+		}
+		ucl_elt_write_rcl (cur, buf, is_top ? tabs : tabs + 1, false, false, true);
+		if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
+			utstring_append_len (buf, ";\n", 2);
+		}
+		else {
+			utstring_append_c (buf, '\n');
+		}
 	}
+
 	ucl_add_tabs (buf, tabs, is_top);
 	if (!is_top) {
 		utstring_append_c (buf, '}');
@@ -453,31 +451,29 @@ ucl_elt_obj_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bo
 		utstring_append_len (buf, ": {\n", 4);
 	}
 
-	while (obj) {
-		HASH_ITER (hh, obj, cur, tmp) {
-			ucl_add_tabs (buf, tabs + 1, is_top);
-			utstring_append_len (buf, cur->key, strlen (cur->key));
-			if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
-				utstring_append_len (buf, " : ", 3);
-			}
-			else {
-				utstring_append_c (buf, ' ');
-			}
-			ucl_elt_write_yaml (cur, buf, is_top ? tabs : tabs + 1, false, false, true);
-			if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
-				if (!is_top) {
-					utstring_append_len (buf, ",\n", 2);
-				}
-				else {
-					utstring_append_c (buf, '\n');
-				}
+	HASH_ITER (hh, obj, cur, tmp) {
+		ucl_add_tabs (buf, tabs + 1, is_top);
+		utstring_append_len (buf, cur->key, strlen (cur->key));
+		if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
+			utstring_append_len (buf, " : ", 3);
+		}
+		else {
+			utstring_append_c (buf, ' ');
+		}
+		ucl_elt_write_yaml (cur, buf, is_top ? tabs : tabs + 1, false, false, true);
+		if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
+			if (!is_top) {
+				utstring_append_len (buf, ",\n", 2);
 			}
 			else {
 				utstring_append_c (buf, '\n');
 			}
 		}
-		obj = obj->next;
+		else {
+			utstring_append_c (buf, '\n');
+		}
 	}
+
 	ucl_add_tabs (buf, tabs, is_top);
 	if (!is_top) {
 		utstring_append_c (buf, '}');

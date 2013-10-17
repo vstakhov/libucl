@@ -11,8 +11,8 @@ key5 = 10mS
 key6 = 10y
 
 # Strings
-key = "some string";
-key1 = /some/path;
+key1 = "some string";
+key2 = /some/path;
 key3 = 111some,
 key4: s1,
 "key5": "\n\r123"

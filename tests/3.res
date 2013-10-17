@@ -7,7 +7,10 @@ alias {
     download = "fetch";
     iinfo = "info -i -g -x";
     isearch = "search -i -g -x";
-    leaf = "query -e '%a == 0' '%n-%v'";
+    leaf [
+        "query -e '%a == 0' '%n-%v'",
+        "query -e '%a == 0' '%n-%v'",
+    ]
     list = "info -ql";
     origin = "info -qo";
     provided-depends = "info -qb";

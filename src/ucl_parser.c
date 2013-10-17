@@ -1105,7 +1105,7 @@ static bool
 ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string **err)
 {
 	const unsigned char *p;
-	bool got_sep = false, got_comma = false, got_semicolon = false;
+	bool got_sep = false;
 	struct ucl_stack *st;
 
 	p = chunk->pos;
@@ -1128,22 +1128,12 @@ ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_st
 		else if (*p == ',') {
 			/* Got a separator */
 			got_sep = true;
-			if (got_comma || got_semicolon) {
-				ucl_set_err (chunk, UCL_ESYNTAX, "unexpected comma detected", err);
-				return false;
-			}
-			got_comma = true;
 			ucl_chunk_skipc (chunk, *p);
 			p ++;
 		}
 		else if (*p == ';') {
 			/* Got a separator */
 			got_sep = true;
-			if (got_comma || got_semicolon) {
-				ucl_set_err (chunk, UCL_ESYNTAX, "unexpected semicolon detected", err);
-				return false;
-			}
-			got_semicolon = true;
 			ucl_chunk_skipc (chunk, *p);
 			p ++;
 		}

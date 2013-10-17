@@ -12,18 +12,34 @@ section1 {
     }
 }
 section2 {
-    param1 {
-        key = "value";
-    }
     param1 [
-        "key",
+        {
+            key = "value";
+        },
+        [
+            "key",
+        ],
     ]
 }
-key2 = 60.0;
 key6 = 2207520000.000000;
-key = "some string";
-key1 = "/some/path";
-key3 = "111some";
-key4 = "s1";
-key5 = "\n\r123";
+key1 [
+    1.0,
+    "some string",
+]
+key2 [
+    60.0,
+    "/some/path",
+]
+key3 [
+    1024,
+    "111some",
+]
+key4 [
+    5000000,
+    "s1",
+]
+key5 [
+    0.010000,
+    "\n\r123",
+]
 

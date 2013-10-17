@@ -34,7 +34,7 @@ main (int argc, char **argv)
 	FILE *in, *out;
 	UT_string *err = NULL;
 	unsigned char *emitted;
-	const char *fname_in = "test_basic.in", *fname_out = "test_basic.in";
+	const char *fname_in = NULL, *fname_out = NULL;
 	int ret = 0;
 
 	switch (argc) {
@@ -47,9 +47,14 @@ main (int argc, char **argv)
 		break;
 	}
 
-	in = fopen (fname_in, "r");
-	if (in == NULL) {
-		exit (-errno);
+	if (fname_in != NULL) {
+		in = fopen (fname_in, "r");
+		if (in == NULL) {
+			exit (-errno);
+		}
+	}
+	else {
+		in = stdin;
 	}
 	parser = ucl_parser_new (UCL_FLAG_KEY_LOWERCASE);
 
@@ -59,9 +64,14 @@ main (int argc, char **argv)
 	}
 	fclose (in);
 
-	out = fopen (fname_out, "w");
-	if (out == NULL) {
-		exit (-errno);
+	if (fname_out != NULL) {
+		out = fopen (fname_out, "w");
+		if (out == NULL) {
+			exit (-errno);
+		}
+	}
+	else {
+		out = stdout;
 	}
 	if (err != NULL) {
 		fprintf (out, "Error occured: %s\n", err->d);
@@ -75,9 +85,9 @@ main (int argc, char **argv)
 	parser2 = ucl_parser_new (UCL_FLAG_KEY_LOWERCASE);
 	ucl_parser_add_chunk (parser2, emitted, strlen (emitted), &err);
 
-	free (emitted);
 	if (err != NULL) {
 		fprintf (out, "Error occured: %s\n", err->d);
+		fprintf (out, "%s\n", emitted);
 		ret = 1;
 		goto end;
 	}
@@ -85,12 +95,14 @@ main (int argc, char **argv)
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
 
 	fprintf (out, "%s\n", emitted);
-	free (emitted);
+	ucl_obj_unref (obj);
 
 end:
+	if (emitted != NULL) {
+		free (emitted);
+	}
 	if (parser2 != NULL) {
 		ucl_parser_free (parser2);
-		ucl_obj_unref (obj);
 	}
 	fclose (out);
 
