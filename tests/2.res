@@ -19,8 +19,8 @@ section2 {
         "key",
     ]
 }
-key2 = 60.0000;
-key6 = 2207520000.0000;
+key2 = 60.0;
+key6 = 2207520000.000000;
 key = "some string";
 key1 = "/some/path";
 key3 = "111some";

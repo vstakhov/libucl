@@ -15,7 +15,7 @@ INSTALL ?= install
 RM ?= rm
 RMDIR ?= rmdir
 LN ?= ln
-LD_SHARED_FLAGS ?= -Wl,-soname,$(SONAME) -shared
+LD_SHARED_FLAGS ?= -Wl,-soname,$(SONAME) -shared -lm
 COPT_FLAGS ?= -g -O0
 
 all: $(OBJDIR) $(OBJDIR)/$(SONAME)

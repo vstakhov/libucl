@@ -21,6 +21,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <float.h>
+#include <math.h>
 #include "ucl.h"
 #include "ucl_internal.h"
 
@@ -89,6 +91,21 @@ ucl_elt_string_write_json (const char *str, UT_string *buf)
 		p ++;
 	}
 	utstring_append_c (buf, '"');
+}
+
+static inline void
+ucl_print_float (UT_string *buf, double val)
+{
+	if (val == (double)(int)val) {
+		utstring_printf (buf, "%.1lf", val);
+	}
+	else if (fabs (val - (double)(int)val) < 0.0000001) {
+		/* Write at maximum precision */
+		utstring_printf (buf, "%.*lg", DBL_DIG, val);
+	}
+	else {
+		utstring_printf (buf, "%lf", val);
+	}
 }
 
 /**
@@ -190,16 +207,11 @@ ucl_elt_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool s
 		utstring_printf (buf, "%ld", (long int)ucl_obj_toint (obj));
 		break;
 	case UCL_FLOAT:
-		if (start_tabs) {
-			ucl_add_tabs (buf, tabs, compact);
-		}
-		utstring_printf (buf, "%lf", ucl_obj_todouble (obj));
-		break;
 	case UCL_TIME:
 		if (start_tabs) {
 			ucl_add_tabs (buf, tabs, compact);
 		}
-		utstring_printf (buf, "%lf", ucl_obj_todouble (obj));
+		ucl_print_float (buf, ucl_obj_todouble (obj));
 		break;
 	case UCL_BOOLEAN:
 		if (start_tabs) {
@@ -368,16 +380,11 @@ ucl_elt_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool st
 		utstring_printf (buf, "%ld", (long int)ucl_obj_toint (obj));
 		break;
 	case UCL_FLOAT:
-		if (start_tabs) {
-			ucl_add_tabs (buf, tabs, false);
-		}
-		utstring_printf (buf, "%.4lf", ucl_obj_todouble (obj));
-		break;
 	case UCL_TIME:
 		if (start_tabs) {
 			ucl_add_tabs (buf, tabs, false);
 		}
-		utstring_printf (buf, "%.4lf", ucl_obj_todouble (obj));
+		ucl_print_float (buf, ucl_obj_todouble (obj));
 		break;
 	case UCL_BOOLEAN:
 		if (start_tabs) {
@@ -509,16 +516,11 @@ ucl_elt_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool s
 		utstring_printf (buf, "%ld", (long int)ucl_obj_toint (obj));
 		break;
 	case UCL_FLOAT:
-		if (start_tabs) {
-			ucl_add_tabs (buf, tabs, false);
-		}
-		utstring_printf (buf, "%.4lf", ucl_obj_todouble (obj));
-		break;
 	case UCL_TIME:
 		if (start_tabs) {
 			ucl_add_tabs (buf, tabs, false);
 		}
-		utstring_printf (buf, "%.4lf", ucl_obj_todouble (obj));
+		ucl_print_float (buf, ucl_obj_todouble (obj));
 		break;
 	case UCL_BOOLEAN:
 		if (start_tabs) {
