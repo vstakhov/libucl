@@ -573,6 +573,7 @@ ucl_parse_key (struct ucl_parser *parser,
 	const unsigned char *p, *c = NULL, *end;
 	bool got_quote = false, got_eq = false, got_semicolon = false, need_unescape = false;
 	ucl_object_t *nobj, *tobj, *container;
+	size_t keylen;
 
 	p = chunk->pos;
 
@@ -694,16 +695,17 @@ ucl_parse_key (struct ucl_parser *parser,
 
 	/* Create a new object */
 	nobj = ucl_object_new ();
-	nobj->key = malloc (end - c + 1);
+	keylen = end - c;
+	nobj->key = malloc (keylen + 1);
 	if (nobj->key == NULL) {
 		ucl_set_err (chunk, 0, "cannot allocate memory for a key", err);
 		return false;
 	}
 	if (parser->flags & UCL_FLAG_KEY_LOWERCASE) {
-		ucl_strlcpy_tolower (nobj->key, c, end - c + 1);
+		ucl_strlcpy_tolower (nobj->key, c, keylen + 1);
 	}
 	else {
-		ucl_strlcpy_unsafe (nobj->key, c, end - c + 1);
+		ucl_strlcpy_unsafe (nobj->key, c, keylen + 1);
 	}
 
 	if (need_unescape) {
@@ -711,17 +713,16 @@ ucl_parse_key (struct ucl_parser *parser,
 	}
 
 	container = parser->stack->obj->value.ov;
-	HASH_FIND_STR (container, nobj->key, tobj);
-	if (tobj != NULL) {
+	HASH_FIND (hh, container, nobj->key, keylen, tobj);
+	if (tobj == NULL) {
 		/* Just insert a new object as the next element */
-		HASH_DELETE (hh, container, tobj);
-		LL_PREPEND (tobj, nobj);
+		HASH_ADD_KEYPTR (hh, container, nobj->key, keylen, nobj);
 	}
+	DL_APPEND (tobj, nobj);
 
-	HASH_ADD_KEYPTR (hh, container, nobj->key, strlen (nobj->key), nobj);
 	parser->stack->obj->value.ov = container;
 
-	parser->cur_obj = nobj;
+	parser->cur_obj = tobj;
 
 	return true;
 }
@@ -906,7 +907,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 {
 	const unsigned char *p, *c;
 	struct ucl_stack *st;
-	ucl_object_t *obj = NULL;
+	ucl_object_t *obj = NULL, *t;
 	unsigned int stripped_spaces;
 	int str_len;
 	bool need_unescape = false;
@@ -919,7 +920,8 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 				/* Object must be allocated */
 				obj = ucl_object_new ();
 				parser->cur_obj = obj;
-				LL_PREPEND (parser->stack->obj->value.ov, parser->cur_obj);
+				t = parser->stack->obj->value.ov;
+				DL_APPEND (t, parser->cur_obj);
 			}
 			else {
 				/* Object has been already allocated */

@@ -101,6 +101,7 @@ typedef struct ucl_object_s {
 	enum ucl_type type;				/**< real type				*/
 	int ref;								/**< reference count		*/
 	struct ucl_object_s *next;		/**< array handle			*/
+	struct ucl_object_s *prev;		/**< array handle			*/
 	UT_hash_handle hh;						/**< hash handle			*/
 } ucl_object_t;
 
