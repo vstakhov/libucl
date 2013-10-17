@@ -519,26 +519,27 @@ ucl_lex_json_string (struct ucl_parser *parser,
 				ucl_set_err (chunk, UCL_ESYNTAX, "unfinished escape character", err);
 				return false;
 			}
-			if (*p == 'u') {
-				ucl_chunk_skipc (chunk, *p);
-				p ++;
-				for (i = 0; i < 4 && p < chunk->end; i ++) {
-					if (!isxdigit (*p)) {
-						ucl_set_err (chunk, UCL_ESYNTAX, "invalid utf escape", err);
+			else if (ucl_test_character (c, UCL_CHARACTER_ESCAPE)) {
+				if (c == 'u') {
+					ucl_chunk_skipc (chunk, *p);
+					p ++;
+					for (i = 0; i < 4 && p < chunk->end; i ++) {
+						if (!isxdigit (*p)) {
+							ucl_set_err (chunk, UCL_ESYNTAX, "invalid utf escape", err);
+							return false;
+						}
+						ucl_chunk_skipc (chunk, *p);
+						p ++;
+					}
+					if (p >= chunk->end) {
+						ucl_set_err (chunk, UCL_ESYNTAX, "unfinished escape character", err);
 						return false;
 					}
+				}
+				else {
 					ucl_chunk_skipc (chunk, *p);
 					p ++;
 				}
-				if (p >= chunk->end) {
-					ucl_set_err (chunk, UCL_ESYNTAX, "unfinished escape character", err);
-					return false;
-				}
-			}
-			else if (c == '"' || c == '\\' || c == '/' || c == 'b' ||
-					c == 'f' || c == 'n' || c == 'r' || c == 't') {
-				ucl_chunk_skipc (chunk, *p);
-				p ++;
 			}
 			else {
 				ucl_set_err (chunk, UCL_ESYNTAX, "invalid escape character", err);
@@ -621,7 +622,7 @@ ucl_parse_key (struct ucl_parser *parser,
 					ucl_chunk_skipc (chunk, *p);
 					p ++;
 				}
-				else if (*p == ' ' || *p == '\t' || *p == ':' || *p == '=') {
+				else if (ucl_test_character (*p, UCL_CHARACTER_KEY_SEP)) {
 					end = p;
 					break;
 				}
@@ -1116,7 +1117,7 @@ ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_st
 	p = chunk->pos;
 
 	while (p < chunk->end) {
-		if (*p == ' ' || *p == '\t') {
+		if (ucl_test_character (*p, UCL_CHARACTER_WHITESPACE)) {
 			/* Skip whitespaces */
 			ucl_chunk_skipc (chunk, *p);
 			p ++;
@@ -1130,50 +1131,41 @@ ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_st
 			got_sep = true;
 			p = chunk->pos;
 		}
-		else if (*p == ',') {
-			/* Got a separator */
-			got_sep = true;
-			ucl_chunk_skipc (chunk, *p);
-			p ++;
-		}
-		else if (*p == ';') {
-			/* Got a separator */
-			got_sep = true;
-			ucl_chunk_skipc (chunk, *p);
-			p ++;
-		}
-		else if (*p == '\n') {
-			got_sep = true;
-			ucl_chunk_skipc (chunk, *p);
-			p ++;
-		}
-		else if (*p == '}' || *p == ']') {
-			if (parser->stack == NULL) {
-				ucl_set_err (chunk, UCL_ESYNTAX, "unexpected } detected", err);
-				return false;
-			}
-			if ((*p == '}' && parser->stack->obj->type == UCL_OBJECT) ||
-					(*p == ']' && parser->stack->obj->type == UCL_ARRAY)) {
-				/* Pop object from a stack */
+		else if (ucl_test_character (*p, UCL_CHARACTER_VALUE_END)) {
+			if (*p == '}' || *p == ']') {
+				if (parser->stack == NULL) {
+					ucl_set_err (chunk, UCL_ESYNTAX, "unexpected } detected", err);
+					return false;
+				}
+				if ((*p == '}' && parser->stack->obj->type == UCL_OBJECT) ||
+						(*p == ']' && parser->stack->obj->type == UCL_ARRAY)) {
+					/* Pop object from a stack */
 
-				st = parser->stack;
-				parser->stack = st->next;
-				UCL_FREE (sizeof (struct ucl_stack), st);
+					st = parser->stack;
+					parser->stack = st->next;
+					UCL_FREE (sizeof (struct ucl_stack), st);
+				}
+				else {
+					ucl_set_err (chunk, UCL_ESYNTAX, "unexpected terminating symbol detected", err);
+					return false;
+				}
+
+				if (parser->stack == NULL) {
+					/* Ignore everything after a top object */
+					return true;
+				}
+				else {
+					ucl_chunk_skipc (chunk, *p);
+					p ++;
+				}
+				got_sep = true;
 			}
 			else {
-				ucl_set_err (chunk, UCL_ESYNTAX, "unexpected terminating symbol detected", err);
-				return false;
-			}
-
-			if (parser->stack == NULL) {
-				/* Ignore everything after a top object */
-				return true;
-			}
-			else {
+				/* Got a separator */
+				got_sep = true;
 				ucl_chunk_skipc (chunk, *p);
 				p ++;
 			}
-			got_sep = true;
 		}
 		else {
 			/* Anything else */

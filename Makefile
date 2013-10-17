@@ -48,7 +48,7 @@ chargen: $(OBJDIR) utils/chargen.c
 
 # Tests
 
-test: $(OBJDIR)/test_basic $(OBJDIR)/test_speed
+test: $(OBJDIR) $(OBJDIR)/$(SONAME) $(OBJDIR)/test_basic $(OBJDIR)/test_speed
 
 run-test: test
 	TEST_DIR=$(TESTDIR) $(TESTDIR)/run_tests.sh $(OBJDIR)/test_basic $(OBJDIR)/test_speed

@@ -54,7 +54,7 @@ main (int argc, char **argv)
 		name = argv[1];
 	}
 
-	printf ("static const unsigned char %s[255] = {\n", name);
+	printf ("static const unsigned int %s[255] = {\n", name);
 
 	for (i = 0; i < 255; i ++) {
 		need_or = false;
@@ -86,6 +86,13 @@ main (int argc, char **argv)
 			if (isalnum (i) || i == '.' || i == '-' || i == '+') {
 				r += print_flag ("UCL_CHARACTER_VALUE_DIGIT", &need_or, valbuf + r);
 			}
+		}
+		if (i == '"' || i == '\\' || i == '/' || i == 'b' ||
+			i == 'f' || i == 'n' || i == 'r' || i == 't' || i == 'u') {
+			r += print_flag ("UCL_CHARACTER_ESCAPE", &need_or, valbuf + r);
+		}
+		if (i == ' ' || i == '\t' || i == ':' || i == '=') {
+			r += print_flag ("UCL_CHARACTER_KEY_SEP", &need_or, valbuf + r);
 		}
 
 		if (!need_or) {

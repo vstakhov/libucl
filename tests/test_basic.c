@@ -74,7 +74,7 @@ main (int argc, char **argv)
 		out = stdout;
 	}
 	if (err != NULL) {
-		fprintf (out, "Error occured: %s\n", err->d);
+		fprintf (out, "Error occurred: %s\n", err->d);
 		ret = 1;
 		goto end;
 	}
@@ -86,7 +86,7 @@ main (int argc, char **argv)
 	ucl_parser_add_chunk (parser2, emitted, strlen (emitted), &err);
 
 	if (err != NULL) {
-		fprintf (out, "Error occured: %s\n", err->d);
+		fprintf (out, "Error occurred: %s\n", err->d);
 		fprintf (out, "%s\n", emitted);
 		ret = 1;
 		goto end;

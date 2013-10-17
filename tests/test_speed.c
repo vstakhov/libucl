@@ -78,6 +78,10 @@ main (int argc, char **argv)
 
 	seconds = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1000000000.;
 	printf ("ucl: parsed input in %.4f seconds\n", seconds);
+	if (err != NULL) {
+		printf ("Error occurred: %s\n", err->d);
+		ret = 1;
+	}
 
 	clock_gettime (CLOCK_MONOTONIC, &start);
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
