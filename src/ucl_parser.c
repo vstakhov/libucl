@@ -715,14 +715,16 @@ ucl_parse_key (struct ucl_parser *parser,
 	container = parser->stack->obj->value.ov;
 	HASH_FIND (hh, container, nobj->key, keylen, tobj);
 	if (tobj == NULL) {
-		/* Just insert a new object as the next element */
+		DL_APPEND (tobj, nobj);
 		HASH_ADD_KEYPTR (hh, container, nobj->key, keylen, nobj);
 	}
-	DL_APPEND (tobj, nobj);
+	else {
+		DL_APPEND (tobj, nobj);
+	}
 
 	parser->stack->obj->value.ov = container;
 
-	parser->cur_obj = tobj;
+	parser->cur_obj = nobj;
 
 	return true;
 }
@@ -919,9 +921,10 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 			if (parser->stack->obj->type == UCL_ARRAY) {
 				/* Object must be allocated */
 				obj = ucl_object_new ();
-				parser->cur_obj = obj;
 				t = parser->stack->obj->value.ov;
-				DL_APPEND (t, parser->cur_obj);
+				DL_APPEND (t, obj);
+				parser->cur_obj = obj;
+				parser->stack->obj->value.ov = t;
 			}
 			else {
 				/* Object has been already allocated */

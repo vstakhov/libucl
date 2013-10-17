@@ -91,6 +91,9 @@ main (int argc, char **argv)
 		ret = 1;
 		goto end;
 	}
+	if (emitted != NULL) {
+		free (emitted);
+	}
 	obj = ucl_parser_get_object (parser2, &err);
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
 
