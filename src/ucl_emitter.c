@@ -428,7 +428,7 @@ ucl_object_emit_rcl (ucl_object_t *obj)
 	/* Allocate large enough buffer */
 	utstring_new (buf);
 
-	ucl_elt_write_rcl (obj, buf, 0, false, true, false);
+	ucl_elt_write_rcl (obj, buf, 0, false, true, true);
 
 	return buf;
 }
@@ -568,7 +568,7 @@ ucl_object_emit_yaml (ucl_object_t *obj)
 	/* Allocate large enough buffer */
 	utstring_new (buf);
 
-	ucl_elt_write_yaml (obj, buf, 0, false, true, false);
+	ucl_elt_write_yaml (obj, buf, 0, false, true, true);
 
 	return buf;
 }
