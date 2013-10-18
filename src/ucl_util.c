@@ -728,5 +728,5 @@ ucl_strlcpy_tolower (char *dst, const char *src, size_t siz)
 		*d = '\0';
 	}
 
-	return (s - src - 1);    /* count does not include NUL */
+	return (s - src);    /* count does not include NUL */
 }
