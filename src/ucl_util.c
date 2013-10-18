@@ -209,6 +209,7 @@ ucl_copy_value_trash (ucl_object_t *obj)
 			if (emitted != NULL) {
 				ucl_elt_write_json (obj, emitted, 0, 0, true);
 				obj->trash_stack[UCL_TRASH_VALUE] = emitted->d;
+				obj->len = emitted->i;
 				free (emitted);
 			}
 		}
