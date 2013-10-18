@@ -86,25 +86,41 @@ enum ucl_emitter {
 };
 
 enum ucl_flags {
-	UCL_FLAG_KEY_LOWERCASE = 0x1
+	UCL_FLAG_KEY_LOWERCASE = 0x1,
+	UCL_FLAG_ZEROCOPY = 0x2
 };
 
 typedef struct ucl_object_s {
-	char *key;								/**< the key of an object */
 	union {
 		int64_t iv;							/**< int value of an object */
-		char *sv;							/**< string value of an object */
+		const char *sv;					/**< string value of an object */
 		double dv;							/**< double value of an object */
-		struct ucl_object_s *ov;		/**< array or hash 			*/
-		void* ud;						/**< opaque user data		*/
+		struct ucl_object_s *ov;			/**< array or hash 			*/
+		void* ud;							/**< opaque user data		*/
 	} value;
-	enum ucl_type type;				/**< real type				*/
+	enum ucl_type type;						/**< real type				*/
 	int ref;								/**< reference count		*/
-	struct ucl_object_s *next;		/**< array handle			*/
-	struct ucl_object_s *prev;		/**< array handle			*/
+	size_t len;								/**< size of an object		*/
+	struct ucl_object_s *next;				/**< array handle			*/
+	struct ucl_object_s *prev;				/**< array handle			*/
+	unsigned char* trash_stack[2];			/**< pointer to allocated chunks */
 	UT_hash_handle hh;						/**< hash handle			*/
 } ucl_object_t;
 
+
+/**
+ * Copy and return a key of an object, returned key is zero-terminated
+ * @param obj CL object
+ * @return zero terminated key
+ */
+char* ucl_copy_key_trash (ucl_object_t *obj);
+
+/**
+ * Copy and return a string value of an object, returned key is zero-terminated
+ * @param obj CL object
+ * @return zero terminated string representation of object value
+ */
+char* ucl_copy_value_trash (ucl_object_t *obj);
 
 /**
  * Creates a new object
@@ -254,9 +270,10 @@ ucl_obj_tostring_safe (ucl_object_t *obj, const char **target)
 	if (obj == NULL) {
 		return false;
 	}
+
 	switch (obj->type) {
 	case UCL_STRING:
-		*target = obj->value.sv;
+		*target = ucl_copy_value_trash (obj);
 		break;
 	default:
 		return false;
@@ -280,6 +297,57 @@ ucl_obj_tostring (ucl_object_t *obj)
 }
 
 /**
+ * Convert any object to a string in JSON notation if needed
+ * @param obj CL object
+ * @return string value
+ */
+static inline const char *
+ucl_obj_tostring_forced (ucl_object_t *obj)
+{
+	return ucl_copy_value_trash (obj);
+}
+
+/**
+ * Return string as char * and len, string may be not zero terminated, more efficient that tostring as it
+ * allows zero-copy
+ * @param obj CL object
+ * @param target target string variable, no need to free value
+ * @param tlen target length
+ * @return true if conversion was successful
+ */
+static inline bool
+ucl_obj_tolstring_safe (ucl_object_t *obj, const char **target, size_t *tlen)
+{
+	if (obj == NULL) {
+		return false;
+	}
+	switch (obj->type) {
+	case UCL_STRING:
+		*target = obj->value.sv;
+		*tlen = obj->len;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+/**
+ * Unsafe version of \ref ucl_obj_tolstring_safe
+ * @param obj CL object
+ * @return string value
+ */
+static inline const char *
+ucl_obj_tolstring (ucl_object_t *obj, size_t *tlen)
+{
+	const char *result = NULL;
+
+	ucl_obj_tolstring_safe (obj, &result, tlen);
+	return result;
+}
+
+/**
  * Return object identified by a key in the specified object
  * @param obj object to get a key from (must be of type UCL_OBJECT)
  * @param key key to search
@@ -296,9 +364,54 @@ ucl_obj_get_key (ucl_object_t *obj, const char *key)
 	}
 
 	keylen = strlen (key);
-	HASH_FIND(hh, obj->value.ov, key, keylen, ret);
+	HASH_FIND (hh, obj->value.ov, key, keylen, ret);
 
 	return ret;
+}
+
+/**
+ * Return object identified by a fixed size key in the specified object
+ * @param obj object to get a key from (must be of type UCL_OBJECT)
+ * @param key key to search
+ * @param klen length of a key
+ * @return object matched the specified key or NULL if key is not found
+ */
+static inline ucl_object_t *
+ucl_obj_get_keyl (ucl_object_t *obj, const char *key, size_t klen)
+{
+	ucl_object_t *ret;
+
+	if (obj == NULL || obj->type != UCL_OBJECT || key == NULL) {
+		return NULL;
+	}
+
+	HASH_FIND (hh, obj->value.ov, key, klen, ret);
+
+	return ret;
+}
+
+/**
+ * Returns a key of an object as a NULL terminated string
+ * @param obj CL object
+ * @return key or NULL if there is no key
+ */
+static inline const char *
+ucl_object_key (ucl_object_t *obj)
+{
+	return ucl_copy_key_trash (obj);
+}
+
+/**
+ * Returns a key of an object as a fixed size string (may be more efficient)
+ * @param obj CL object
+ * @param len target key length
+ * @return key pointer
+ */
+static inline const char *
+ucl_object_keyl (ucl_object_t *obj, size_t *len)
+{
+	*len = obj->hh.keylen;
+	return obj->hh.key;
 }
 
 /**

@@ -40,8 +40,8 @@ ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
 
 	while (obj != NULL ) {
 		printf ("%sucl object address: %p\n", pre + 4, obj);
-		if (obj->key != NULL) {
-			printf ("%skey: \"%s\"\n", pre, obj->key);
+		if (obj->hh.key != NULL) {
+			printf ("%skey: \"%s\"\n", pre, ucl_object_key (obj));
 		}
 		printf ("%sref: %d\n", pre, obj->ref);
 		printf ("%sprev: %p\n", pre, obj->prev);

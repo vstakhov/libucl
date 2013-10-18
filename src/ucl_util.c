@@ -44,14 +44,14 @@ ucl_obj_free_internal (ucl_object_t *obj, bool allow_rec)
 	ucl_object_t *sub, *tmp;
 
 	while (obj != NULL) {
-		if (obj->key != NULL) {
-			free (obj->key);
+		if (obj->trash_stack[UCL_TRASH_KEY] != NULL) {
+			UCL_FREE (obj->hh.keylen, obj->trash_stack[UCL_TRASH_KEY]);
+		}
+		if (obj->trash_stack[UCL_TRASH_VALUE] != NULL) {
+			UCL_FREE (obj->len, obj->trash_stack[UCL_TRASH_VALUE]);
 		}
 
-		if (obj->type == UCL_STRING) {
-			free (obj->value.sv);
-		}
-		else if (obj->type == UCL_ARRAY) {
+		if (obj->type == UCL_ARRAY) {
 			sub = obj->value.ov;
 			while (sub != NULL) {
 				tmp = sub->next;
@@ -81,11 +81,12 @@ ucl_obj_free (ucl_object_t *obj)
 	ucl_obj_free_internal (obj, true);
 }
 
-void
+size_t
 ucl_unescape_json_string (char *str)
 {
 	char *t = str, *h = str;
 	int i, uval;
+	size_t dlen = 0;
 
 	/* t is target (tortoise), h is source (hare) */
 
@@ -95,24 +96,31 @@ ucl_unescape_json_string (char *str)
 			switch (*h) {
 			case 'n':
 				*t++ = '\n';
+				dlen ++;
 				break;
 			case 'r':
 				*t++ = '\r';
+				dlen ++;
 				break;
 			case 'b':
 				*t++ = '\b';
+				dlen ++;
 				break;
 			case 't':
 				*t++ = '\t';
+				dlen ++;
 				break;
 			case 'f':
 				*t++ = '\f';
+				dlen ++;
 				break;
 			case '\\':
 				*t++ = '\\';
+				dlen ++;
 				break;
 			case '"':
 				*t++ = '"';
+				dlen ++;
 				break;
 			case 'u':
 				/* Unicode escape */
@@ -134,17 +142,20 @@ ucl_unescape_json_string (char *str)
 				if(uval < 0x80) {
 					t[0] = (char)uval;
 					t ++;
+					dlen ++;
 				}
 				else if(uval < 0x800) {
 					t[0] = 0xC0 + ((uval & 0x7C0) >> 6);
 					t[1] = 0x80 + ((uval & 0x03F));
 					t += 2;
+					dlen += 2;
 				}
 				else if(uval < 0x10000) {
 					t[0] = 0xE0 + ((uval & 0xF000) >> 12);
 					t[1] = 0x80 + ((uval & 0x0FC0) >> 6);
 					t[2] = 0x80 + ((uval & 0x003F));
 					t += 3;
+					dlen += 3;
 				}
 				else if(uval <= 0x10FFFF) {
 					t[0] = 0xF0 + ((uval & 0x1C0000) >> 18);
@@ -152,6 +163,7 @@ ucl_unescape_json_string (char *str)
 					t[2] = 0x80 + ((uval & 0x000FC0) >> 6);
 					t[3] = 0x80 + ((uval & 0x00003F));
 					t += 4;
+					dlen += 4;
 				}
 				else {
 					*t++ = '?';
@@ -165,9 +177,53 @@ ucl_unescape_json_string (char *str)
 		}
 		else {
 			*t++ = *h++;
+			dlen ++;
 		}
 	}
 	*t = '\0';
+
+	return dlen;
+}
+
+char *
+ucl_copy_key_trash (ucl_object_t *obj)
+{
+	if (obj->trash_stack[UCL_TRASH_KEY] == NULL && obj->hh.key != NULL) {
+		obj->trash_stack[UCL_TRASH_KEY] = malloc (obj->hh.keylen + 1);
+		if (obj->trash_stack[UCL_TRASH_KEY] != NULL) {
+			memcpy (obj->trash_stack[UCL_TRASH_KEY], obj->hh.key, obj->hh.keylen);
+			obj->trash_stack[UCL_TRASH_KEY][obj->hh.keylen] = '\0';
+		}
+	}
+
+	return obj->trash_stack[UCL_TRASH_KEY];
+}
+
+char *
+ucl_copy_value_trash (ucl_object_t *obj)
+{
+	UT_string *emitted;
+	if (obj->trash_stack[UCL_TRASH_VALUE] == NULL) {
+		if (obj->type == UCL_STRING) {
+			/* Special case for strings */
+			obj->trash_stack[UCL_TRASH_VALUE] = malloc (obj->len + 1);
+			if (obj->trash_stack[UCL_TRASH_VALUE] != NULL) {
+				memcpy (obj->trash_stack[UCL_TRASH_VALUE], obj->value.sv, obj->len);
+				obj->trash_stack[UCL_TRASH_VALUE][obj->len] = '\0';
+			}
+		}
+		else {
+			/* Just emit value in json notation */
+			utstring_new (emitted);
+
+			if (emitted != NULL) {
+				ucl_elt_write_json (obj, emitted, 0, 0, true);
+				obj->trash_stack[UCL_TRASH_VALUE] = emitted->d;
+				free (emitted);
+			}
+		}
+	}
+	return obj->trash_stack[UCL_TRASH_VALUE];
 }
 
 ucl_object_t*

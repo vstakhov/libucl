@@ -48,6 +48,8 @@
  */
 
 #define UCL_MAX_RECURSION 16
+#define UCL_TRASH_KEY 0
+#define UCL_TRASH_VALUE 1
 
 enum ucl_parser_state {
 	UCL_STATE_INIT = 0,
@@ -129,7 +131,7 @@ struct ucl_parser {
  * Unescape json string inplace
  * @param str
  */
-void ucl_unescape_json_string (char *str);
+size_t ucl_unescape_json_string (char *str);
 
 /**
  * Handle include macro
@@ -154,6 +156,10 @@ bool ucl_includes_handler (const unsigned char *data, size_t len, void* ud, UT_s
 size_t ucl_strlcpy (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_unsafe (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_tolower (char *dst, const char *src, size_t siz);
+
+
+void ucl_elt_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs,
+		bool start_tabs, bool compact);
 
 #ifdef __GNUC__
 static inline void
