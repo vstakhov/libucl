@@ -131,7 +131,7 @@ struct ucl_parser {
  * Unescape json string inplace
  * @param str
  */
-size_t ucl_unescape_json_string (char *str);
+size_t ucl_unescape_json_string (char *str, size_t len);
 
 /**
  * Handle include macro

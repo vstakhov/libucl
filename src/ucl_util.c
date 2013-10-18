@@ -82,45 +82,37 @@ ucl_obj_free (ucl_object_t *obj)
 }
 
 size_t
-ucl_unescape_json_string (char *str)
+ucl_unescape_json_string (char *str, size_t len)
 {
 	char *t = str, *h = str;
 	int i, uval;
-	size_t dlen = 0;
 
 	/* t is target (tortoise), h is source (hare) */
 
-	while (*h != '\0') {
+	while (len) {
 		if (*h == '\\') {
 			h ++;
 			switch (*h) {
 			case 'n':
 				*t++ = '\n';
-				dlen ++;
 				break;
 			case 'r':
 				*t++ = '\r';
-				dlen ++;
 				break;
 			case 'b':
 				*t++ = '\b';
-				dlen ++;
 				break;
 			case 't':
 				*t++ = '\t';
-				dlen ++;
 				break;
 			case 'f':
 				*t++ = '\f';
-				dlen ++;
 				break;
 			case '\\':
 				*t++ = '\\';
-				dlen ++;
 				break;
 			case '"':
 				*t++ = '"';
-				dlen ++;
 				break;
 			case 'u':
 				/* Unicode escape */
@@ -138,24 +130,22 @@ ucl_unescape_json_string (char *str)
 					}
 				}
 				h += 3;
+				len -= 3;
 				/* Encode */
 				if(uval < 0x80) {
 					t[0] = (char)uval;
 					t ++;
-					dlen ++;
 				}
 				else if(uval < 0x800) {
 					t[0] = 0xC0 + ((uval & 0x7C0) >> 6);
 					t[1] = 0x80 + ((uval & 0x03F));
 					t += 2;
-					dlen += 2;
 				}
 				else if(uval < 0x10000) {
 					t[0] = 0xE0 + ((uval & 0xF000) >> 12);
 					t[1] = 0x80 + ((uval & 0x0FC0) >> 6);
 					t[2] = 0x80 + ((uval & 0x003F));
 					t += 3;
-					dlen += 3;
 				}
 				else if(uval <= 0x10FFFF) {
 					t[0] = 0xF0 + ((uval & 0x1C0000) >> 18);
@@ -163,7 +153,6 @@ ucl_unescape_json_string (char *str)
 					t[2] = 0x80 + ((uval & 0x000FC0) >> 6);
 					t[3] = 0x80 + ((uval & 0x00003F));
 					t += 4;
-					dlen += 4;
 				}
 				else {
 					*t++ = '?';
@@ -174,15 +163,16 @@ ucl_unescape_json_string (char *str)
 				break;
 			}
 			h ++;
+			len --;
 		}
 		else {
 			*t++ = *h++;
-			dlen ++;
 		}
+		len --;
 	}
 	*t = '\0';
 
-	return dlen;
+	return (t - str);
 }
 
 char *

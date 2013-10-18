@@ -75,7 +75,7 @@ ucl_elt_string_write_json (const char *str, size_t size, UT_string *buf)
 	size_t len = 0;
 
 	utstring_append_c (buf, '"');
-	while (size > 0) {
+	while (size) {
 		if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE)) {
 			if (len > 0) {
 				utstring_append_len (buf, c, len);

@@ -236,7 +236,7 @@ ucl_lex_is_comment (const unsigned char c1, const unsigned char c2)
 static inline size_t
 ucl_copy_or_store_ptr (struct ucl_parser *parser,
 		const unsigned char *src, unsigned char **dst,
-		unsigned char const **dst_const, size_t in_len,
+		const char **dst_const, size_t in_len,
 		bool need_unescape, bool need_lowercase, UT_string **err)
 {
 	size_t ret = 0;
@@ -244,7 +244,7 @@ ucl_copy_or_store_ptr (struct ucl_parser *parser,
 	if (need_unescape || need_lowercase || !(parser->flags & UCL_FLAG_ZEROCOPY)) {
 		/* Copy string */
 		*dst = UCL_ALLOC (in_len + 1);
-		if (in_len == NULL) {
+		if (*dst == NULL) {
 			ucl_set_err (parser->chunks, 0, "cannot allocate memory for a string", err);
 			return false;
 		}
@@ -256,7 +256,7 @@ ucl_copy_or_store_ptr (struct ucl_parser *parser,
 		}
 
 		if (need_unescape) {
-			ret = ucl_unescape_json_string (*dst);
+			ret = ucl_unescape_json_string (*dst, ret);
 		}
 		*dst_const = *dst;
 	}
@@ -525,7 +525,7 @@ ucl_lex_json_string (struct ucl_parser *parser,
 			}
 			return false;
 		}
-		if (c == '\\') {
+		else if (c == '\\') {
 			ucl_chunk_skipc (chunk, p);
 			c = *p;
 			if (p >= chunk->end) {
@@ -565,6 +565,7 @@ ucl_lex_json_string (struct ucl_parser *parser,
 		ucl_chunk_skipc (chunk, p);
 	}
 
+	ucl_set_err (chunk, UCL_ESYNTAX, "no quote at the end of json string", err);
 	return false;
 }
 
@@ -579,7 +580,8 @@ static bool
 ucl_parse_key (struct ucl_parser *parser,
 		struct ucl_chunk *chunk, UT_string **err)
 {
-	const unsigned char *p, *c = NULL, *end, *key;
+	const unsigned char *p, *c = NULL, *end;
+	const char *key;
 	bool got_quote = false, got_eq = false, got_semicolon = false, need_unescape = false;
 	ucl_object_t *nobj, *tobj, *container;
 	size_t keylen;
@@ -699,7 +701,7 @@ ucl_parse_key (struct ucl_parser *parser,
 	/* Create a new object */
 	nobj = ucl_object_new ();
 	keylen = ucl_copy_or_store_ptr (parser, c, &nobj->trash_stack[UCL_TRASH_KEY],
-			&key, end- c, need_unescape, parser->flags & UCL_FLAG_KEY_LOWERCASE, err);
+			&key, end - c, need_unescape, parser->flags & UCL_FLAG_KEY_LOWERCASE, err);
 	if (keylen == 0) {
 		return false;
 	}
@@ -928,8 +930,8 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 			}
 			str_len = chunk->pos - c - 2;
 			obj->type = UCL_STRING;
-			if (ucl_copy_or_store_ptr (parser, c + 1, &obj->trash_stack[UCL_TRASH_VALUE],
-					&obj->value.sv, str_len, need_unescape, false, err) == 0) {
+			if ((str_len = ucl_copy_or_store_ptr (parser, c + 1, &obj->trash_stack[UCL_TRASH_VALUE],
+					&obj->value.sv, str_len, need_unescape, false, err)) == 0) {
 				return false;
 			}
 			obj->len = str_len;
@@ -986,8 +988,8 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 							return false;
 						}
 						obj->type = UCL_STRING;
-						if (ucl_copy_or_store_ptr (parser, c, &obj->trash_stack[UCL_TRASH_VALUE],
-							&obj->value.sv, str_len, false, false, err) == 0) {
+						if ((str_len = ucl_copy_or_store_ptr (parser, c, &obj->trash_stack[UCL_TRASH_VALUE],
+							&obj->value.sv, str_len - 1, false, false, err)) == 0) {
 							return false;
 						}
 						obj->len = str_len;
@@ -1026,14 +1028,14 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 								UCL_CHARACTER_WHITESPACE)) {
 							stripped_spaces ++;
 						}
-						str_len = chunk->pos - c + 1 - stripped_spaces;
+						str_len = chunk->pos - c - stripped_spaces;
 						if (str_len <= 0) {
 							ucl_set_err (chunk, 0, "string value must not be empty", err);
 							return false;
 						}
 						obj->type = UCL_STRING;
-						if (ucl_copy_or_store_ptr (parser, c, &obj->trash_stack[UCL_TRASH_VALUE],
-								&obj->value.sv, str_len, false, false, err) == 0) {
+						if ((str_len = ucl_copy_or_store_ptr (parser, c, &obj->trash_stack[UCL_TRASH_VALUE],
+								&obj->value.sv, str_len, false, false, err)) == 0) {
 							return false;
 						}
 						obj->len = str_len;
@@ -1058,14 +1060,14 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk, UT_string *
 							UCL_CHARACTER_WHITESPACE)) {
 						stripped_spaces ++;
 					}
-					str_len = chunk->pos - c + 1 - stripped_spaces;
+					str_len = chunk->pos - c - stripped_spaces;
 					if (str_len <= 0) {
 						ucl_set_err (chunk, 0, "string value must not be empty", err);
 						return false;
 					}
 					obj->type = UCL_STRING;
-					if (ucl_copy_or_store_ptr (parser, c, &obj->trash_stack[UCL_TRASH_VALUE],
-							&obj->value.sv, str_len, false, false, err) == 0) {
+					if ((str_len = ucl_copy_or_store_ptr (parser, c, &obj->trash_stack[UCL_TRASH_VALUE],
+							&obj->value.sv, str_len, false, false, err)) == 0) {
 						return false;
 					}
 					obj->len = str_len;
