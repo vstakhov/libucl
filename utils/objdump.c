@@ -44,6 +44,7 @@ ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
 			printf ("%skey: \"%s\"\n", pre, ucl_object_key (obj));
 		}
 		printf ("%sref: %d\n", pre, obj->ref);
+		printf ("%slen: %zd\n", pre, obj->len);
 		printf ("%sprev: %p\n", pre, obj->prev);
 		printf ("%snext: %p\n", pre, obj->next);
 		if (obj->type == UCL_OBJECT) {
@@ -68,7 +69,7 @@ ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
 		}
 		else if (obj->type == UCL_STRING) {
 			printf ("%stype: UCL_STRING\n", pre);
-			printf ("%svalue: \"%s\"\n", pre, obj->value.sv);
+			 printf ("%svalue: \"%s\"\n", pre, ucl_obj_tostring (obj));
 		}
 		else if (obj->type == UCL_BOOLEAN) {
 			printf ("%stype: UCL_BOOLEAN\n", pre);
