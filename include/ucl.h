@@ -33,6 +33,7 @@
 #include <stdio.h>
 
 #include "uthash.h"
+#include "utlist.h"
 #include "utstring.h"
 
 /**
@@ -138,6 +139,165 @@ ucl_object_new (void)
 	return new;
 }
 
+/**
+ * String conversion flags
+ */
+enum ucl_string_flags {
+	UCL_STRING_ESCAPE = 0x0,  /**< UCL_STRING_ESCAPE perform JSON escape */
+	UCL_STRING_TRIM = 0x1     /**< UCL_STRING_TRIM trim leading and trailing whitespaces */
+};
+
+/**
+ * Convert any string to an ucl object making the specified transformations
+ * @param str fixed size or NULL terminated string
+ * @param len length (if len is zero, than str is treated as NULL terminated)
+ * @param flags conversion flags
+ * @return new object
+ */
+ucl_object_t * ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags flags);
+
+/**
+ * Create a UCL object from the specified string
+ * @param str NULL terminated string, will be json escaped
+ * @return new object
+ */
+static inline ucl_object_t *
+ucl_object_fromstring (const char *str)
+{
+	return ucl_object_fromstring_common (str, 0, UCL_STRING_ESCAPE);
+}
+
+/**
+ * Create a UCL object from the specified string
+ * @param str fixed size string, will be json escaped
+ * @param len length of a string
+ * @return new object
+ */
+static inline ucl_object_t *
+ucl_object_fromlstring (const char *str, size_t len)
+{
+	return ucl_object_fromstring_common (str, len, UCL_STRING_ESCAPE);
+}
+
+/**
+ * Create an object from an integer number
+ * @param iv number
+ * @return new object
+ */
+static inline ucl_object_t *
+ucl_object_fromint (int64_t iv)
+{
+	ucl_object_t *obj;
+
+	obj = ucl_object_new ();
+	if (obj != NULL) {
+		obj->type = UCL_INT;
+		obj->value.iv = iv;
+	}
+
+	return obj;
+}
+
+/**
+ * Create an object from a float number
+ * @param dv number
+ * @return new object
+ */
+static inline ucl_object_t *
+ucl_object_fromdouble (double dv)
+{
+	ucl_object_t *obj;
+
+	obj = ucl_object_new ();
+	if (obj != NULL) {
+		obj->type = UCL_FLOAT;
+		obj->value.dv = dv;
+	}
+
+	return obj;
+}
+
+/**
+ * Create an object from a boolean
+ * @param bv bool value
+ * @return new object
+ */
+static inline ucl_object_t *
+ucl_object_frombool (bool bv)
+{
+	ucl_object_t *obj;
+
+	obj = ucl_object_new ();
+	if (obj != NULL) {
+		obj->type = UCL_BOOLEAN;
+		obj->value.iv = bv;
+	}
+
+	return obj;
+}
+
+/**
+ * Insert a object 'elt' to the hash 'top' and associate it with key 'key'
+ * @param top destination object (will be created automatically if top is NULL)
+ * @param elt element to insert (must NOT be NULL)
+ * @param key key to associate with this object (either const or preallocated)
+ * @param keylen length of the key (or 0 for NULL terminated keys)
+ * @return new value of top object
+ */
+static inline ucl_object_t *
+ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt, const char *key, size_t keylen)
+{
+	if (elt == NULL || key == NULL) {
+		return NULL;
+	}
+
+	if (top == NULL) {
+		top = ucl_object_new ();
+		top->type = UCL_OBJECT;
+	}
+	if (keylen == 0) {
+		keylen = strlen (key);
+	}
+	HASH_ADD_KEYPTR (hh, top->value.ov, key, keylen, elt);
+
+	return top;
+}
+
+/**
+ * Append an element to the array object
+ * @param top destination object (will be created automatically if top is NULL)
+ * @param eltelement to append (must NOT be NULL)
+ * @return new value of top object
+ */
+static inline ucl_object_t *
+ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
+{
+	if (elt == NULL) {
+		return NULL;
+	}
+
+	if (top == NULL) {
+		top = ucl_object_new ();
+		top->type = UCL_ARRAY;
+	}
+
+	DL_APPEND (top->value.ov, elt);
+
+	return top;
+}
+
+/**
+ * Append a element to another element forming an implicit array
+ * @param head head to append (may be NULL)
+ * @param elt new element
+ * @return new head if applicable
+ */
+static inline ucl_object_t *
+ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
+{
+	DL_APPEND (head, elt);
+	return head;
+}
 
 /**
  * Converts an object to double value

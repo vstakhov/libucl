@@ -23,6 +23,7 @@
 
 #include "ucl.h"
 #include "ucl_internal.h"
+#include "ucl_chartable.h"
 
 #ifdef HAVE_OPENSSL
 #include <openssl/err.h>
@@ -720,4 +721,104 @@ ucl_strlcpy_tolower (char *dst, const char *src, size_t siz)
 	}
 
 	return (s - src);    /* count does not include NUL */
+}
+
+ucl_object_t *
+ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags flags)
+{
+	ucl_object_t *obj;
+	const char *start, *end, *p;
+	char *dst, *d;
+	size_t escaped_len;
+
+	if (str == NULL) {
+		return NULL;
+	}
+
+	obj = ucl_object_new ();
+	if (obj) {
+		if (len == 0) {
+			len = strlen (str);
+		}
+		if (flags & UCL_STRING_TRIM) {
+			/* Skip leading spaces */
+			for (start = str; (size_t)(start - str) < len; start ++) {
+				if (!ucl_test_character (*start, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
+					break;
+				}
+			}
+			/* Skip trailing spaces */
+			for (end = str + len; end > start; end --) {
+				if (!ucl_test_character (*end, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
+					break;
+				}
+			}
+		}
+		else {
+			start = str;
+			end = str + len;
+		}
+
+		obj->type = UCL_STRING;
+		if (flags & UCL_STRING_ESCAPE) {
+			for (p = start, escaped_len = 0; p < end; p ++, escaped_len ++) {
+				if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE)) {
+					escaped_len ++;
+				}
+			}
+			dst = malloc (escaped_len + 1);
+			if (dst != NULL) {
+				for (p = start, d = dst; p < end; p ++, d ++) {
+					if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE)) {
+						switch (*p) {
+						case '\n':
+							*d++ = '\\';
+							*d = 'n';
+							break;
+						case '\r':
+							*d++ = '\\';
+							*d = 'r';
+							break;
+						case '\b':
+							*d++ = '\\';
+							*d = 'b';
+							break;
+						case '\t':
+							*d++ = '\\';
+							*d = 't';
+							break;
+						case '\f':
+							*d++ = '\\';
+							*d = 'f';
+							break;
+						case '\\':
+							*d++ = '\\';
+							*d = '\\';
+							break;
+						case '"':
+							*d++ = '\\';
+							*d = '"';
+							break;
+						}
+					}
+					else {
+						*d = *p;
+					}
+				}
+				*d = '\0';
+				obj->value.sv = dst;
+				obj->trash_stack[UCL_TRASH_VALUE] = dst;
+			}
+		}
+		else {
+			dst = malloc (end - start + 1);
+			if (dst != NULL) {
+				ucl_strlcpy_unsafe (dst, start, end - start + 1);
+				obj->value.sv = dst;
+				obj->trash_stack[UCL_TRASH_VALUE] = dst;
+			}
+		}
+	}
+
+	return obj;
 }
