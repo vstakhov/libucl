@@ -26,6 +26,17 @@ for _tin in ${TEST_DIR}/*.in ; do
 	rm $_t.out
 done
 
+if [ $# -gt 2 ] ; then
+	$3 ${TEST_DIR}/generate.out
+	diff -s ${TEST_DIR}/generate.out ${TEST_DIR}/generate.res -u 2>/dev/null
+	if [ $? -ne 0 ] ; then
+		rm ${TEST_DIR}/generate.out
+		echo "Test: generate.res output missmatch"
+    	exit 1
+	fi
+	rm ${TEST_DIR}/generate.out
+fi
+
 if [ $# -gt 1 -a -x "/usr/bin/xz" ] ; then
 	echo 'Running speed tests'
 	for _tin in ${TEST_DIR}/*.xz ; do
@@ -43,3 +54,4 @@ if [ $# -gt 1 -a -x "/usr/bin/xz" ] ; then
 		rm ${TEST_DIR}/test_file
 	done
 fi
+
