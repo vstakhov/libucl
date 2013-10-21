@@ -10,6 +10,7 @@ SONAME_FULL = $(SONAME).$(MAJOR_VERSION)
 OBJDIR ?= .obj
 TESTDIR ?= tests
 SRCDIR ?= src
+INCLUDEDIR ?= include
 MKDIR ?= mkdir
 INSTALL ?= install
 RM ?= rm
@@ -31,11 +32,11 @@ $(OBJDIR):
 	@$(MKDIR) -p $(OBJDIR)
 
 # Compile rules
-$(OBJDIR)/ucl_util.o: $(SRCDIR)/ucl_util.c $(SRCDIR)/ucl_chartable.h $(SRCDIR)/ucl_internal.h
+$(OBJDIR)/ucl_util.o: $(SRCDIR)/ucl_util.c $(SRCDIR)/ucl_chartable.h $(SRCDIR)/ucl_internal.h $(INCLUDEDIR)/ucl.h
 	$(CC) -o $(OBJDIR)/ucl_util.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_util.c
-$(OBJDIR)/ucl_parser.o: $(SRCDIR)/ucl_parser.c $(SRCDIR)/ucl_chartable.h $(SRCDIR)/ucl_internal.h
+$(OBJDIR)/ucl_parser.o: $(SRCDIR)/ucl_parser.c $(SRCDIR)/ucl_chartable.h $(SRCDIR)/ucl_internal.h $(INCLUDEDIR)/ucl.h
 	$(CC) -o $(OBJDIR)/ucl_parser.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_parser.c
-$(OBJDIR)/ucl_emitter.o: $(SRCDIR)/ucl_emitter.c $(SRCDIR)/ucl_chartable.h $(SRCDIR)/ucl_internal.h
+$(OBJDIR)/ucl_emitter.o: $(SRCDIR)/ucl_emitter.c $(SRCDIR)/ucl_chartable.h $(SRCDIR)/ucl_internal.h $(INCLUDEDIR)/ucl.h
 	$(CC) -o $(OBJDIR)/ucl_emitter.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_emitter.c
 
 clean:
