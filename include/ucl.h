@@ -245,8 +245,10 @@ ucl_object_frombool (bool bv)
  * @return new value of top object
  */
 static inline ucl_object_t *
-ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt, const char *key, size_t keylen)
+ucl_obj_insert_key (ucl_object_t *top, ucl_object_t *elt, const char *key, size_t keylen)
 {
+	ucl_object_t *found;
+
 	if (elt == NULL || key == NULL) {
 		return NULL;
 	}
@@ -258,7 +260,13 @@ ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt, const char *key, si
 	if (keylen == 0) {
 		keylen = strlen (key);
 	}
-	HASH_ADD_KEYPTR (hh, top->value.ov, key, keylen, elt);
+
+	HASH_FIND (hh, top->value.ov, key, keylen, found);
+
+	if (!found) {
+		HASH_ADD_KEYPTR (hh, top->value.ov, key, keylen, elt);
+	}
+	DL_APPEND (found, elt);
 
 	return top;
 }
