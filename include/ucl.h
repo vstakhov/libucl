@@ -43,7 +43,11 @@
  * using as a configuration language
  */
 
-#define ucl_obj_new ucl_object_new
+/**
+ * XXX: Poorly named API functions, need to replace them with the appropriate
+ * named function. All API functions *must* use naming ucl_object_*. Usage of
+ * ucl_obj* should be avoided.
+ */
 #define ucl_object_todouble_safe ucl_obj_todouble_safe
 #define ucl_object_todouble ucl_obj_todouble
 #define ucl_object_tostring ucl_obj_tostring
