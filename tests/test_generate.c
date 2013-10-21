@@ -78,7 +78,7 @@ main (int argc, char **argv)
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
 
 	fprintf (out, "%s\n", emitted);
-	ucl_obj_unref (obj);
+	ucl_object_unref (obj);
 
 	if (emitted != NULL) {
 		free (emitted);

@@ -234,20 +234,20 @@ ucl_elt_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool s
 		if (start_tabs) {
 			ucl_add_tabs (buf, tabs, compact);
 		}
-		utstring_printf (buf, "%ld", (long int)ucl_obj_toint (obj));
+		utstring_printf (buf, "%jd", (intmax_t)ucl_object_toint (obj));
 		break;
 	case UCL_FLOAT:
 	case UCL_TIME:
 		if (start_tabs) {
 			ucl_add_tabs (buf, tabs, compact);
 		}
-		ucl_print_float (buf, ucl_obj_todouble (obj));
+		ucl_print_float (buf, ucl_object_todouble (obj));
 		break;
 	case UCL_BOOLEAN:
 		if (start_tabs) {
 			ucl_add_tabs (buf, tabs, compact);
 		}
-		utstring_printf (buf, "%s", ucl_obj_toboolean (obj) ? "true" : "false");
+		utstring_printf (buf, "%s", ucl_object_toboolean (obj) ? "true" : "false");
 		break;
 	case UCL_STRING:
 		if (start_tabs) {
@@ -410,20 +410,20 @@ ucl_elt_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs,
 			if (start_tabs) {
 				ucl_add_tabs (buf, tabs, false);
 			}
-			utstring_printf (buf, "%ld", (long int)ucl_obj_toint (obj));
+			utstring_printf (buf, "%jd", (intmax_t)ucl_object_toint (obj));
 			break;
 		case UCL_FLOAT:
 		case UCL_TIME:
 			if (start_tabs) {
 				ucl_add_tabs (buf, tabs, false);
 			}
-			ucl_print_float (buf, ucl_obj_todouble (obj));
+			ucl_print_float (buf, ucl_object_todouble (obj));
 			break;
 		case UCL_BOOLEAN:
 			if (start_tabs) {
 				ucl_add_tabs (buf, tabs, false);
 			}
-			utstring_printf (buf, "%s", ucl_obj_toboolean (obj) ? "true" : "false");
+			utstring_printf (buf, "%s", ucl_object_toboolean (obj) ? "true" : "false");
 			break;
 		case UCL_STRING:
 			if (start_tabs) {
@@ -550,20 +550,20 @@ ucl_elt_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int tabs,
 			if (start_tabs) {
 				ucl_add_tabs (buf, tabs, false);
 			}
-			utstring_printf (buf, "%ld", (long int)ucl_obj_toint (obj));
+			utstring_printf (buf, "%jd", (intmax_t)ucl_object_toint (obj));
 			break;
 		case UCL_FLOAT:
 		case UCL_TIME:
 			if (start_tabs) {
 				ucl_add_tabs (buf, tabs, false);
 			}
-			ucl_print_float (buf, ucl_obj_todouble (obj));
+			ucl_print_float (buf, ucl_object_todouble (obj));
 			break;
 		case UCL_BOOLEAN:
 			if (start_tabs) {
 				ucl_add_tabs (buf, tabs, false);
 			}
-			utstring_printf (buf, "%s", ucl_obj_toboolean (obj) ? "true" : "false");
+			utstring_printf (buf, "%s", ucl_object_toboolean (obj) ? "true" : "false");
 			break;
 		case UCL_STRING:
 			if (start_tabs) {

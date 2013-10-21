@@ -40,7 +40,7 @@
 
 
 static void
-ucl_obj_free_internal (ucl_object_t *obj, bool allow_rec)
+ucl_object_free_internal (ucl_object_t *obj, bool allow_rec)
 {
 	ucl_object_t *sub, *tmp;
 
@@ -56,14 +56,14 @@ ucl_obj_free_internal (ucl_object_t *obj, bool allow_rec)
 			sub = obj->value.ov;
 			while (sub != NULL) {
 				tmp = sub->next;
-				ucl_obj_free_internal (sub, false);
+				ucl_object_free_internal (sub, false);
 				sub = tmp;
 			}
 		}
 		else if (obj->type == UCL_OBJECT) {
 			HASH_ITER (hh, obj->value.ov, sub, tmp) {
 				HASH_DELETE (hh, obj->value.ov, sub);
-				ucl_obj_free_internal (sub, true);
+				ucl_object_free_internal (sub, true);
 			}
 		}
 		tmp = obj->next;
@@ -79,7 +79,7 @@ ucl_obj_free_internal (ucl_object_t *obj, bool allow_rec)
 void
 ucl_obj_free (ucl_object_t *obj)
 {
-	ucl_obj_free_internal (obj, true);
+	ucl_object_free_internal (obj, true);
 }
 
 size_t
@@ -222,7 +222,7 @@ ucl_object_t*
 ucl_parser_get_object (struct ucl_parser *parser, UT_string **err)
 {
 	if (parser->state != UCL_STATE_INIT && parser->state != UCL_STATE_ERROR) {
-		return ucl_obj_ref (parser->top_obj);
+		return ucl_object_ref (parser->top_obj);
 	}
 
 	return NULL;
@@ -237,7 +237,7 @@ ucl_parser_free (struct ucl_parser *parser)
 	struct ucl_pubkey *key, *ktmp;
 
 	if (parser->top_obj != NULL) {
-		ucl_obj_unref (parser->top_obj);
+		ucl_object_unref (parser->top_obj);
 	}
 
 	LL_FOREACH_SAFE (parser->stack, stack, stmp) {

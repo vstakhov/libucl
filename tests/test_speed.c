@@ -120,7 +120,7 @@ main (int argc, char **argv)
 	free (emitted);
 
 	ucl_parser_free (parser);
-	ucl_obj_unref (obj);
+	ucl_object_unref (obj);
 
 	munmap (map, st.st_size);
 

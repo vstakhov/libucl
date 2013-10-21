@@ -365,7 +365,7 @@ ucl_obj_todouble (ucl_object_t *obj)
 {
 	double result = 0.;
 
-	ucl_obj_todouble_safe (obj, &result);
+	ucl_object_todouble_safe (obj, &result);
 	return result;
 }
 
@@ -406,7 +406,7 @@ ucl_obj_toint (ucl_object_t *obj)
 {
 	int64_t result = 0;
 
-	ucl_obj_toint_safe (obj, &result);
+	ucl_object_toint_safe (obj, &result);
 	return result;
 }
 
@@ -443,7 +443,7 @@ ucl_obj_toboolean (ucl_object_t *obj)
 {
 	bool result = false;
 
-	ucl_obj_toboolean_safe (obj, &result);
+	ucl_object_toboolean_safe (obj, &result);
 	return result;
 }
 
@@ -481,7 +481,7 @@ ucl_obj_tostring (ucl_object_t *obj)
 {
 	const char *result = NULL;
 
-	ucl_obj_tostring_safe (obj, &result);
+	ucl_object_tostring_safe (obj, &result);
 	return result;
 }
 
@@ -532,7 +532,7 @@ ucl_obj_tolstring (ucl_object_t *obj, size_t *tlen)
 {
 	const char *result = NULL;
 
-	ucl_obj_tolstring_safe (obj, &result, tlen);
+	ucl_object_tolstring_safe (obj, &result, tlen);
 	return result;
 }
 
