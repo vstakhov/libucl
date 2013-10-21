@@ -1390,6 +1390,8 @@ ucl_state_machine (struct ucl_parser *parser, UT_string **err)
 			break;
 		default:
 			/* TODO: add all states */
+			ucl_set_err (chunk, UCL_EMACRO, "internal error: parser is in an unknown state", err);
+			parser->state = UCL_STATE_ERROR;
 			return false;
 		}
 	}
