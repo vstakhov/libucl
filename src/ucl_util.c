@@ -748,11 +748,12 @@ ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags
 				}
 			}
 			/* Skip trailing spaces */
-			for (end = str + len; end > start; end --) {
+			for (end = str + len - 1; end > start; end --) {
 				if (!ucl_test_character (*end, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 					break;
 				}
 			}
+			end ++;
 		}
 		else {
 			start = str;
@@ -808,6 +809,7 @@ ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags
 				*d = '\0';
 				obj->value.sv = dst;
 				obj->trash_stack[UCL_TRASH_VALUE] = dst;
+				obj->len = escaped_len;
 			}
 		}
 		else {
@@ -816,6 +818,7 @@ ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags
 				ucl_strlcpy_unsafe (dst, start, end - start + 1);
 				obj->value.sv = dst;
 				obj->trash_stack[UCL_TRASH_VALUE] = dst;
+				obj->len = end - start;
 			}
 		}
 	}
