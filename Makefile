@@ -51,15 +51,17 @@ objdump: utils/objdump.c $(OBJDIR)/$(SONAME)
 
 # Tests
 
-test: $(OBJDIR) $(OBJDIR)/$(SONAME) $(OBJDIR)/test_basic $(OBJDIR)/test_speed
+test: $(OBJDIR) $(OBJDIR)/$(SONAME) $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/test_generate
 
 run-test: test
-	TEST_DIR=$(TESTDIR) $(TESTDIR)/run_tests.sh $(OBJDIR)/test_basic $(OBJDIR)/test_speed
+	TEST_DIR=$(TESTDIR) $(TESTDIR)/run_tests.sh $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/test_generate
 	
 $(OBJDIR)/test_basic: $(TESTDIR)/test_basic.c $(OBJDIR)/$(SONAME)
 	$(CC) -o $(OBJDIR)/test_basic $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_basic.c $(LD_UCL_FLAGS)
 $(OBJDIR)/test_speed: $(TESTDIR)/test_speed.c $(OBJDIR)/$(SONAME)
 	$(CC) -o $(OBJDIR)/test_speed $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_speed.c $(LD_UCL_FLAGS) -lrt
+$(OBJDIR)/test_generate: $(TESTDIR)/test_generate.c $(OBJDIR)/$(SONAME)
+	$(CC) -o $(OBJDIR)/test_generate $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_generate.c $(LD_UCL_FLAGS) -lrt
 
 install: $(OBJDIR)/$(SONAME)
 	$(INSTALL) -m0755 $(SONAME) $(DESTDIR)/lib/$(SONAME)
