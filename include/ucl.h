@@ -37,6 +37,30 @@
 #include "utstring.h"
 
 /**
+ * @file rcl.h
+ * RCL is an rspamd configuration language, which is a form of
+ * JSON with less strict rules that make it more comfortable for
+ * using as a configuration language
+ */
+
+#define ucl_obj_new ucl_object_new
+#define ucl_object_todouble_safe ucl_obj_todouble_safe
+#define ucl_object_todouble ucl_obj_todouble
+#define ucl_object_tostring ucl_obj_tostring
+#define ucl_object_tostring_safe ucl_obj_tostring_safe
+#define ucl_object_tolstring ucl_obj_tolstring
+#define ucl_object_tolstring_safe ucl_obj_tolstring_safe
+#define ucl_object_toint ucl_obj_toint
+#define ucl_object_toint_safe ucl_obj_toint_safe
+#define ucl_object_toboolean ucl_obj_toboolean
+#define ucl_object_toboolean_safe ucl_obj_toboolean_safe
+#define ucl_object_find_key ucl_obj_get_key
+#define ucl_object_find_keyl ucl_obj_get_keyl
+#define ucl_object_unref ucl_obj_unref
+#define ucl_object_ref ucl_obj_ref
+#define ucl_object_free ucl_obj_free
+
+/**
  * Memory allocation utilities
  * UCL_ALLOC(size) - allocate memory for UCL
  * UCL_FREE(size, ptr) - free memory of specified size at ptr
@@ -48,13 +72,6 @@
 #ifndef UCL_FREE
 #define UCL_FREE(size, ptr) free(ptr)
 #endif
-
-/**
- * @file rcl.h
- * RCL is an rspamd configuration language, which is a form of
- * JSON with less strict rules that make it more comfortable for
- * using as a configuration language
- */
 
 enum ucl_error {
 	UCL_EOK = 0,   //!< UCL_EOK
@@ -245,7 +262,7 @@ ucl_object_frombool (bool bv)
  * @return new value of top object
  */
 static inline ucl_object_t *
-ucl_obj_insert_key (ucl_object_t *top, ucl_object_t *elt, const char *key, size_t keylen)
+ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt, const char *key, size_t keylen)
 {
 	ucl_object_t *found;
 

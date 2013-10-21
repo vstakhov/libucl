@@ -54,26 +54,26 @@ main (int argc, char **argv)
 	obj = ucl_object_new ();
 	/* Create some strings */
 	cur = ucl_object_fromstring_common ("  test string    ", 0, UCL_STRING_TRIM);
-	obj = ucl_obj_insert_key (obj, cur, "key1", 0);
+	obj = ucl_object_insert_key (obj, cur, "key1", 0);
 	cur = ucl_object_fromstring_common ("  test \nstring\n    ", 0, UCL_STRING_TRIM | UCL_STRING_ESCAPE);
-	obj = ucl_obj_insert_key (obj, cur, "key2", 0);
+	obj = ucl_object_insert_key (obj, cur, "key2", 0);
 	cur = ucl_object_fromstring_common ("  test string    \n", 0, 0);
-	obj = ucl_obj_insert_key (obj, cur, "key3", 0);
+	obj = ucl_object_insert_key (obj, cur, "key3", 0);
 	/* Array of numbers */
 	cur = ucl_object_fromint (10);
 	ar = ucl_array_append (NULL, cur);
 	cur = ucl_object_fromdouble (10.1);
 	ar = ucl_array_append (ar, cur);
-	obj = ucl_obj_insert_key (obj, ar, "key4", 0);
+	obj = ucl_object_insert_key (obj, ar, "key4", 0);
 	cur = ucl_object_frombool (true);
-	obj = ucl_obj_insert_key (obj, cur, "key4", 0);
+	obj = ucl_object_insert_key (obj, cur, "key4", 0);
 	/* Empty strings */
 	cur = ucl_object_fromstring_common ("      ", 0, UCL_STRING_TRIM);
-	obj = ucl_obj_insert_key (obj, cur, "key5", 0);
+	obj = ucl_object_insert_key (obj, cur, "key5", 0);
 	cur = ucl_object_fromstring_common ("", 0, UCL_STRING_ESCAPE);
-	obj = ucl_obj_insert_key (obj, cur, "key6", 0);
+	obj = ucl_object_insert_key (obj, cur, "key6", 0);
 	cur = ucl_object_fromstring_common ("   \n", 0, UCL_STRING_ESCAPE);
-	obj = ucl_obj_insert_key (obj, cur, "key7", 0);
+	obj = ucl_object_insert_key (obj, cur, "key7", 0);
 
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
 
