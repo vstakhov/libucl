@@ -728,7 +728,7 @@ ucl_object_t *
 ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags flags)
 {
 	ucl_object_t *obj;
-	const char *start, *end, *p;
+	const char *start, *end, *p, *pos;
 	char *dst, *d;
 	size_t escaped_len;
 
@@ -820,6 +820,12 @@ ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags
 				obj->value.sv = dst;
 				obj->trash_stack[UCL_TRASH_VALUE] = dst;
 				obj->len = end - start;
+			}
+		}
+		if ((flags & UCL_STRING_PARSE) && dst != NULL) {
+			/* Parse what we have */
+			if (!ucl_maybe_parse_boolean (obj, dst, obj->len)) {
+				ucl_maybe_parse_number (obj, dst, dst + obj->len, &pos);
 			}
 		}
 	}

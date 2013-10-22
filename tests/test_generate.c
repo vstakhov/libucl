@@ -74,6 +74,15 @@ main (int argc, char **argv)
 	obj = ucl_object_insert_key (obj, cur, "key6", 0, false);
 	cur = ucl_object_fromstring_common ("   \n", 0, UCL_STRING_ESCAPE);
 	obj = ucl_object_insert_key (obj, cur, "key7", 0, false);
+	/* Numbers and booleans */
+	cur = ucl_object_fromstring_common ("1mb", 0, UCL_STRING_ESCAPE | UCL_STRING_PARSE);
+	obj = ucl_object_insert_key (obj, cur, "key8", 0, false);
+	cur = ucl_object_fromstring_common ("3.14", 0, UCL_STRING_PARSE);
+	obj = ucl_object_insert_key (obj, cur, "key9", 0, false);
+	cur = ucl_object_fromstring_common ("true", 0, UCL_STRING_PARSE);
+	obj = ucl_object_insert_key (obj, cur, "key10", 0, false);
+	cur = ucl_object_fromstring_common ("  off  ", 0, UCL_STRING_PARSE | UCL_STRING_TRIM);
+	obj = ucl_object_insert_key (obj, cur, "key11", 0, false);
 
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
 
