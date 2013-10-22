@@ -361,7 +361,7 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 		case 'G':
 		case 'k':
 		case 'K':
-			if (end - p > 2) {
+			if (end - p >= 2) {
 				if (p[1] == 's' || p[1] == 'S') {
 					/* Milliseconds */
 					if (!need_double) {
