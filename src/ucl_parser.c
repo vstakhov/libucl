@@ -274,7 +274,7 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 {
 	const char *p = start, *c = start;
 	char *endptr;
-	bool got_dot = false, got_exp = false, need_double = false, is_date = false;
+	bool got_dot = false, got_exp = false, need_double = false, is_date = false, valid_start = false;
 	double dv;
 	int64_t lv;
 
@@ -283,6 +283,7 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 	}
 	while (p < end) {
 		if (isdigit (*p)) {
+			valid_start = true;
 			p ++;
 		}
 		else if (allow_double) {
@@ -335,6 +336,11 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 		else {
 			break;
 		}
+	}
+
+	if (!valid_start) {
+		*pos = start;
+		return EINVAL;
 	}
 
 	errno = 0;
