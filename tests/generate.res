@@ -11,4 +11,8 @@ key4 [
 key5 = "";
 key6 = "";
 key7 = "   \n";
+key8 = 1048576;
+key9 = 3.140000;
+key10 = true;
+key11 = false;
 
