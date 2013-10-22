@@ -355,7 +355,7 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 		goto set_obj;
 	}
 
-	if (endptr < end) {
+	if (endptr < end && endptr != start) {
 		p = endptr;
 		switch (*p) {
 		case 'm':
