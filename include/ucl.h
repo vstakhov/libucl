@@ -166,7 +166,10 @@ ucl_object_new (void)
 enum ucl_string_flags {
 	UCL_STRING_ESCAPE = 0x0,  /**< UCL_STRING_ESCAPE perform JSON escape */
 	UCL_STRING_TRIM = 0x1,    /**< UCL_STRING_TRIM trim leading and trailing whitespaces */
-	UCL_STRING_PARSE = 0x2    /**< UCL_STRING_PARSE parse passed string (and detect booleans and numbers) */
+	UCL_STRING_PARSE_BOOLEAN = 0x2,    /**< UCL_STRING_PARSE_BIILEAN parse passed string and detect boolean */
+	UCL_STRING_PARSE_NUMBER = 0x4,    /**< UCL_STRING_PARSE_BIILEAN parse passed string and detect number */
+	UCL_STRING_PARSE =  UCL_STRING_PARSE_BOOLEAN|UCL_STRING_PARSE_NUMBER   /**<
+									UCL_STRING_PARSE parse passed string (and detect booleans and numbers) */
 };
 
 /**
