@@ -85,6 +85,9 @@ main (int argc, char **argv)
 	obj = ucl_object_insert_key (obj, cur, "key11", 0, false);
 	cur = ucl_object_fromstring_common ("gslin@gslin.org", 0, UCL_STRING_PARSE_INT);
 	obj = ucl_object_insert_key (obj, cur, "key12", 0, false);
+	cur = ucl_object_fromstring_common ("#test", 0, UCL_STRING_PARSE_INT);
+	obj = ucl_object_insert_key (obj, cur, "key13", 0, false);
+
 
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
 
