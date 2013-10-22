@@ -263,10 +263,12 @@ ucl_object_frombool (bool bv)
  * @param elt element to insert (must NOT be NULL)
  * @param key key to associate with this object (either const or preallocated)
  * @param keylen length of the key (or 0 for NULL terminated keys)
+ * @param copy_key make an internal copy of key
  * @return new value of top object
  */
 static inline ucl_object_t *
-ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt, const char *key, size_t keylen)
+ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
+		const char *key, size_t keylen, bool copy_key)
 {
 	ucl_object_t *found;
 
@@ -288,6 +290,10 @@ ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt, const char *key, si
 		HASH_ADD_KEYPTR (hh, top->value.ov, key, keylen, elt);
 	}
 	DL_APPEND (found, elt);
+
+	if (copy_key) {
+		ucl_copy_key_trash (elt);
+	}
 
 	return top;
 }

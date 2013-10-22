@@ -185,6 +185,7 @@ ucl_copy_key_trash (ucl_object_t *obj)
 			memcpy (obj->trash_stack[UCL_TRASH_KEY], obj->hh.key, obj->hh.keylen);
 			obj->trash_stack[UCL_TRASH_KEY][obj->hh.keylen] = '\0';
 		}
+		obj->hh.key = obj->trash_stack[UCL_TRASH_KEY];
 	}
 
 	return obj->trash_stack[UCL_TRASH_KEY];
