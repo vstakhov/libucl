@@ -826,11 +826,13 @@ ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags
 			/* Parse what we have */
 			if (flags & UCL_STRING_PARSE_BOOLEAN) {
 				if (!ucl_maybe_parse_boolean (obj, dst, obj->len) && (flags & UCL_STRING_PARSE_NUMBER)) {
-					ucl_maybe_parse_number (obj, dst, dst + obj->len, &pos);
+					ucl_maybe_parse_number (obj, dst, dst + obj->len, &pos,
+							flags & UCL_STRING_PARSE_DOUBLE);
 				}
 			}
 			else {
-				ucl_maybe_parse_number (obj, dst, dst + obj->len, &pos);
+				ucl_maybe_parse_number (obj, dst, dst + obj->len, &pos,
+						flags & UCL_STRING_PARSE_DOUBLE);
 			}
 		}
 	}

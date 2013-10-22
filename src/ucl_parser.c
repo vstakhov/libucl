@@ -270,7 +270,7 @@ ucl_copy_or_store_ptr (struct ucl_parser *parser,
 
 int
 ucl_maybe_parse_number (ucl_object_t *obj,
-		const char *start, const char *end, const char **pos)
+		const char *start, const char *end, const char **pos, bool allow_double)
 {
 	const char *p = start, *c = start;
 	char *endptr;
@@ -285,7 +285,7 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 		if (isdigit (*p)) {
 			p ++;
 		}
-		else {
+		else if (allow_double) {
 			if (p == c) {
 				/* Empty digits sequence, not a number */
 				*pos = start;
@@ -331,6 +331,9 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 				/* Got the end of the number, need to check */
 				break;
 			}
+		}
+		else {
+			break;
 		}
 	}
 
@@ -463,7 +466,7 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 	return EINVAL;
 
 	set_obj:
-	if (need_double || is_date) {
+	if (allow_double && (need_double || is_date)) {
 		if (!is_date) {
 			obj->type = UCL_FLOAT;
 		}
@@ -494,7 +497,7 @@ ucl_lex_number (struct ucl_parser *parser,
 	const unsigned char *pos;
 	int ret;
 
-	ret = ucl_maybe_parse_number (obj, chunk->pos, chunk->end, (const char **)&pos);
+	ret = ucl_maybe_parse_number (obj, chunk->pos, chunk->end, (const char **)&pos, true);
 
 	if (ret == 0) {
 		chunk->remain -= pos - chunk->pos;
