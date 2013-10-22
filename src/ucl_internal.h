@@ -180,4 +180,69 @@ ucl_create_err (UT_string **err, const char *fmt, ...)
 	}
 }
 
+/**
+ * Check whether a given string contains a boolean value
+ * @param obj object to set
+ * @param start start of a string
+ * @param len length of a string
+ * @return true if a string is a boolean value
+ */
+static inline bool
+ucl_maybe_parse_boolean (ucl_object_t *obj, const unsigned char *start, size_t len)
+{
+	const unsigned char *p = start;
+	bool ret = false, val = false;
+
+	if (len == 5) {
+		if (tolower (p[0]) == 'f' && strncasecmp (p, "false", 5) == 0) {
+			ret = true;
+			val = false;
+		}
+	}
+	else if (len == 4) {
+		if (tolower (p[0]) == 't' && strncasecmp (p, "true", 4) == 0) {
+			ret = true;
+			val = true;
+		}
+	}
+	else if (len == 3) {
+		if (tolower (p[0]) == 'y' && strncasecmp (p, "yes", 3) == 0) {
+			ret = true;
+			val = true;
+		}
+		if (tolower (p[0]) == 'o' && strncasecmp (p, "off", 3) == 0) {
+			ret = true;
+			val = false;
+		}
+	}
+	else if (len == 2) {
+		if (tolower (p[0]) == 'n' && strncasecmp (p, "no", 2) == 0) {
+			ret = true;
+			val = false;
+		}
+		else if (tolower (p[0]) == 'o' && strncasecmp (p, "on", 2) == 0) {
+			ret = true;
+			val = true;
+		}
+	}
+
+	if (ret) {
+		obj->type = UCL_BOOLEAN;
+		obj->value.iv = val;
+	}
+
+	return ret;
+}
+
+/**
+ * Check numeric string
+ * @param obj object to set if a string is numeric
+ * @param start start of string
+ * @param end end of string
+ * @param pos position where parsing has stopped
+ * @return 0 if string is numeric and error code (EINVAL or ERANGE) in case of conversion error
+ */
+int ucl_maybe_parse_number (ucl_object_t *obj,
+		const char *start, const char *end, const char **pos);
+
 #endif /* UCL_INTERNAL_H_ */

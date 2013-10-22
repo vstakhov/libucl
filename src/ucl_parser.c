@@ -268,72 +268,62 @@ ucl_copy_or_store_ptr (struct ucl_parser *parser,
 	return ret;
 }
 
-/**
- * Parse possible number
- * @param parser
- * @param chunk
- * @param err
- * @return true if a number has been parsed
- */
-static bool
-ucl_lex_number (struct ucl_parser *parser,
-		struct ucl_chunk *chunk, ucl_object_t *obj, UT_string **err)
+int
+ucl_maybe_parse_number (ucl_object_t *obj,
+		const char *start, const char *end, const char **pos)
 {
-	const unsigned char *p = chunk->pos, *c = chunk->pos;
+	const char *p = start, *c = start;
 	char *endptr;
 	bool got_dot = false, got_exp = false, need_double = false, is_date = false;
 	double dv;
 	int64_t lv;
-	struct ucl_parser_saved_state s;
-
-	ucl_chunk_save_state (chunk, &s);
 
 	if (*p == '-') {
-		ucl_chunk_skipc (chunk, p);
+		p ++;
 	}
-	while (p < chunk->end) {
+	while (p < end) {
 		if (isdigit (*p)) {
-			ucl_chunk_skipc (chunk, p);
+			p ++;
 		}
 		else {
 			if (p == c) {
 				/* Empty digits sequence, not a number */
-				ucl_chunk_restore_state (chunk, &s);
-				return false;
+				*pos = start;
+				return EINVAL;
 			}
 			else if (*p == '.') {
 				if (got_dot) {
 					/* Double dots, not a number */
-					ucl_chunk_restore_state (chunk, &s);
-					return false;
+					*pos = start;
+					return EINVAL;
 				}
 				else {
 					got_dot = true;
 					need_double = true;
-					ucl_chunk_skipc (chunk, p);
+					p ++;
 				}
 			}
 			else if (*p == 'e' || *p == 'E') {
 				if (got_exp) {
 					/* Double exp, not a number */
-					return false;
+					*pos = start;
+					return EINVAL;
 				}
 				else {
 					got_exp = true;
 					need_double = true;
-					ucl_chunk_skipc (chunk, p);
-					if (p >= chunk->end) {
-						ucl_chunk_restore_state (chunk, &s);
-						return false;
+					p ++;
+					if (p >= end) {
+						*pos = start;
+						return EINVAL;
 					}
 					if (!isdigit (*p) && *p != '+' && *p != '-') {
 						/* Wrong exponent sign */
-						ucl_set_err (chunk, UCL_ESYNTAX, "wrong character after exponent", err);
-						ucl_chunk_restore_state (chunk, &s);
-						return false;
+						*pos = start;
+						return EINVAL;
 					}
 					else {
-						ucl_chunk_skipc (chunk, p);
+						p ++;
 					}
 				}
 			}
@@ -352,22 +342,18 @@ ucl_lex_number (struct ucl_parser *parser,
 		lv = strtoimax (c, &endptr, 10);
 	}
 	if (errno == ERANGE) {
-		ucl_set_err (chunk, UCL_ESYNTAX, "numeric value is out of range", err);
-		parser->prev_state = parser->state;
-		parser->state = UCL_STATE_ERROR;
-		ucl_chunk_restore_state (chunk, &s);
-		return false;
+		*pos = start;
+		return ERANGE;
 	}
 
 	/* Now check endptr */
 	if (endptr == NULL || ucl_lex_is_atom_end (*endptr) || *endptr == '\0') {
-		chunk->pos = endptr;
+		p = endptr;
 		goto set_obj;
 	}
 
-	if ((unsigned char *)endptr < chunk->end) {
+	if (endptr < end) {
 		p = endptr;
-		chunk->pos = p;
 		switch (*p) {
 		case 'm':
 		case 'M':
@@ -375,7 +361,7 @@ ucl_lex_number (struct ucl_parser *parser,
 		case 'G':
 		case 'k':
 		case 'K':
-			if (chunk->end - p > 2) {
+			if (end - p > 2) {
 				if (p[1] == 's' || p[1] == 'S') {
 					/* Milliseconds */
 					if (!need_double) {
@@ -389,8 +375,7 @@ ucl_lex_number (struct ucl_parser *parser,
 					else {
 						dv *= ucl_lex_num_multiplier (*p, false);
 					}
-					ucl_chunk_skipc (chunk, p);
-					ucl_chunk_skipc (chunk, p);
+					p += 2;
 					goto set_obj;
 				}
 				else if (p[1] == 'b' || p[1] == 'B') {
@@ -400,8 +385,7 @@ ucl_lex_number (struct ucl_parser *parser,
 						lv = dv;
 					}
 					lv *= ucl_lex_num_multiplier (*p, true);
-					ucl_chunk_skipc (chunk, p);
-					ucl_chunk_skipc (chunk, p);
+					p += 2;
 					goto set_obj;
 				}
 				else if (ucl_lex_is_atom_end (p[1])) {
@@ -411,10 +395,10 @@ ucl_lex_number (struct ucl_parser *parser,
 					else {
 						lv *= ucl_lex_num_multiplier (*p, false);
 					}
-					ucl_chunk_skipc (chunk, p);
+					p ++;
 					goto set_obj;
 				}
-				else if (chunk->end - p >= 3) {
+				else if (end - p >= 3) {
 					if (tolower (p[0]) == 'm' &&
 							tolower (p[1]) == 'i' &&
 							tolower (p[2]) == 'n') {
@@ -425,9 +409,7 @@ ucl_lex_number (struct ucl_parser *parser,
 						}
 						is_date = true;
 						dv *= 60.;
-						ucl_chunk_skipc (chunk, p);
-						ucl_chunk_skipc (chunk, p);
-						ucl_chunk_skipc (chunk, p);
+						p += 3;
 						goto set_obj;
 					}
 				}
@@ -439,18 +421,18 @@ ucl_lex_number (struct ucl_parser *parser,
 				else {
 					lv *= ucl_lex_num_multiplier (*p, false);
 				}
-				ucl_chunk_skipc (chunk, p);
+				p ++;
 				goto set_obj;
 			}
 			break;
 		case 'S':
 		case 's':
-			if (p == chunk->end - 1 || ucl_lex_is_atom_end (p[1])) {
+			if (p == end - 1 || ucl_lex_is_atom_end (p[1])) {
 				if (!need_double) {
 					need_double = true;
 					dv = lv;
 				}
-				ucl_chunk_skipc (chunk, p);
+				p ++;
 				is_date = true;
 				goto set_obj;
 			}
@@ -463,24 +445,24 @@ ucl_lex_number (struct ucl_parser *parser,
 		case 'W':
 		case 'Y':
 		case 'y':
-			if (p == chunk->end - 1 || ucl_lex_is_atom_end (p[1])) {
+			if (p == end - 1 || ucl_lex_is_atom_end (p[1])) {
 				if (!need_double) {
 					need_double = true;
 					dv = lv;
 				}
 				is_date = true;
 				dv *= ucl_lex_time_multiplier (*p);
-				ucl_chunk_skipc (chunk, p);
+				p ++;
 				goto set_obj;
 			}
 			break;
 		}
 	}
 
-	chunk->pos = c;
-	return false;
+	*pos = c;
+	return EINVAL;
 
-set_obj:
+	set_obj:
 	if (need_double || is_date) {
 		if (!is_date) {
 			obj->type = UCL_FLOAT;
@@ -494,8 +476,37 @@ set_obj:
 		obj->type = UCL_INT;
 		obj->value.iv = lv;
 	}
-	chunk->pos = p;
-	return true;
+	*pos = p;
+	return 0;
+}
+
+/**
+ * Parse possible number
+ * @param parser
+ * @param chunk
+ * @param err
+ * @return true if a number has been parsed
+ */
+static bool
+ucl_lex_number (struct ucl_parser *parser,
+		struct ucl_chunk *chunk, ucl_object_t *obj, UT_string **err)
+{
+	const unsigned char *pos;
+	int ret;
+
+	ret = ucl_maybe_parse_number (obj, chunk->pos, chunk->end, (const char **)&pos);
+
+	if (ret == 0) {
+		chunk->remain -= pos - chunk->pos;
+		chunk->column += pos - chunk->pos;
+		chunk->pos = pos;
+		return true;
+	}
+	else if (ret == ERANGE) {
+		ucl_set_err (chunk, ERANGE, "numeric value out of range", err);
+	}
+
+	return false;
 }
 
 /**
@@ -831,60 +842,6 @@ ucl_parse_multiline_string (struct ucl_parser *parser,
 	}
 
 	return len;
-}
-
-/**
- * Check whether a given string contains a boolean value
- * @param obj object to set
- * @param start start of a string
- * @param len length of a string
- * @return true if a string is a boolean value
- */
-static inline bool
-ucl_maybe_parse_boolean (ucl_object_t *obj, const unsigned char *start, size_t len)
-{
-	const unsigned char *p = start;
-	bool ret = false, val = false;
-
-	if (len == 5) {
-		if (tolower (p[0]) == 'f' && strncasecmp (p, "false", 5) == 0) {
-			ret = true;
-			val = false;
-		}
-	}
-	else if (len == 4) {
-		if (tolower (p[0]) == 't' && strncasecmp (p, "true", 4) == 0) {
-			ret = true;
-			val = true;
-		}
-	}
-	else if (len == 3) {
-		if (tolower (p[0]) == 'y' && strncasecmp (p, "yes", 3) == 0) {
-			ret = true;
-			val = true;
-		}
-		if (tolower (p[0]) == 'o' && strncasecmp (p, "off", 3) == 0) {
-			ret = true;
-			val = false;
-		}
-	}
-	else if (len == 2) {
-		if (tolower (p[0]) == 'n' && strncasecmp (p, "no", 2) == 0) {
-			ret = true;
-			val = false;
-		}
-		else if (tolower (p[0]) == 'o' && strncasecmp (p, "on", 2) == 0) {
-			ret = true;
-			val = true;
-		}
-	}
-
-	if (ret) {
-		obj->type = UCL_BOOLEAN;
-		obj->value.iv = val;
-	}
-
-	return ret;
 }
 
 /**
