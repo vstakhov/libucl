@@ -186,6 +186,7 @@ ucl_copy_key_trash (ucl_object_t *obj)
 			obj->trash_stack[UCL_TRASH_KEY][obj->hh.keylen] = '\0';
 		}
 		obj->hh.key = obj->trash_stack[UCL_TRASH_KEY];
+		obj->flags |= UCL_OBJECT_ALLOCATED_KEY;
 	}
 
 	return obj->trash_stack[UCL_TRASH_KEY];
@@ -202,6 +203,7 @@ ucl_copy_value_trash (ucl_object_t *obj)
 			if (obj->trash_stack[UCL_TRASH_VALUE] != NULL) {
 				memcpy (obj->trash_stack[UCL_TRASH_VALUE], obj->value.sv, obj->len);
 				obj->trash_stack[UCL_TRASH_VALUE][obj->len] = '\0';
+				obj->value.sv = obj->trash_stack[UCL_TRASH_VALUE];
 			}
 		}
 		else {
@@ -215,6 +217,7 @@ ucl_copy_value_trash (ucl_object_t *obj)
 				free (emitted);
 			}
 		}
+		obj->flags |= UCL_OBJECT_ALLOCATED_VALUE;
 	}
 	return obj->trash_stack[UCL_TRASH_VALUE];
 }
@@ -850,4 +853,44 @@ ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags
 	}
 
 	return obj;
+}
+
+ucl_object_t *
+ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
+		const char *key, size_t keylen, bool copy_key)
+{
+	ucl_object_t *found;
+	const char *p;
+
+	if (elt == NULL || key == NULL) {
+		return NULL;
+	}
+
+	if (top == NULL) {
+		top = ucl_object_new ();
+		top->type = UCL_OBJECT;
+	}
+	if (keylen == 0) {
+		keylen = strlen (key);
+	}
+
+	for (p = key; p < key + keylen; p ++) {
+		if (ucl_test_character (*p, UCL_CHARACTER_UCL_UNSAFE)) {
+			elt->flags |= UCL_OBJECT_NEED_KEY_ESCAPE;
+			break;
+		}
+	}
+
+	HASH_FIND (hh, top->value.ov, key, keylen, found);
+
+	if (!found) {
+		HASH_ADD_KEYPTR (hh, top->value.ov, key, keylen, elt);
+	}
+	DL_APPEND (found, elt);
+
+	if (copy_key) {
+		ucl_copy_key_trash (elt);
+	}
+
+	return top;
 }

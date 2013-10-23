@@ -58,7 +58,7 @@ main (int argc, char **argv)
 		perror ("open failed");
 		exit (EXIT_FAILURE);
 	}
-	parser = ucl_parser_new (UCL_FLAG_ZEROCOPY);
+	parser = ucl_parser_new (UCL_PARSER_ZEROCOPY);
 
 	(void)fstat (fin, &st);
 	map = mmap (NULL, st.st_size, PROT_READ, MAP_SHARED, fin, 0);

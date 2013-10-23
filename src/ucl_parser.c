@@ -241,7 +241,7 @@ ucl_copy_or_store_ptr (struct ucl_parser *parser,
 {
 	size_t ret = 0;
 
-	if (need_unescape || need_lowercase || !(parser->flags & UCL_FLAG_ZEROCOPY)) {
+	if (need_unescape || need_lowercase || !(parser->flags & UCL_PARSER_ZEROCOPY)) {
 		/* Copy string */
 		*dst = UCL_ALLOC (in_len + 1);
 		if (*dst == NULL) {
@@ -525,7 +525,7 @@ ucl_lex_number (struct ucl_parser *parser,
  */
 static bool
 ucl_lex_json_string (struct ucl_parser *parser,
-		struct ucl_chunk *chunk, bool *need_unescape)
+		struct ucl_chunk *chunk, bool *need_unescape, bool *ucl_escape)
 {
 	const unsigned char *p = chunk->pos;
 	unsigned char c;
@@ -574,11 +574,15 @@ ucl_lex_json_string (struct ucl_parser *parser,
 				return false;
 			}
 			*need_unescape = true;
+			*ucl_escape = true;
 			continue;
 		}
 		else if (c == '"') {
 			ucl_chunk_skipc (chunk, p);
 			return true;
+		}
+		else if (ucl_test_character (c, UCL_CHARACTER_UCL_UNSAFE)) {
+			*ucl_escape = true;
 		}
 		ucl_chunk_skipc (chunk, p);
 	}
@@ -598,7 +602,8 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 {
 	const unsigned char *p, *c = NULL, *end;
 	const char *key;
-	bool got_quote = false, got_eq = false, got_semicolon = false, need_unescape = false;
+	bool got_quote = false, got_eq = false, got_semicolon = false,
+			need_unescape = false, ucl_escape = false;
 	ucl_object_t *nobj, *tobj, *container;
 	size_t keylen;
 
@@ -656,9 +661,10 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			}
 			else {
 				/* We need to parse json like quoted string */
-				if (!ucl_lex_json_string (parser, chunk, &need_unescape)) {
+				if (!ucl_lex_json_string (parser, chunk, &need_unescape, &ucl_escape)) {
 					return false;
 				}
+				/* Always escape keys obtained via json */
 				end = chunk->pos - 1;
 				p = chunk->pos;
 				break;
@@ -717,7 +723,7 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 	/* Create a new object */
 	nobj = ucl_object_new ();
 	keylen = ucl_copy_or_store_ptr (parser, c, &nobj->trash_stack[UCL_TRASH_KEY],
-			&key, end - c, need_unescape, parser->flags & UCL_FLAG_KEY_LOWERCASE);
+			&key, end - c, need_unescape, parser->flags & UCL_PARSER_KEY_LOWERCASE);
 	if (keylen == 0) {
 		return false;
 	}
@@ -732,6 +738,9 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 		DL_APPEND (tobj, nobj);
 	}
 
+	if (ucl_escape) {
+		nobj->flags |= UCL_OBJECT_NEED_KEY_ESCAPE;
+	}
 	parser->stack->obj->value.ov = container;
 
 	parser->cur_obj = nobj;
@@ -861,7 +870,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 	ucl_object_t *obj = NULL, *t;
 	unsigned int stripped_spaces;
 	int str_len;
-	bool need_unescape = false;
+	bool need_unescape = false, ucl_escape = false;
 
 	p = chunk->pos;
 
@@ -884,7 +893,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 		switch (*p) {
 		case '"':
 			ucl_chunk_skipc (chunk, p);
-			if (!ucl_lex_json_string (parser, chunk, &need_unescape)) {
+			if (!ucl_lex_json_string (parser, chunk, &need_unescape, &ucl_escape)) {
 				return false;
 			}
 			str_len = chunk->pos - c - 2;
@@ -1130,7 +1139,7 @@ ucl_parse_macro_value (struct ucl_parser *parser,
 		unsigned char const **macro_start, size_t *macro_len)
 {
 	const unsigned char *p, *c;
-	bool need_unescape = false;
+	bool need_unescape = false, ucl_escape = false;
 
 	p = chunk->pos;
 
@@ -1139,7 +1148,7 @@ ucl_parse_macro_value (struct ucl_parser *parser,
 		/* We have macro value encoded in quotes */
 		c = p;
 		ucl_chunk_skipc (chunk, p);
-		if (!ucl_lex_json_string (parser, chunk, &need_unescape)) {
+		if (!ucl_lex_json_string (parser, chunk, &need_unescape, &ucl_escape)) {
 			return false;
 		}
 

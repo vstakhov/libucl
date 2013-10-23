@@ -55,7 +55,7 @@ main (int argc, char **argv)
 	else {
 		in = stdin;
 	}
-	parser = ucl_parser_new (UCL_FLAG_KEY_LOWERCASE);
+	parser = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
 
 	while (!feof (in)) {
 		fread (inbuf, sizeof (inbuf), 1, in);
@@ -81,7 +81,7 @@ main (int argc, char **argv)
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
 	ucl_parser_free (parser);
 	ucl_object_unref (obj);
-	parser2 = ucl_parser_new (UCL_FLAG_KEY_LOWERCASE);
+	parser2 = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
 	ucl_parser_add_chunk (parser2, emitted, strlen (emitted));
 
 	if (ucl_parser_get_error(parser2) != NULL) {

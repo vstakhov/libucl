@@ -116,8 +116,8 @@ enum ucl_emitter {
  * Parsing flags
  */
 enum ucl_parser_flags {
-	UCL_FLAG_KEY_LOWERCASE = 0x1,//!< UCL_FLAG_KEY_LOWERCASE
-	UCL_FLAG_ZEROCOPY = 0x2      //!< UCL_FLAG_ZEROCOPY
+	UCL_PARSER_KEY_LOWERCASE = 0x1,//!< UCL_FLAG_KEY_LOWERCASE
+	UCL_PARSER_ZEROCOPY = 0x2      //!< UCL_FLAG_ZEROCOPY
 };
 
 /**
@@ -139,8 +139,9 @@ enum ucl_string_flags {
  * Basic flags for an object
  */
 enum ucl_object_flags {
-	UCL_OBJECT_ALLOCATED = 0, //!< UCL_OBJECT_ALLOCATED
-	UCL_OBJECT_NEED_KEY_ESCAPE//!< UCL_OBJECT_NEED_KEY_ESCAPE
+	UCL_OBJECT_ALLOCATED_KEY = 1, //!< UCL_OBJECT_ALLOCATED_KEY
+	UCL_OBJECT_ALLOCATED_VALUE = 2, //!< UCL_OBJECT_ALLOCATED_VALUE
+	UCL_OBJECT_NEED_KEY_ESCAPE = 4 //!< UCL_OBJECT_NEED_KEY_ESCAPE
 };
 
 /**
@@ -293,37 +294,8 @@ ucl_object_frombool (bool bv)
  * @param copy_key make an internal copy of key
  * @return new value of top object
  */
-static inline ucl_object_t *
-ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
-		const char *key, size_t keylen, bool copy_key)
-{
-	ucl_object_t *found;
-
-	if (elt == NULL || key == NULL) {
-		return NULL;
-	}
-
-	if (top == NULL) {
-		top = ucl_object_new ();
-		top->type = UCL_OBJECT;
-	}
-	if (keylen == 0) {
-		keylen = strlen (key);
-	}
-
-	HASH_FIND (hh, top->value.ov, key, keylen, found);
-
-	if (!found) {
-		HASH_ADD_KEYPTR (hh, top->value.ov, key, keylen, elt);
-	}
-	DL_APPEND (found, elt);
-
-	if (copy_key) {
-		ucl_copy_key_trash (elt);
-	}
-
-	return top;
-}
+ucl_object_t* ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
+		const char *key, size_t keylen, bool copy_key);
 
 /**
  * Append an element to the array object
