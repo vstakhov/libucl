@@ -88,29 +88,64 @@ enum ucl_error {
 	UCL_ESSL       //!< UCL_ESSL
 };
 
+/**
+ * Object types
+ */
 enum ucl_type {
-	UCL_OBJECT = 0,
-	UCL_ARRAY,
-	UCL_INT,
-	UCL_FLOAT,
-	UCL_STRING,
-	UCL_BOOLEAN,
-	UCL_TIME,
-	UCL_USERDATA
+	UCL_OBJECT = 0,//!< UCL_OBJECT
+	UCL_ARRAY,     //!< UCL_ARRAY
+	UCL_INT,       //!< UCL_INT
+	UCL_FLOAT,     //!< UCL_FLOAT
+	UCL_STRING,    //!< UCL_STRING
+	UCL_BOOLEAN,   //!< UCL_BOOLEAN
+	UCL_TIME,      //!< UCL_TIME
+	UCL_USERDATA   //!< UCL_USERDATA
 };
 
+/**
+ * Emitting types
+ */
 enum ucl_emitter {
-	UCL_EMIT_JSON = 0,
-	UCL_EMIT_JSON_COMPACT,
-	UCL_EMIT_CONFIG,
-	UCL_EMIT_YAML
+	UCL_EMIT_JSON = 0,    //!< UCL_EMIT_JSON
+	UCL_EMIT_JSON_COMPACT,//!< UCL_EMIT_JSON_COMPACT
+	UCL_EMIT_CONFIG,      //!< UCL_EMIT_CONFIG
+	UCL_EMIT_YAML         //!< UCL_EMIT_YAML
 };
 
-enum ucl_flags {
-	UCL_FLAG_KEY_LOWERCASE = 0x1,
-	UCL_FLAG_ZEROCOPY = 0x2
+/**
+ * Parsing flags
+ */
+enum ucl_parser_flags {
+	UCL_FLAG_KEY_LOWERCASE = 0x1,//!< UCL_FLAG_KEY_LOWERCASE
+	UCL_FLAG_ZEROCOPY = 0x2      //!< UCL_FLAG_ZEROCOPY
 };
 
+/**
+ * String conversion flags
+ */
+enum ucl_string_flags {
+	UCL_STRING_ESCAPE = 0x1,  /**< UCL_STRING_ESCAPE perform JSON escape */
+	UCL_STRING_TRIM = 0x2,    /**< UCL_STRING_TRIM trim leading and trailing whitespaces */
+	UCL_STRING_PARSE_BOOLEAN = 0x4,    /**< UCL_STRING_PARSE_BOOLEAN parse passed string and detect boolean */
+	UCL_STRING_PARSE_INT = 0x8,    /**< UCL_STRING_PARSE_INT parse passed string and detect integer number */
+	UCL_STRING_PARSE_DOUBLE = 0x10,    /**< UCL_STRING_PARSE_DOUBLE parse passed string and detect integer or float number */
+	UCL_STRING_PARSE_NUMBER =  UCL_STRING_PARSE_INT|UCL_STRING_PARSE_DOUBLE ,  /**<
+									UCL_STRING_PARSE_NUMBER parse passed string and detect number */
+	UCL_STRING_PARSE =  UCL_STRING_PARSE_BOOLEAN|UCL_STRING_PARSE_NUMBER   /**<
+									UCL_STRING_PARSE parse passed string (and detect booleans and numbers) */
+};
+
+/**
+ * Basic flags for an object
+ */
+enum ucl_object_flags {
+	UCL_OBJECT_ALLOCATED = 0, //!< UCL_OBJECT_ALLOCATED
+	UCL_OBJECT_NEED_KEY_ESCAPE//!< UCL_OBJECT_NEED_KEY_ESCAPE
+};
+
+/**
+ * UCL object
+ */
 typedef struct ucl_object_s {
 	union {
 		int64_t iv;							/**< int value of an object */
@@ -120,7 +155,8 @@ typedef struct ucl_object_s {
 		void* ud;							/**< opaque user data		*/
 	} value;
 	enum ucl_type type;						/**< real type				*/
-	int ref;								/**< reference count		*/
+	short int ref;							/**< reference count		*/
+	short int flags;						/**< object flags			*/
 	size_t len;								/**< size of an object		*/
 	struct ucl_object_s *next;				/**< array handle			*/
 	struct ucl_object_s *prev;				/**< array handle			*/
@@ -158,21 +194,6 @@ ucl_object_new (void)
 	}
 	return new;
 }
-
-/**
- * String conversion flags
- */
-enum ucl_string_flags {
-	UCL_STRING_ESCAPE = 0x1,  /**< UCL_STRING_ESCAPE perform JSON escape */
-	UCL_STRING_TRIM = 0x2,    /**< UCL_STRING_TRIM trim leading and trailing whitespaces */
-	UCL_STRING_PARSE_BOOLEAN = 0x4,    /**< UCL_STRING_PARSE_BOOLEAN parse passed string and detect boolean */
-	UCL_STRING_PARSE_INT = 0x8,    /**< UCL_STRING_PARSE_INT parse passed string and detect integer number */
-	UCL_STRING_PARSE_DOUBLE = 0x10,    /**< UCL_STRING_PARSE_DOUBLE parse passed string and detect integer or float number */
-	UCL_STRING_PARSE_NUMBER =  UCL_STRING_PARSE_INT|UCL_STRING_PARSE_DOUBLE ,  /**<
-									UCL_STRING_PARSE_NUMBER parse passed string and detect number */
-	UCL_STRING_PARSE =  UCL_STRING_PARSE_BOOLEAN|UCL_STRING_PARSE_NUMBER   /**<
-									UCL_STRING_PARSE parse passed string (and detect booleans and numbers) */
-};
 
 /**
  * Convert any string to an ucl object making the specified transformations
