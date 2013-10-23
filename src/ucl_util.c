@@ -345,7 +345,7 @@ ucl_fetch_url (const unsigned char *url, unsigned char **buf, size_t *buflen, UT
 	}
 
 	*buflen = us.size;
-	*buf = g_malloc (*buflen);
+	*buf = malloc (*buflen);
 	if (*buf == NULL) {
 		ucl_create_err (err, "cannot allocate buffer for URL %s: %s",
 				url, strerror (errno));
