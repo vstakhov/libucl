@@ -17,4 +17,5 @@ key10 = true;
 key11 = false;
 key12 = "gslin@gslin.org";
 key13 = "#test";
+"k=3" = true;
 
