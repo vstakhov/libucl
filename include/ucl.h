@@ -624,7 +624,7 @@ ucl_object_keyl (ucl_object_t *obj, size_t *len)
  * @param err error pointer
  * @return true if macro has been parsed
  */
-typedef bool (*ucl_macro_handler) (const unsigned char *data, size_t len, void* ud, UT_string **err);
+typedef bool (*ucl_macro_handler) (const unsigned char *data, size_t len, void* ud);
 
 /* Opaque parser */
 struct ucl_parser;
@@ -654,8 +654,7 @@ void ucl_parser_register_macro (struct ucl_parser *parser, const char *macro,
  * @param err if *err is NULL it is set to parser error
  * @return true if chunk has been added and false in case of error
  */
-bool ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
-		size_t len, UT_string **err);
+bool ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data, size_t len);
 
 /**
  * Load and add data from a file
@@ -664,8 +663,7 @@ bool ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
  * @param err if *err is NULL it is set to parser error
  * @return true if chunk has been added and false in case of error
  */
-bool ucl_parser_add_file (struct ucl_parser *parser, const char *filename,
-		UT_string **err);
+bool ucl_parser_add_file (struct ucl_parser *parser, const char *filename);
 
 /**
  * Get a top object for a parser
@@ -673,8 +671,13 @@ bool ucl_parser_add_file (struct ucl_parser *parser, const char *filename,
  * @param err if *err is NULL it is set to parser error
  * @return top parser object or NULL
  */
-ucl_object_t* ucl_parser_get_object (struct ucl_parser *parser, UT_string **err);
+ucl_object_t* ucl_parser_get_object (struct ucl_parser *parser);
 
+/**
+ * Get the error string if failing
+ * @param parser parser object
+ */
+const char *ucl_parser_get_error(struct ucl_parser *parser);
 /**
  * Free cl parser object
  * @param parser parser object
@@ -725,6 +728,6 @@ unsigned char *ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type);
  * @param err if *err is NULL it is set to parser error
  * @return true if a key has been successfully added
  */
-bool ucl_pubkey_add (struct ucl_parser *parser, const unsigned char *key, size_t len, UT_string **err);
+bool ucl_pubkey_add (struct ucl_parser *parser, const unsigned char *key, size_t len);
 
 #endif /* RCL_H_ */

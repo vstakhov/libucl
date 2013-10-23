@@ -125,6 +125,7 @@ struct ucl_parser {
 	struct ucl_stack *stack;
 	struct ucl_chunk *chunks;
 	struct ucl_pubkey *keys;
+	UT_string *err;
 };
 
 /**
@@ -141,7 +142,7 @@ size_t ucl_unescape_json_string (char *str, size_t len);
  * @param err error ptr
  * @return
  */
-bool ucl_include_handler (const unsigned char *data, size_t len, void* ud, UT_string **err);
+bool ucl_include_handler (const unsigned char *data, size_t len, void* ud);
 
 /**
  * Handle includes macro
@@ -151,7 +152,7 @@ bool ucl_include_handler (const unsigned char *data, size_t len, void* ud, UT_st
  * @param err error ptr
  * @return
  */
-bool ucl_includes_handler (const unsigned char *data, size_t len, void* ud, UT_string **err);
+bool ucl_includes_handler (const unsigned char *data, size_t len, void* ud);
 
 size_t ucl_strlcpy (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_unsafe (char *dst, const char *src, size_t siz);
