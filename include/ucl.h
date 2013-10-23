@@ -34,7 +34,6 @@
 
 #include "uthash.h"
 #include "utlist.h"
-#include "utstring.h"
 
 /**
  * @file rcl.h

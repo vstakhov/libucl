@@ -36,6 +36,7 @@
 #include <ctype.h>
 
 #include "utlist.h"
+#include "utstring.h"
 #include "ucl.h"
 
 #ifdef HAVE_OPENSSL
