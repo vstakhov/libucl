@@ -534,7 +534,7 @@ ucl_include_url (const unsigned char *data, size_t len,
 #if (defined(HAVE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10000000L)
 		/* We need to check signature first */
 		snprintf (urlbuf, sizeof (urlbuf), "%.*s.sig", (int)len, data);
-		if (!ucl_fetch_file (urlbuf, &sigbuf, &siglen, err)) {
+		if (!ucl_fetch_file (urlbuf, &sigbuf, &siglen, &parser->err)) {
 			return false;
 		}
 		if (!ucl_sig_check (buf, buflen, sigbuf, siglen, parser)) {
@@ -596,11 +596,11 @@ ucl_include_file (const unsigned char *data, size_t len,
 #if (defined(HAVE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10000000L)
 		/* We need to check signature first */
 		snprintf (filebuf, sizeof (filebuf), "%s.sig", realbuf);
-		if (!ucl_fetch_file (filebuf, &sigbuf, &siglen, err)) {
+		if (!ucl_fetch_file (filebuf, &sigbuf, &siglen, &parser->err)) {
 			return false;
 		}
 		if (!ucl_sig_check (buf, buflen, sigbuf, siglen, parser)) {
-			ucl_create_err (err, "cannot verify file %s: %s",
+			ucl_create_err (&parser->err, "cannot verify file %s: %s",
 							filebuf,
 							ERR_error_string (ERR_get_error (), NULL));
 			munmap (sigbuf, siglen);
