@@ -38,12 +38,12 @@ ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
 	while (num--)
 		pre[num] = 0x20;
 
-	while (obj != NULL ) {
+	while (obj != NULL) {
 		printf ("%sucl object address: %p\n", pre + 4, obj);
 		if (obj->hh.key != NULL) {
 			printf ("%skey: \"%s\"\n", pre, ucl_object_key (obj));
 		}
-		printf ("%sref: %d\n", pre, obj->ref);
+		printf ("%sref: %hd\n", pre, obj->ref);
 		printf ("%slen: %zd\n", pre, obj->len);
 		printf ("%sprev: %p\n", pre, obj->prev);
 		printf ("%snext: %p\n", pre, obj->next);
@@ -69,7 +69,7 @@ ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
 		}
 		else if (obj->type == UCL_STRING) {
 			printf ("%stype: UCL_STRING\n", pre);
-			 printf ("%svalue: \"%s\"\n", pre, ucl_obj_tostring (obj));
+			 printf ("%svalue: \"%s\"\n", pre, ucl_object_tostring (obj));
 		}
 		else if (obj->type == UCL_BOOLEAN) {
 			printf ("%stype: UCL_BOOLEAN\n", pre);
@@ -120,7 +120,7 @@ main(int argc, char **argv)
 		ucl_parser_add_chunk (parser, inbuf, strlen (inbuf));
 	}
 	fclose (in);
-	if (ucl_parser_get_error(parser) ) {
+	if (ucl_parser_get_error(parser)) {
 		printf ("Error occured: %s\n", ucl_parser_get_error(parser));
 		ret = 1;
 		goto end;
@@ -136,7 +136,7 @@ main(int argc, char **argv)
 	if (argc > 2) {
 		for (k = 2; k < argc; k++) {
 			printf ("search for \"%s\"... ", argv[k]);
-			par = ucl_obj_get_key (obj, argv[k]);
+			par = ucl_object_find_key (obj, argv[k]);
 			printf ("%sfound\n", (par == NULL )?"not ":"");
 			ucl_obj_dump (par, 0);
 		}
@@ -146,11 +146,11 @@ main(int argc, char **argv)
 	}
 
 end:
-	if (parser != NULL ) {
+	if (parser != NULL) {
 		ucl_parser_free (parser);
 	}
-	if (obj != NULL ) {
-		ucl_obj_unref (obj);
+	if (obj != NULL) {
+		ucl_object_unref (obj);
 	}
 
 	return ret;
