@@ -617,6 +617,10 @@ ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type)
 	UT_string *buf = NULL;
 	unsigned char *res = NULL;
 
+	if (obj == NULL) {
+		return NULL;
+	}
+
 	if (emit_type == UCL_EMIT_JSON) {
 		buf = ucl_object_emit_json (obj, false);
 	}
