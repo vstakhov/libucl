@@ -233,13 +233,13 @@ ucl_lex_is_comment (const unsigned char c1, const unsigned char c2)
 	return false;
 }
 
-static inline size_t
+static inline ssize_t
 ucl_copy_or_store_ptr (struct ucl_parser *parser,
 		const unsigned char *src, unsigned char **dst,
 		const char **dst_const, size_t in_len,
 		bool need_unescape, bool need_lowercase)
 {
-	size_t ret = 0;
+	ssize_t ret = -1;
 
 	if (need_unescape || need_lowercase || !(parser->flags & UCL_PARSER_ZEROCOPY)) {
 		/* Copy string */
@@ -605,7 +605,7 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 	bool got_quote = false, got_eq = false, got_semicolon = false,
 			need_unescape = false, ucl_escape = false;
 	ucl_object_t *nobj, *tobj, *container;
-	size_t keylen;
+	ssize_t keylen;
 
 	p = chunk->pos;
 
@@ -724,7 +724,11 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 	nobj = ucl_object_new ();
 	keylen = ucl_copy_or_store_ptr (parser, c, &nobj->trash_stack[UCL_TRASH_KEY],
 			&key, end - c, need_unescape, parser->flags & UCL_PARSER_KEY_LOWERCASE);
-	if (keylen == 0) {
+	if (keylen == -1) {
+		return false;
+	}
+	else if (keylen == 0) {
+		ucl_set_err (chunk, UCL_ESYNTAX, "empty keys are not allowed", &parser->err);
 		return false;
 	}
 
@@ -899,7 +903,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			str_len = chunk->pos - c - 2;
 			obj->type = UCL_STRING;
 			if ((str_len = ucl_copy_or_store_ptr (parser, c + 1, &obj->trash_stack[UCL_TRASH_VALUE],
-					&obj->value.sv, str_len, need_unescape, false)) == 0) {
+					&obj->value.sv, str_len, need_unescape, false)) == -1) {
 				return false;
 			}
 			obj->len = str_len;
@@ -957,7 +961,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 						}
 						obj->type = UCL_STRING;
 						if ((str_len = ucl_copy_or_store_ptr (parser, c, &obj->trash_stack[UCL_TRASH_VALUE],
-							&obj->value.sv, str_len - 1, false, false)) == 0) {
+							&obj->value.sv, str_len - 1, false, false)) == -1) {
 							return false;
 						}
 						obj->len = str_len;
@@ -1003,7 +1007,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 						}
 						obj->type = UCL_STRING;
 						if ((str_len = ucl_copy_or_store_ptr (parser, c, &obj->trash_stack[UCL_TRASH_VALUE],
-								&obj->value.sv, str_len, false, false)) == 0) {
+								&obj->value.sv, str_len, false, false)) == -1) {
 							return false;
 						}
 						obj->len = str_len;
@@ -1035,7 +1039,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 					}
 					obj->type = UCL_STRING;
 					if ((str_len = ucl_copy_or_store_ptr (parser, c, &obj->trash_stack[UCL_TRASH_VALUE],
-							&obj->value.sv, str_len, false, false)) == 0) {
+							&obj->value.sv, str_len, false, false)) == -1) {
 						return false;
 					}
 					obj->len = str_len;
