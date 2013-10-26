@@ -76,6 +76,13 @@
 #define UCL_FREE(size, ptr) free(ptr)
 #endif
 
+#if    __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
+#define UCL_WARN_UNUSED_RESULT               \
+  __attribute__((warn_unused_result))
+#else
+#define UCL_WARN_UNUSED_RESULT
+#endif
+
 enum ucl_error {
 	UCL_EOK = 0,   //!< UCL_EOK
 	UCL_ESYNTAX,   //!< UCL_ESYNTAX
@@ -184,6 +191,7 @@ char* ucl_copy_value_trash (ucl_object_t *obj);
  * Creates a new object
  * @return new object
  */
+static inline ucl_object_t* ucl_object_new (void) UCL_WARN_UNUSED_RESULT;
 static inline ucl_object_t *
 ucl_object_new (void)
 {
@@ -203,7 +211,8 @@ ucl_object_new (void)
  * @param flags conversion flags
  * @return new object
  */
-ucl_object_t * ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags flags);
+ucl_object_t * ucl_object_fromstring_common (const char *str, size_t len,
+		enum ucl_string_flags flags) UCL_WARN_UNUSED_RESULT;
 
 /**
  * Create a UCL object from the specified string
@@ -295,7 +304,7 @@ ucl_object_frombool (bool bv)
  * @return new value of top object
  */
 ucl_object_t* ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
-		const char *key, size_t keylen, bool copy_key);
+		const char *key, size_t keylen, bool copy_key) UCL_WARN_UNUSED_RESULT;
 
 /**
  * Append an element to the array object
@@ -303,6 +312,8 @@ ucl_object_t* ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
  * @param eltelement to append (must NOT be NULL)
  * @return new value of top object
  */
+static inline ucl_object_t * ucl_array_append (ucl_object_t *top,
+		ucl_object_t *elt) UCL_WARN_UNUSED_RESULT;
 static inline ucl_object_t *
 ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
 {
@@ -326,6 +337,8 @@ ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
  * @param elt new element
  * @return new head if applicable
  */
+static inline ucl_object_t * ucl_elt_append (ucl_object_t *head,
+		ucl_object_t *elt) UCL_WARN_UNUSED_RESULT;
 static inline ucl_object_t *
 ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
 {
