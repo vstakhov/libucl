@@ -868,6 +868,11 @@ ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
 		top = ucl_object_new ();
 		top->type = UCL_OBJECT;
 	}
+
+	if (top->value.ov == NULL) {
+		top->value.ov = ucl_hash_create ();
+	}
+
 	if (keylen == 0) {
 		keylen = strlen (key);
 	}
@@ -882,7 +887,7 @@ ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
 	elt->key = key;
 	elt->keylen = keylen;
 
-	found = ucl_hash_search_str (top->value.ov, key, keylen);
+	found = ucl_hash_search_obj (top->value.ov, elt);
 
 	if (!found) {
 		top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
@@ -900,13 +905,15 @@ ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
 ucl_object_t *
 ucl_obj_get_keyl (ucl_object_t *obj, const char *key, size_t klen)
 {
-	ucl_object_t *ret;
+	ucl_object_t *ret, srch;
 
 	if (obj == NULL || obj->type != UCL_OBJECT || key == NULL) {
 		return NULL;
 	}
 
-	ret = ucl_hash_search_str (obj->value.ov, key, klen);
+	srch.key = key;
+	srch.keylen = klen;
+	ret = ucl_hash_search_obj (obj->value.ov, &srch);
 
 	return ret;
 }
@@ -915,14 +922,16 @@ ucl_object_t *
 ucl_obj_get_key (ucl_object_t *obj, const char *key)
 {
 	size_t klen;
-	ucl_object_t *ret;
+	ucl_object_t *ret, srch;
 
 	if (obj == NULL || obj->type != UCL_OBJECT || key == NULL) {
 		return NULL;
 	}
 
 	klen = strlen (key);
-	ret = ucl_hash_search_str (obj->value.ov, key, klen);
+	srch.key = key;
+	srch.keylen = klen;
+	ret = ucl_hash_search_obj (obj->value.ov, &srch);
 
 	return ret;
 }

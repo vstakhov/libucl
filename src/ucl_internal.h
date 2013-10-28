@@ -257,6 +257,7 @@ ucl_object_cmp_key (const void *p1, const void *p2)
 {
 	const ucl_object_t *o1 = p1, *o2 = p2;
 
+	printf ("compare %.*s and %.*s\n", o1->keylen, o1->key, o2->keylen, o2->key);
 	if (o1->keylen == o2->keylen) {
 		return memcmp (o1->key, o2->key, o1->keylen);
 	}
@@ -266,11 +267,11 @@ ucl_object_cmp_key (const void *p1, const void *p2)
 }
 
 static inline ucl_object_t *
-ucl_hash_search_str (ucl_hash_t* hashlin, const char *key, size_t keylen)
+ucl_hash_search_obj (ucl_hash_t* hashlin, ucl_object_t *obj)
 {
-	uint32_t hash = ucl_murmur_hash (key, keylen);
+	uint32_t hash = ucl_murmur_hash (obj->key, obj->keylen);
 
-	return (ucl_object_t *)ucl_hash_search (hashlin, ucl_object_cmp_key, key, hash);
+	return (ucl_object_t *)ucl_hash_search (hashlin, ucl_object_cmp_key, obj->key, hash);
 }
 
 static inline ucl_hash_t *

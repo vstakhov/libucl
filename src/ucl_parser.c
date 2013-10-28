@@ -736,7 +736,7 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 	container = parser->stack->obj->value.ov;
 	nobj->key = key;
 	nobj->keylen = keylen;
-	tobj = ucl_hash_search_str (container, key, keylen);
+	tobj = ucl_hash_search_obj (container, nobj);
 	if (tobj == NULL) {
 		container = ucl_hash_insert_object (container, nobj);
 		nobj->prev = nobj;
@@ -918,7 +918,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 		case '{':
 			/* We have a new object */
 			obj->type = UCL_OBJECT;
-
+			obj->value.ov = ucl_hash_create ();
 			parser->state = UCL_STATE_KEY;
 			st = UCL_ALLOC (sizeof (struct ucl_stack));
 			st->obj = obj;
@@ -1254,6 +1254,7 @@ ucl_state_machine (struct ucl_parser *parser)
 				else {
 					parser->state = UCL_STATE_KEY;
 					obj->type = UCL_OBJECT;
+					obj->value.ov = ucl_hash_create ();
 					if (*p == '{') {
 						ucl_chunk_skipc (chunk, p);
 					}

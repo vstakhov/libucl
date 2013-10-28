@@ -480,8 +480,11 @@ ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 	if (elt == NULL) {
 		elt = hashlin->nodes_head;
 	}
+	else if (elt == hashlin->nodes_head) {
+		return NULL;
+	}
 
-	*iter = elt->next;
+	*iter = elt->next ? elt->next : hashlin->nodes_head;
 	return elt->node->data;
 }
 
