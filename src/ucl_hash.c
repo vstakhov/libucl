@@ -333,13 +333,13 @@ void
 ucl_hash_insert (ucl_hash_t* hashlin, ucl_hash_node_t* node,
 		void* data, uint32_t hash)
 {
-	ucl_hash_node_t* bucket;
+	ucl_hash_node_t** pbucket;
 	struct ucl_hash_node_elt *nelt;
 
 	nelt = UCL_ALLOC (sizeof (struct ucl_hash_node_elt));
 	if (nelt != NULL) {
-		bucket = ucl_hash_bucket (hashlin, hash);
-		DL_APPEND (bucket, node);
+		pbucket = ucl_hash_bucket_ptr (hashlin, hash);
+		DL_APPEND (*pbucket, node);
 
 		node->data = data;
 		node->key = hash;

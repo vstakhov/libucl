@@ -268,6 +268,7 @@ static inline void* ucl_hash_search (ucl_hash_t* hashlin, ucl_hash_cmp_func* cmp
 		const void* cmp_arg, uint32_t hash)
 {
 	ucl_hash_node_t* i = ucl_hash_bucket (hashlin, hash);
+
 	while (i) {
 		/* we first check if the hash matches, as in the same bucket we may have multiples hash values */
 		if (i->key == hash && cmp (cmp_arg, i->data) == 0)
