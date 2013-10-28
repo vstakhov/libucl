@@ -740,6 +740,8 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 	}
 	else {
 		DL_APPEND (tobj, nobj);
+		nobj->hh.key = key;
+		nobj->hh.keylen = keylen;
 	}
 
 	if (ucl_escape) {

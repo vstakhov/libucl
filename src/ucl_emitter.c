@@ -335,7 +335,7 @@ ucl_object_emit_json (ucl_object_t *obj, bool compact)
 static void
 ucl_elt_obj_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool is_top)
 {
-	ucl_object_t *cur, *tmp;
+	ucl_object_t *cur, *tmp, *cur_obj;
 
 	if (start_tabs) {
 		ucl_add_tabs (buf, tabs, is_top);
@@ -345,25 +345,27 @@ ucl_elt_obj_write_rcl (ucl_object_t *obj, UT_string *buf, unsigned int tabs, boo
 	}
 
 	HASH_ITER (hh, obj, cur, tmp) {
-		ucl_add_tabs (buf, tabs + 1, is_top);
-		if (cur->flags & UCL_OBJECT_NEED_KEY_ESCAPE) {
-			ucl_elt_string_write_json (cur->hh.key, cur->hh.keylen, buf);
-		}
-		else {
-			utstring_append_len (buf, cur->hh.key, cur->hh.keylen);
-		}
-		if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
-			utstring_append_len (buf, " = ", 3);
-		}
-		else {
-			utstring_append_c (buf, ' ');
-		}
-		ucl_elt_write_rcl (cur, buf, is_top ? tabs : tabs + 1, false, false, true);
-		if (cur->type != UCL_OBJECT && cur->type != UCL_ARRAY) {
-			utstring_append_len (buf, ";\n", 2);
-		}
-		else {
-			utstring_append_c (buf, '\n');
+		LL_FOREACH (cur, cur_obj) {
+			ucl_add_tabs (buf, tabs + 1, is_top);
+			if (cur_obj->flags & UCL_OBJECT_NEED_KEY_ESCAPE) {
+				ucl_elt_string_write_json (cur_obj->hh.key, cur_obj->hh.keylen, buf);
+			}
+			else {
+				utstring_append_len (buf, cur_obj->hh.key, cur_obj->hh.keylen);
+			}
+			if (cur_obj->type != UCL_OBJECT && cur_obj->type != UCL_ARRAY) {
+				utstring_append_len (buf, " = ", 3);
+			}
+			else {
+				utstring_append_c (buf, ' ');
+			}
+			ucl_elt_write_rcl (cur_obj, buf, is_top ? tabs : tabs + 1, false, false, false);
+			if (cur_obj->type != UCL_OBJECT && cur_obj->type != UCL_ARRAY) {
+				utstring_append_len (buf, ";\n", 2);
+			}
+			else {
+				utstring_append_c (buf, '\n');
+			}
 		}
 	}
 

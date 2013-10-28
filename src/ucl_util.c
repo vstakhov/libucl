@@ -886,6 +886,10 @@ ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
 	if (!found) {
 		HASH_ADD_KEYPTR (hh, top->value.ov, key, keylen, elt);
 	}
+	else {
+		elt->hh.key = key;
+		elt->hh.keylen = keylen;
+	}
 	DL_APPEND (found, elt);
 
 	if (copy_key) {
