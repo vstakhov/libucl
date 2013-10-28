@@ -76,12 +76,12 @@ ucl_ilog2_u32 (uint32_t value)
 #endif
 }
 
-ucl_hashlin*
-ucl_hashlin_create (void)
+ucl_hash_t*
+ucl_hash_create (void)
 {
-	ucl_hashlin *new;
+	ucl_hash_t *new;
 
-	new = UCL_ALLOC (sizeof (ucl_hashlin));
+	new = UCL_ALLOC (sizeof (ucl_hash_t));
 	if (new != NULL) {
 		/* fixed initial size */
 		new->bucket_bit = UCL_HASHLIN_BIT;
@@ -100,20 +100,20 @@ ucl_hashlin_create (void)
 	return new;
 }
 
-void ucl_hashlin_destroy (ucl_hashlin* hashlin)
+void ucl_hash_destroy (ucl_hash_t* hashlin)
 {
 	/* we assume to be empty, so we free only the first bucket */
 	assert(hashlin->bucket_mac == 1);
 
 	UCL_FREE (hashlin->bucket_max * sizeof(ucl_hash_node_t*), hashlin->bucket[0]);
-	UCL_FREE (sizeof (ucl_hashlin), hashlin);
+	UCL_FREE (sizeof (ucl_hash_t), hashlin);
 }
 
 /**
  * Return the bucket at the specified pos.
  */
 static inline ucl_hash_node_t**
-ucl_hashlin_pos (ucl_hashlin* hashlin,
+ucl_hash_pos (ucl_hash_t* hashlin,
 		uint32_t pos)
 {
 	unsigned bsr;
@@ -136,7 +136,7 @@ ucl_hashlin_pos (ucl_hashlin* hashlin,
  * Return the bucket to use.
  */
 static inline ucl_hash_node_t**
-ucl_hashlin_bucket_ptr (ucl_hashlin* hashlin,
+ucl_hash_bucket_ptr (ucl_hash_t* hashlin,
 		uint32_t hash)
 {
 	unsigned pos;
@@ -150,21 +150,21 @@ ucl_hashlin_bucket_ptr (ucl_hashlin* hashlin,
 		if (pos >= hashlin->split) {
 
 			/* use it as it was before */
-			return ucl_hashlin_pos (hashlin, pos);
+			return ucl_hash_pos (hashlin, pos);
 		}
 	}
 
 	/* otherwise operates normally */
 	pos = hash & hashlin->bucket_mask;
 
-	return ucl_hashlin_pos (hashlin, pos);
+	return ucl_hash_pos (hashlin, pos);
 }
 
 /**
  * Grow one step.
  */
 static inline void
-hashlin_grow_step (ucl_hashlin* hashlin)
+ucl_hash_grow_step (ucl_hash_t* hashlin)
 {
 	/* grow if more than 50% full */
 	if (hashlin->state != UCL_HASHLIN_STATE_GROW
@@ -204,11 +204,11 @@ hashlin_grow_step (ucl_hashlin* hashlin)
 			unsigned mask;
 
 			/* get the low bucket */
-			split[0] = ucl_hashlin_pos (hashlin, hashlin->split);
+			split[0] = ucl_hash_pos (hashlin, hashlin->split);
 
 			/* get the high bucket */
 			/* it's always in the second half, so we can index it directly */
-			/* without calling ucl_hashlin_pos() */
+			/* without calling ucl_hash_pos() */
 			split[1] =
 					&hashlin->bucket[hashlin->bucket_mac - 1][hashlin->split];
 
@@ -252,7 +252,7 @@ hashlin_grow_step (ucl_hashlin* hashlin)
  * Shrink one step.
  */
 static inline void
-hashlin_shrink_step (ucl_hashlin* hashlin)
+ucl_hash_shrink_step (ucl_hash_t* hashlin)
 {
 	/* shrink if less than 12.5% full */
 	if (hashlin->state != UCL_HASHLIN_STATE_SHRINK
@@ -289,11 +289,11 @@ hashlin_shrink_step (ucl_hashlin* hashlin)
 			--hashlin->split;
 
 			/* get the low bucket */
-			split[0] = ucl_hashlin_pos (hashlin, hashlin->split);
+			split[0] = ucl_hash_pos (hashlin, hashlin->split);
 
 			/* get the high bucket */
 			/* it's always in the second half, so we can index it directly */
-			/* without calling ucl_hashlin_pos() */
+			/* without calling ucl_hash_pos() */
 			split[1] =
 					&hashlin->bucket[hashlin->bucket_mac - 1][hashlin->split];
 
@@ -320,12 +320,12 @@ hashlin_shrink_step (ucl_hashlin* hashlin)
 }
 
 void
-ucl_hashlin_insert (ucl_hashlin* hashlin, ucl_hash_node_t* node,
+ucl_hash_insert (ucl_hash_t* hashlin, ucl_hash_node_t* node,
 		void* data, uint32_t hash)
 {
 	ucl_hash_node_t* bucket;
 
-	bucket = ucl_hashlin_bucket (hashlin, hash);
+	bucket = ucl_hash_bucket (hashlin, hash);
 	DL_APPEND (bucket, node);
 
 	node->data = data;
@@ -333,36 +333,36 @@ ucl_hashlin_insert (ucl_hashlin* hashlin, ucl_hash_node_t* node,
 
 	++hashlin->count;
 
-	hashlin_grow_step (hashlin);
+	ucl_hash_grow_step (hashlin);
 }
 
 void*
-ucl_hashlin_remove_existing (ucl_hashlin* hashlin, ucl_hash_node_t* node)
+ucl_hash_remove_existing (ucl_hash_t* hashlin, ucl_hash_node_t* node)
 {
 	ucl_hash_node_t* bucket;
 
-	bucket = ucl_hashlin_bucket (hashlin, node->key);
+	bucket = ucl_hash_bucket (hashlin, node->key);
 
 	DL_DELETE (bucket, node);
 
 	--hashlin->count;
 
-	hashlin_shrink_step (hashlin);
+	ucl_hash_shrink_step (hashlin);
 
 	return node->data;
 }
 
 ucl_hash_node_t*
-ucl_hashlin_bucket (ucl_hashlin* hashlin, uint32_t hash)
+ucl_hash_bucket (ucl_hash_t* hashlin, uint32_t hash)
 {
-	return *ucl_hashlin_bucket_ptr (hashlin, hash);
+	return *ucl_hash_bucket_ptr (hashlin, hash);
 }
 
 void*
-ucl_hashlin_remove (ucl_hashlin* hashlin, ucl_hash_cmp_func* cmp,
+ucl_hash_remove (ucl_hash_t* hashlin, ucl_hash_cmp_func* cmp,
 		const void* cmp_arg, uint32_t hash)
 {
-	ucl_hash_node_t** let_ptr = ucl_hashlin_bucket_ptr (hashlin, hash);
+	ucl_hash_node_t** let_ptr = ucl_hash_bucket_ptr (hashlin, hash);
 	ucl_hash_node_t* i = *let_ptr;
 
 	while (i) {
@@ -372,7 +372,7 @@ ucl_hashlin_remove (ucl_hashlin* hashlin, ucl_hash_cmp_func* cmp,
 
 			--hashlin->count;
 
-			hashlin_shrink_step (hashlin);
+			ucl_hash_shrink_step (hashlin);
 
 			return i->data;
 		}
@@ -383,7 +383,7 @@ ucl_hashlin_remove (ucl_hashlin* hashlin, ucl_hash_cmp_func* cmp,
 }
 
 size_t
-ucl_hashlin_memory_usage (ucl_hashlin* hashlin)
+ucl_hash_memory_usage (ucl_hash_t* hashlin)
 {
 	return hashlin->bucket_max * (size_t) sizeof(hashlin->bucket[0][0])
 			+ hashlin->count * (size_t) sizeof(ucl_hash_node_t);

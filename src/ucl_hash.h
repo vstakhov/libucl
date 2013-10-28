@@ -44,18 +44,18 @@
  * In this way we only allocate additional table segments on the heap, without
  * freeing the previous table, and then not increasing the heap fragmentation.
  *
- * The resize takes place inside ucl_hashlin_insert() and ucl_hashlin_remove().
- * No resize is done in the ucl_hashlin_search() operation.
+ * The resize takes place inside ucl_hash_insert() and ucl_hash_remove().
+ * No resize is done in the ucl_hash_search() operation.
  *
- * To initialize the hashtable you have to call ucl_hashlin_init().
+ * To initialize the hashtable you have to call ucl_hash_init().
  *
  * \code
  * ucl_hashslin hashlin;
  *
- * ucl_hashlin_init(&hashlin);
+ * ucl_hash_init(&hashlin);
  * \endcode
  *
- * To insert elements in the hashtable you have to call ucl_hashlin_insert() for
+ * To insert elements in the hashtable you have to call ucl_hash_insert() for
  * each element.
  * In the insertion call you have to specify the address of the node, the
  * address of the object, and the hash value of the key to use.
@@ -73,7 +73,7 @@
  *
  * obj->value = ...; // initializes the object
  *
- * ucl_hashlin_insert(&hashlin, &obj->node, obj, ucl_inthash_u32(obj->value)); // inserts the object
+ * ucl_hash_insert(&hashlin, &obj->node, obj, ucl_inthash_u32(obj->value)); // inserts the object
  * \endcode
  *
  * To find and element in the hashtable you have to call ucl_hashtable_search()
@@ -85,7 +85,7 @@
  *     return (*(const unsigned*)arg != ((const struct object*)obj)->value;
  * }
  *
- * struct object* obj = ucl_hashlin_search(&hashlin, compare, &value_to_find, ucl_inthash_u32(value_to_find));
+ * struct object* obj = ucl_hash_search(&hashlin, compare, &value_to_find, ucl_inthash_u32(value_to_find));
  * if (!obj) {
  *     // not found
  * } else {
@@ -94,12 +94,12 @@
  * \endcode
  *
  * To iterate over all the elements in the hashtable with the same key, you have to
- * use ucl_hashlin_bucket() and follow the ucl_node::next pointer until NULL.
+ * use ucl_hash_bucket() and follow the ucl_node::next pointer until NULL.
  * You have also to check explicitely for the key, as the bucket may contains
  * different keys.
  *
  * \code
- * ucl_node* i = ucl_hashlin_bucket(&hashlin, ucl_inthash_u32(value_to_find));
+ * ucl_node* i = ucl_hash_bucket(&hashlin, ucl_inthash_u32(value_to_find));
  * while (i) {
  *     struct object* obj = i->data; // gets the object pointer
  *
@@ -111,7 +111,7 @@
  * }
  * \endcode
  *
- * To remove an element from the hashtable you have to call ucl_hashlin_remove()
+ * To remove an element from the hashtable you have to call ucl_hash_remove()
  * providing a comparison function, its argument, and the hash of the key to search
  * and remove.
  *
@@ -123,10 +123,10 @@
  * \endcode
  *
  * To destroy the hashtable you have to remove all the elements, and deinitialize
- * the hashtable calling ucl_hashlin_done().
+ * the hashtable calling ucl_hash_done().
  *
  * \code
- * ucl_hashlin_done(&hashlin);
+ * ucl_hash_done(&hashlin);
  * \endcode
  *
  * Note that you cannot iterates over all the elements in the hashtable using the
@@ -189,7 +189,7 @@ typedef int ucl_hash_cmp_func (const void* void_a, const void* void_b);
 /**
  * Linear chained hashtable.
  */
-typedef struct ucl_hashlin_struct
+typedef struct ucl_hash_struct
 {
 	ucl_hash_node_t** bucket[UCL_HASHLIN_BIT_MAX]; /**< Dynamic array of hash buckets. One list for each hash modulus. */
 	unsigned bucket_bit; /**< Bits used in the bit mask. */
@@ -201,22 +201,22 @@ typedef struct ucl_hashlin_struct
 	unsigned split; /**< Split position. */
 	unsigned state; /**< Reallocation state. */
 	unsigned count; /**< Number of elements. */
-} ucl_hashlin;
+} ucl_hash_t;
 
 /**
  * Initializes the hashtable.
  */
-ucl_hashlin* ucl_hashlin_create (void);
+ucl_hash_t* ucl_hash_create (void);
 
 /**
  * Deinitializes the hashtable.
  */
-void ucl_hashlin_destroy (ucl_hashlin* hashlin);
+void ucl_hash_destroy (ucl_hash_t* hashlin);
 
 /**
  * Inserts an element in the the hashtable.
  */
-void ucl_hashlin_insert_hash (ucl_hashlin* hashlin, ucl_hash_node_t* node, void* data,
+void ucl_hash_insert_hash (ucl_hash_t* hashlin, ucl_hash_node_t* node, void* data,
 		uint32_t hash);
 
 /**
@@ -224,14 +224,14 @@ void ucl_hashlin_insert_hash (ucl_hashlin* hashlin, ucl_hash_node_t* node, void*
  * You have to provide a compare function and the hash of the element you want to remove.
  * If the element is not found, 0 is returned.
  * If more equal elements are present, the first one is removed.
- * This operation is faster than calling ucl_hashlin_bucket() and ucl_hashlin_remove_existing() separately.
+ * This operation is faster than calling ucl_hash_bucket() and ucl_hash_remove_existing() separately.
  * \param cmp Compare function called with cmp_arg as first argument and with the element to compare as a second one.
  * The function should return 0 for equal elements, anything other for different elements.
  * \param cmp_arg Compare argument passed as first argument of the compare function.
  * \param hash Hash of the element to find and remove.
  * \return The removed element, or 0 if not found.
  */
-void* ucl_hashlin_remove (ucl_hashlin* hashlin, ucl_hash_cmp_func* cmp,
+void* ucl_hash_remove (ucl_hash_t* hashlin, ucl_hash_cmp_func* cmp,
 		const void* cmp_arg, uint32_t hash);
 
 /**
@@ -242,7 +242,7 @@ void* ucl_hashlin_remove (ucl_hashlin* hashlin, ucl_hash_cmp_func* cmp,
  * \param hash Hash of the element to find.
  * \return The head of the bucket, or 0 if empty.
  */
-ucl_hash_node_t* ucl_hashlin_bucket (ucl_hashlin* hashlin, uint32_t hash);
+ucl_hash_node_t* ucl_hash_bucket (ucl_hash_t* hashlin, uint32_t hash);
 
 /**
  * Searches an element in the hashtable.
@@ -254,10 +254,10 @@ ucl_hash_node_t* ucl_hashlin_bucket (ucl_hashlin* hashlin, uint32_t hash);
  * \param hash Hash of the element to find.
  * \return The first element found, or 0 if none.
  */
-static inline void* ucl_hashlin_search (ucl_hashlin* hashlin, ucl_hash_cmp_func* cmp,
+static inline void* ucl_hash_search (ucl_hash_t* hashlin, ucl_hash_cmp_func* cmp,
 		const void* cmp_arg, uint32_t hash)
 {
-	ucl_hash_node_t* i = ucl_hashlin_bucket (hashlin, hash);
+	ucl_hash_node_t* i = ucl_hash_bucket (hashlin, hash);
 	while (i) {
 		/* we first check if the hash matches, as in the same bucket we may have multiples hash values */
 		if (i->key == hash && cmp (cmp_arg, i->data) == 0)
@@ -272,21 +272,21 @@ static inline void* ucl_hashlin_search (ucl_hashlin* hashlin, ucl_hash_cmp_func*
  * You must already have the address of the element to remove.
  * \return The ucl_node::data field of the node removed.
  */
-void* ucl_hashlin_remove_existing (ucl_hashlin* hashlin, ucl_hash_node_t* node);
+void* ucl_hash_remove_existing (ucl_hash_t* hashlin, ucl_hash_node_t* node);
 
 /**
  * Gets the number of elements.
  */
-static inline unsigned ucl_hashlin_count (ucl_hashlin* hashlin)
+static inline unsigned ucl_hash_count (ucl_hash_t* hashlin)
 {
 	return hashlin->count;
 }
 
 /**
  * Gets the size of allocated memory.
- * It includes the size of the ::ucl_hashlin_node of the stored elements.
+ * It includes the size of the ::ucl_hash_node of the stored elements.
  */
-size_t ucl_hashlin_memory_usage (ucl_hashlin* hashlin);
+size_t ucl_hash_memory_usage (ucl_hash_t* hashlin);
 
 #endif
 
