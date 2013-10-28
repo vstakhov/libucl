@@ -185,23 +185,33 @@ typedef struct ucl_hash_node_s
 #define UCL_HASHLIN_BIT_MAX 32
 
 typedef int ucl_hash_cmp_func (const void* void_a, const void* void_b);
+typedef void ucl_hash_free_func (void *ptr);
+typedef void* ucl_hash_iter_t;
+
+
+struct ucl_hash_node_elt {
+	ucl_hash_node_t *node;
+	struct ucl_hash_node_elt *next;
+};
 
 /**
  * Linear chained hashtable.
  */
 typedef struct ucl_hash_struct
 {
-	ucl_hash_node_t** bucket[UCL_HASHLIN_BIT_MAX]; /**< Dynamic array of hash buckets. One list for each hash modulus. */
+	ucl_hash_node_t** bucket[UCL_HASHLIN_BIT_MAX]; /**< Dynamic array of hash buckes. One list for each hash modulus. */
+	struct ucl_hash_node_elt *nodes_head, *nodes_tail; /**< Linked list of ordered nodes */
 	unsigned bucket_bit; /**< Bits used in the bit mask. */
 	unsigned bucket_max; /**< Number of buckets. */
 	unsigned bucket_mask; /**< Bit mask to access the buckets. */
-	unsigned bucket_mac; /**< Number of vectors allocated. */
+	unsigned bucket_allocated; /**< Number of vectors allocated. */
 	unsigned low_max; /**< Low order max value. */
 	unsigned low_mask; /**< Low order mask value. */
 	unsigned split; /**< Split position. */
 	unsigned state; /**< Reallocation state. */
 	unsigned count; /**< Number of elements. */
 } ucl_hash_t;
+
 
 /**
  * Initializes the hashtable.
@@ -211,12 +221,12 @@ ucl_hash_t* ucl_hash_create (void);
 /**
  * Deinitializes the hashtable.
  */
-void ucl_hash_destroy (ucl_hash_t* hashlin);
+void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func);
 
 /**
  * Inserts an element in the the hashtable.
  */
-void ucl_hash_insert_hash (ucl_hash_t* hashlin, ucl_hash_node_t* node, void* data,
+void ucl_hash_insert (ucl_hash_t* hashlin, ucl_hash_node_t* node, void* data,
 		uint32_t hash);
 
 /**
@@ -287,6 +297,27 @@ static inline unsigned ucl_hash_count (ucl_hash_t* hashlin)
  * It includes the size of the ::ucl_hash_node of the stored elements.
  */
 size_t ucl_hash_memory_usage (ucl_hash_t* hashlin);
+
+/**
+ * Calculate murmur32 hash for a specified string
+ * @param in
+ * @param len
+ * @return
+ */
+uint32_t ucl_murmur_hash (const char *in, size_t len);
+
+/**
+ * Iterate over hash table
+ * @param hashlin hash
+ * @param iter iterator (must be NULL on first iteration)
+ * @return the next object
+ */
+void* ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter);
+
+/**
+ * Check whether an iterator has next element
+ */
+bool ucl_hash_iter_has_next (ucl_hash_iter_t iter);
 
 #endif
 

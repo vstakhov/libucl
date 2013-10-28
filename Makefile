@@ -27,7 +27,7 @@ $(OBJDIR)/$(SONAME): $(OBJDIR)/$(SONAME_FULL)
 	$(LN) -sf $(SONAME_FULL) $(OBJDIR)/$(SONAME)
 
 $(OBJDIR)/$(SONAME_FULL): $(OBJDIR)/ucl_util.o $(OBJDIR)/ucl_parser.o $(OBJDIR)/ucl_emitter.o $(OBJDIR)/ucl_hash.o
-	$(CC) -o $(OBJDIR)/$(SONAME_FULL) $(OBJDIR)/ucl_util.o $(OBJDIR)/ucl_parser.o $(OBJDIR)/ucl_emitter.o $(LD_SHARED_FLAGS) $(LDFLAGS) $(SSL_LIBS) $(FETCH_LIBS)
+	$(CC) -o $(OBJDIR)/$(SONAME_FULL) $(OBJDIR)/ucl_hash.o $(OBJDIR)/ucl_util.o $(OBJDIR)/ucl_parser.o $(OBJDIR)/ucl_emitter.o $(LD_SHARED_FLAGS) $(LDFLAGS) $(SSL_LIBS) $(FETCH_LIBS)
 
 $(OBJDIR):
 	@$(MKDIR) -p $(OBJDIR)

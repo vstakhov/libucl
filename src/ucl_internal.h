@@ -37,7 +37,9 @@
 
 #include "utlist.h"
 #include "utstring.h"
+#include "uthash.h"
 #include "ucl.h"
+#include "ucl_hash.h"
 
 #ifdef HAVE_OPENSSL
 #include <openssl/evp.h>
@@ -248,5 +250,52 @@ ucl_maybe_parse_boolean (ucl_object_t *obj, const unsigned char *start, size_t l
  */
 int ucl_maybe_parse_number (ucl_object_t *obj,
 		const char *start, const char *end, const char **pos, bool allow_double);
+
+
+static inline int
+ucl_object_cmp_key (const void *p1, const void *p2)
+{
+	const ucl_object_t *o1 = p1, *o2 = p2;
+
+	if (o1->keylen == o2->keylen) {
+		return memcmp (o1->key, o2->key, o1->keylen);
+	}
+	else {
+		return (o1->keylen - o2->keylen);
+	}
+}
+
+static inline ucl_object_t *
+ucl_hash_search_str (ucl_hash_t* hashlin, const char *key, size_t keylen)
+{
+	uint32_t hash = ucl_murmur_hash (key, keylen);
+
+	return (ucl_object_t *)ucl_hash_search (hashlin, ucl_object_cmp_key, key, hash);
+}
+
+static inline ucl_hash_t *
+ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj) UCL_WARN_UNUSED_RESULT;
+
+static inline ucl_hash_t *
+ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj)
+{
+	uint32_t hash = ucl_murmur_hash (obj->key, obj->keylen);
+	ucl_hash_node_t *node;
+
+	if (hashlin == NULL) {
+		hashlin = ucl_hash_create ();
+	}
+
+	node = UCL_ALLOC (sizeof (ucl_hash_node_t));
+
+	if (node != NULL) {
+		node->next = NULL;
+		node->prev = NULL;
+		ucl_hash_insert (hashlin, node, obj, hash);
+	}
+
+	return hashlin;
+}
+
 
 #endif /* UCL_INTERNAL_H_ */

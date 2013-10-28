@@ -43,6 +43,7 @@ static void
 ucl_object_free_internal (ucl_object_t *obj, bool allow_rec)
 {
 	ucl_object_t *sub, *tmp;
+	ucl_hash_iter_t it = NULL;
 
 	while (obj != NULL) {
 		if (obj->trash_stack[UCL_TRASH_KEY] != NULL) {
@@ -53,7 +54,7 @@ ucl_object_free_internal (ucl_object_t *obj, bool allow_rec)
 		}
 
 		if (obj->type == UCL_ARRAY) {
-			sub = obj->value.ov;
+			sub = obj->value.av;
 			while (sub != NULL) {
 				tmp = sub->next;
 				ucl_object_free_internal (sub, false);
@@ -61,10 +62,7 @@ ucl_object_free_internal (ucl_object_t *obj, bool allow_rec)
 			}
 		}
 		else if (obj->type == UCL_OBJECT) {
-			HASH_ITER (hh, obj->value.ov, sub, tmp) {
-				HASH_DELETE (hh, obj->value.ov, sub);
-				ucl_object_free_internal (sub, true);
-			}
+			ucl_hash_destroy (obj->value.ov, (ucl_hash_free_func *)ucl_obj_free);
 		}
 		tmp = obj->next;
 		UCL_FREE (sizeof (ucl_object_t), obj);
@@ -179,13 +177,13 @@ ucl_unescape_json_string (char *str, size_t len)
 char *
 ucl_copy_key_trash (ucl_object_t *obj)
 {
-	if (obj->trash_stack[UCL_TRASH_KEY] == NULL && obj->hh.key != NULL) {
-		obj->trash_stack[UCL_TRASH_KEY] = malloc (obj->hh.keylen + 1);
+	if (obj->trash_stack[UCL_TRASH_KEY] == NULL && obj->key != NULL) {
+		obj->trash_stack[UCL_TRASH_KEY] = malloc (obj->keylen + 1);
 		if (obj->trash_stack[UCL_TRASH_KEY] != NULL) {
-			memcpy (obj->trash_stack[UCL_TRASH_KEY], obj->hh.key, obj->hh.keylen);
-			obj->trash_stack[UCL_TRASH_KEY][obj->hh.keylen] = '\0';
+			memcpy (obj->trash_stack[UCL_TRASH_KEY], obj->key, obj->keylen);
+			obj->trash_stack[UCL_TRASH_KEY][obj->keylen] = '\0';
 		}
-		obj->hh.key = obj->trash_stack[UCL_TRASH_KEY];
+		obj->key = obj->trash_stack[UCL_TRASH_KEY];
 		obj->flags |= UCL_OBJECT_ALLOCATED_KEY;
 	}
 
@@ -881,15 +879,15 @@ ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
 		}
 	}
 
-	HASH_FIND (hh, top->value.ov, key, keylen, found);
+	elt->key = key;
+	elt->keylen = keylen;
+
+	found = ucl_hash_search_str (top->value.ov, key, keylen);
 
 	if (!found) {
-		HASH_ADD_KEYPTR (hh, top->value.ov, key, keylen, elt);
+		top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
 	}
-	else {
-		elt->hh.key = key;
-		elt->hh.keylen = keylen;
-	}
+
 	DL_APPEND (found, elt);
 
 	if (copy_key) {
@@ -897,4 +895,34 @@ ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
 	}
 
 	return top;
+}
+
+ucl_object_t *
+ucl_obj_get_keyl (ucl_object_t *obj, const char *key, size_t klen)
+{
+	ucl_object_t *ret;
+
+	if (obj == NULL || obj->type != UCL_OBJECT || key == NULL) {
+		return NULL;
+	}
+
+	ret = ucl_hash_search_str (obj->value.ov, key, klen);
+
+	return ret;
+}
+
+ucl_object_t *
+ucl_obj_get_key (ucl_object_t *obj, const char *key)
+{
+	size_t klen;
+	ucl_object_t *ret;
+
+	if (obj == NULL || obj->type != UCL_OBJECT || key == NULL) {
+		return NULL;
+	}
+
+	klen = strlen (key);
+	ret = ucl_hash_search_str (obj->value.ov, key, klen);
+
+	return ret;
 }

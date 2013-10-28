@@ -88,9 +88,10 @@ ucl_hash_create (void)
 		new->bucket_max = 1 << new->bucket_bit;
 		new->bucket_mask = new->bucket_max - 1;
 		new->bucket[0] = UCL_ALLOC (new->bucket_max * sizeof(ucl_hash_node_t*));
+		new->nodes_head = new->nodes_tail = NULL;
 		memset (new->bucket[0], 0,
 				new->bucket_max * sizeof(ucl_hash_node_t*));
-		new->bucket_mac = 1;
+		new->bucket_allocated = 1;
 
 		/* stable state */
 		new->state = UCL_HASHLIN_STATE_STABLE;
@@ -100,13 +101,22 @@ ucl_hash_create (void)
 	return new;
 }
 
-void ucl_hash_destroy (ucl_hash_t* hashlin)
+void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func)
 {
+	struct ucl_hash_node_elt *elt, *tmp;
 	/* we assume to be empty, so we free only the first bucket */
-	assert(hashlin->bucket_mac == 1);
+	assert(hashlin->bucket_allocated == 1);
 
+	LL_FOREACH_SAFE (hashlin->nodes_head, elt, tmp) {
+		if (func != NULL) {
+			func (elt->node->data);
+		}
+		UCL_FREE (1, elt->node);
+		UCL_FREE (1, elt);
+	}
 	UCL_FREE (hashlin->bucket_max * sizeof(ucl_hash_node_t*), hashlin->bucket[0]);
 	UCL_FREE (sizeof (ucl_hash_t), hashlin);
+
 }
 
 /**
@@ -181,8 +191,8 @@ ucl_hash_grow_step (ucl_hash_t* hashlin)
 			++hashlin->bucket_bit;
 			hashlin->bucket_max = 1 << hashlin->bucket_bit;
 			hashlin->bucket_mask = hashlin->bucket_max - 1;
-			hashlin->bucket[hashlin->bucket_mac] = UCL_ALLOC (hashlin->low_max * sizeof(ucl_hash_node_t*));
-			++hashlin->bucket_mac;
+			hashlin->bucket[hashlin->bucket_allocated] = UCL_ALLOC (hashlin->low_max * sizeof(ucl_hash_node_t*));
+			++hashlin->bucket_allocated;
 
 			/* start from the beginning going forward */
 			hashlin->split = 0;
@@ -210,7 +220,7 @@ ucl_hash_grow_step (ucl_hash_t* hashlin)
 			/* it's always in the second half, so we can index it directly */
 			/* without calling ucl_hash_pos() */
 			split[1] =
-					&hashlin->bucket[hashlin->bucket_mac - 1][hashlin->split];
+					&hashlin->bucket[hashlin->bucket_allocated - 1][hashlin->split];
 
 			/* save the low bucket */
 			j = *split[0];
@@ -295,7 +305,7 @@ ucl_hash_shrink_step (ucl_hash_t* hashlin)
 			/* it's always in the second half, so we can index it directly */
 			/* without calling ucl_hash_pos() */
 			split[1] =
-					&hashlin->bucket[hashlin->bucket_mac - 1][hashlin->split];
+					&hashlin->bucket[hashlin->bucket_allocated - 1][hashlin->split];
 
 			/* concat the high bucket into the low one */
 			DL_CONCAT (*split[0], *split[1]);
@@ -310,9 +320,9 @@ ucl_hash_shrink_step (ucl_hash_t* hashlin)
 				hashlin->bucket_mask = hashlin->bucket_max - 1;
 
 				/* free the last segment */
-				--hashlin->bucket_mac;
+				--hashlin->bucket_allocated;
 				UCL_FREE (hashlin->low_max * sizeof(ucl_hash_node_t*),
-						hashlin->bucket[hashlin->bucket_mac]);
+						hashlin->bucket[hashlin->bucket_allocated]);
 				break;
 			}
 		}
@@ -324,16 +334,31 @@ ucl_hash_insert (ucl_hash_t* hashlin, ucl_hash_node_t* node,
 		void* data, uint32_t hash)
 {
 	ucl_hash_node_t* bucket;
+	struct ucl_hash_node_elt *nelt;
 
-	bucket = ucl_hash_bucket (hashlin, hash);
-	DL_APPEND (bucket, node);
+	nelt = UCL_ALLOC (sizeof (struct ucl_hash_node_elt));
+	if (nelt != NULL) {
+		bucket = ucl_hash_bucket (hashlin, hash);
+		DL_APPEND (bucket, node);
 
-	node->data = data;
-	node->key = hash;
+		node->data = data;
+		node->key = hash;
 
-	++hashlin->count;
+		nelt->node = node;
+		nelt->next = NULL;
+		if (hashlin->nodes_tail != NULL) {
+			hashlin->nodes_tail->next = nelt;
+			hashlin->nodes_tail = nelt;
+		}
+		else {
+			hashlin->nodes_head = nelt;
+			hashlin->nodes_tail = nelt;
+		}
 
-	ucl_hash_grow_step (hashlin);
+		++hashlin->count;
+
+		ucl_hash_grow_step (hashlin);
+	}
 }
 
 void*
@@ -389,3 +414,81 @@ ucl_hash_memory_usage (ucl_hash_t* hashlin)
 			+ hashlin->count * (size_t) sizeof(ucl_hash_node_t);
 }
 
+uint32_t
+ucl_murmur_hash (const char *in, size_t len)
+{
+
+
+	const uint32_t 			 c1 = 0xcc9e2d51;
+	const uint32_t 			 c2 = 0x1b873593;
+
+	const int				 nblocks = len / 4;
+	const uint32_t 			*blocks = (const uint32_t *)(in);
+	const char 			*tail;
+	uint32_t 				 h = 0;
+	int 					 i;
+	uint32_t 				 k;
+
+	if (in == NULL || len == 0) {
+		return 0;
+	}
+
+	tail = (const char *)(in + (nblocks * 4));
+
+	for (i = 0; i < nblocks; i++) {
+		k = blocks[i];
+
+		k *= c1;
+		k = (k << 15) | (k >> (32 - 15));
+		k *= c2;
+
+		h ^= k;
+		h = (h << 13) | (h >> (32 - 13));
+		h = (h * 5) + 0xe6546b64;
+	}
+
+	k = 0;
+	switch (len & 3) {
+	case 3:
+		k ^= tail[2] << 16;
+	case 2:
+		k ^= tail[1] << 8;
+	case 1:
+		k ^= tail[0];
+		k *= c1;
+		k = (k << 13) | (k >> (32 - 15));
+		k *= c2;
+		h ^= k;
+	};
+
+	h ^= len;
+
+	h ^= h >> 16;
+	h *= 0x85ebca6b;
+	h ^= h >> 13;
+	h *= 0xc2b2ae35;
+	h ^= h >> 16;
+
+	return h;
+}
+
+void*
+ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
+{
+	struct ucl_hash_node_elt *elt = *iter;
+
+	if (elt == NULL) {
+		elt = hashlin->nodes_head;
+	}
+
+	*iter = elt->next;
+	return elt->node->data;
+}
+
+bool
+ucl_hash_iter_has_next (ucl_hash_iter_t iter)
+{
+	struct ucl_hash_node_elt *elt = iter;
+
+	return (elt != NULL && elt->next != NULL);
+}

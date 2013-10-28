@@ -604,7 +604,8 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 	const char *key;
 	bool got_quote = false, got_eq = false, got_semicolon = false,
 			need_unescape = false, ucl_escape = false;
-	ucl_object_t *nobj, *tobj, *container;
+	ucl_object_t *nobj, *tobj;
+	ucl_hash_t *container;
 	ssize_t keylen;
 
 	p = chunk->pos;
@@ -733,15 +734,16 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 	}
 
 	container = parser->stack->obj->value.ov;
-	HASH_FIND (hh, container, key, keylen, tobj);
+	nobj->key = key;
+	nobj->keylen = keylen;
+	tobj = ucl_hash_search_str (container, key, keylen);
 	if (tobj == NULL) {
-		DL_APPEND (tobj, nobj);
-		HASH_ADD_KEYPTR (hh, container, key, keylen, nobj);
+		container = ucl_hash_insert_object (container, nobj);
+		nobj->prev = nobj;
+		nobj->next = NULL;
 	}
 	else {
 		DL_APPEND (tobj, nobj);
-		nobj->hh.key = key;
-		nobj->hh.keylen = keylen;
 	}
 
 	if (ucl_escape) {
@@ -885,10 +887,10 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			if (parser->stack->obj->type == UCL_ARRAY) {
 				/* Object must be allocated */
 				obj = ucl_object_new ();
-				t = parser->stack->obj->value.ov;
+				t = parser->stack->obj->value.av;
 				DL_APPEND (t, obj);
 				parser->cur_obj = obj;
-				parser->stack->obj->value.ov = t;
+				parser->stack->obj->value.av = t;
 			}
 			else {
 				/* Object has been already allocated */
