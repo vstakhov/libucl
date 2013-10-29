@@ -33,6 +33,7 @@ ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
 	int num = shift * 4 + 5;
 	char *pre = (char *) malloc (num * sizeof(char));
 	ucl_object_t *cur, *tmp;
+	ucl_object_iter_t it = NULL;
 
 	pre[--num] = 0x00;
 	while (num--)
@@ -40,7 +41,7 @@ ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
 
 	while (obj != NULL) {
 		printf ("%sucl object address: %p\n", pre + 4, obj);
-		if (obj->hh.key != NULL) {
+		if (obj->key != NULL) {
 			printf ("%skey: \"%s\"\n", pre, ucl_object_key (obj));
 		}
 		printf ("%sref: %hd\n", pre, obj->ref);
@@ -50,14 +51,14 @@ ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
 		if (obj->type == UCL_OBJECT) {
 			printf ("%stype: UCL_OBJECT\n", pre);
 			printf ("%svalue: %p\n", pre, obj->value.ov);
-			HASH_ITER (hh, obj->value.ov, cur, tmp) {
+			while ((cur = ucl_iterate_object (obj, &it))) {
 				ucl_obj_dump (cur, shift + 2);
 			}
 		}
 		else if (obj->type == UCL_ARRAY) {
 			printf ("%stype: UCL_ARRAY\n", pre);
-			printf ("%svalue: %p\n", pre, obj->value.ov);
-			ucl_obj_dump (obj->value.ov, shift + 2);
+			printf ("%svalue: %p\n", pre, obj->value.av);
+			ucl_obj_dump (obj->value.av, shift + 2);
 		}
 		else if (obj->type == UCL_INT) {
 			printf ("%stype: UCL_INT\n", pre);

@@ -935,3 +935,9 @@ ucl_obj_get_key (ucl_object_t *obj, const char *key)
 
 	return ret;
 }
+
+ucl_object_t*
+ucl_iterate_object (ucl_object_t *obj, ucl_object_iter_t *iter)
+{
+	return (ucl_object_t*)ucl_hash_iterate (obj->value.ov, iter);
+}
