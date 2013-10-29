@@ -40,6 +40,7 @@
 #include "uthash.h"
 #include "ucl.h"
 #include "ucl_hash.h"
+#include "xxhash.h"
 
 #ifdef HAVE_OPENSSL
 #include <openssl/evp.h>
@@ -251,6 +252,7 @@ ucl_maybe_parse_boolean (ucl_object_t *obj, const unsigned char *start, size_t l
 int ucl_maybe_parse_number (ucl_object_t *obj,
 		const char *start, const char *end, const char **pos, bool allow_double);
 
+#define UCL_HASH_PRIME 2654435761U
 
 static inline int
 ucl_object_cmp_key (const void *p1, const void *p2)
@@ -268,7 +270,7 @@ ucl_object_cmp_key (const void *p1, const void *p2)
 static inline ucl_object_t *
 ucl_hash_search_obj (ucl_hash_t* hashlin, ucl_object_t *obj)
 {
-	uint32_t hash = ucl_murmur_hash (obj->key, obj->keylen);
+	uint32_t hash = XXH32 (obj->key, obj->keylen, UCL_HASH_PRIME);
 
 	return (ucl_object_t *)ucl_hash_search (hashlin, ucl_object_cmp_key, obj, hash);
 }
@@ -279,7 +281,7 @@ ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj) UCL_WARN_UNUSED_
 static inline ucl_hash_t *
 ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj)
 {
-	uint32_t hash = ucl_murmur_hash (obj->key, obj->keylen);
+	uint32_t hash = XXH32 (obj->key, obj->keylen, UCL_HASH_PRIME);
 	ucl_hash_node_t *node;
 
 	if (hashlin == NULL) {

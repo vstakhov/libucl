@@ -182,7 +182,7 @@ typedef struct ucl_hash_node_s
 /** \internal
  * Max number of elements as a power of 2.
  */
-#define UCL_HASHLIN_BIT_MAX 32
+#define UCL_HASHLIN_BIT_MAX 8
 
 typedef int ucl_hash_cmp_func (const void* void_a, const void* void_b);
 typedef void ucl_hash_free_func (void *ptr);
@@ -298,14 +298,6 @@ static inline unsigned ucl_hash_count (ucl_hash_t* hashlin)
  * It includes the size of the ::ucl_hash_node of the stored elements.
  */
 size_t ucl_hash_memory_usage (ucl_hash_t* hashlin);
-
-/**
- * Calculate murmur32 hash for a specified string
- * @param in
- * @param len
- * @return
- */
-uint32_t ucl_murmur_hash (const char *in, size_t len);
 
 /**
  * Iterate over hash table

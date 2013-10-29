@@ -19,15 +19,16 @@ LN ?= ln
 LD_SHARED_FLAGS ?= -Wl,-soname,$(SONAME) -shared -lm
 LD_UCL_FLAGS ?= -L$(OBJDIR) -Wl,-rpath,$(OBJDIR) -lucl
 COPT_FLAGS ?= -g -O0
-HDEPS = $(SRCDIR)/ucl_hash.h $(SRCDIR)/ucl_chartable.h $(SRCDIR)/ucl_internal.h $(INCLUDEDIR)/ucl.h
+HDEPS = $(SRCDIR)/ucl_hash.h $(SRCDIR)/ucl_chartable.h $(SRCDIR)/ucl_internal.h $(INCLUDEDIR)/ucl.h $(SRCDIR)/xxhash.h
+OBJECTS = $(OBJDIR)/ucl_hash.o $(OBJDIR)/ucl_util.o $(OBJDIR)/ucl_parser.o $(OBJDIR)/ucl_emitter.o $(OBJDIR)/xxhash.o
 
 all: $(OBJDIR) $(OBJDIR)/$(SONAME)
 
 $(OBJDIR)/$(SONAME): $(OBJDIR)/$(SONAME_FULL)
 	$(LN) -sf $(SONAME_FULL) $(OBJDIR)/$(SONAME)
 
-$(OBJDIR)/$(SONAME_FULL): $(OBJDIR)/ucl_util.o $(OBJDIR)/ucl_parser.o $(OBJDIR)/ucl_emitter.o $(OBJDIR)/ucl_hash.o
-	$(CC) -o $(OBJDIR)/$(SONAME_FULL) $(OBJDIR)/ucl_hash.o $(OBJDIR)/ucl_util.o $(OBJDIR)/ucl_parser.o $(OBJDIR)/ucl_emitter.o $(LD_SHARED_FLAGS) $(LDFLAGS) $(SSL_LIBS) $(FETCH_LIBS)
+$(OBJDIR)/$(SONAME_FULL): $(OBJECTS)
+	$(CC) -o $(OBJDIR)/$(SONAME_FULL) $(OBJECTS) $(LD_SHARED_FLAGS) $(LDFLAGS) $(SSL_LIBS) $(FETCH_LIBS)
 
 $(OBJDIR):
 	@$(MKDIR) -p $(OBJDIR)
@@ -41,6 +42,8 @@ $(OBJDIR)/ucl_emitter.o: $(SRCDIR)/ucl_emitter.c $(HDEPS)
 	$(CC) -o $(OBJDIR)/ucl_emitter.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_emitter.c
 $(OBJDIR)/ucl_hash.o: $(SRCDIR)/ucl_hash.c $(HDEPS)
 	$(CC) -o $(OBJDIR)/ucl_hash.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_hash.c
+$(OBJDIR)/xxhash.o: $(SRCDIR)/xxhash.c $(HDEPS)
+	$(CC) -o $(OBJDIR)/xxhash.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/xxhash.c
 
 clean:
 	$(RM) $(OBJDIR)/*.o $(OBJDIR)/$(SONAME_FULL) $(OBJDIR)/$(SONAME) $(OBJDIR)/chargen $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/objdump $(OBJDIR)/test_generate
