@@ -76,7 +76,7 @@ ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
 		}
 		else if (obj->type == UCL_BOOLEAN) {
 			printf ("%stype: UCL_BOOLEAN\n", pre);
-			printf ("%svalue: %s\n", pre, ucl_object_tostring (obj));
+			printf ("%svalue: %s\n", pre, ucl_object_tostring_forced (obj));
 		}
 		else if (obj->type == UCL_TIME) {
 			printf ("%stype: UCL_TIME\n", pre);

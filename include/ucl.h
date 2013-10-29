@@ -530,7 +530,7 @@ ucl_obj_tostring (ucl_object_t *obj)
  * @return string value
  */
 static inline const char *
-ucl_obj_tostring_forced (ucl_object_t *obj)
+ucl_object_tostring_forced (ucl_object_t *obj)
 {
 	return ucl_copy_value_trash (obj);
 }
