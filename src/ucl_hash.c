@@ -107,7 +107,7 @@ void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func)
 	/* we assume to be empty, so we free only the first bucket */
 	assert(hashlin->bucket_allocated == 1);
 
-	LL_FOREACH_SAFE (hashlin->nodes_head, elt, tmp) {
+	LL_FOREACH_SAFE2 (hashlin->nodes_head, elt, tmp, elt_next) {
 		if (func != NULL) {
 			func (elt->data);
 		}
