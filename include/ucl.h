@@ -740,6 +740,6 @@ typedef void* ucl_object_iter_t;
  * while ((cur = ucl_iterate_object (obj, &it)) != NULL) ...
  * @return the next object or NULL
  */
-ucl_object_t* ucl_iterate_object (ucl_object_t *obj, ucl_object_iter_t *iter);
+ucl_object_t* ucl_iterate_object (ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_values);
 
 #endif /* RCL_H_ */

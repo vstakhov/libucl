@@ -937,7 +937,47 @@ ucl_obj_get_key (ucl_object_t *obj, const char *key)
 }
 
 ucl_object_t*
-ucl_iterate_object (ucl_object_t *obj, ucl_object_iter_t *iter)
+ucl_iterate_object (ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_values)
 {
-	return (ucl_object_t*)ucl_hash_iterate (obj->value.ov, iter);
+	ucl_object_t *elt;
+
+	if (expand_values) {
+		switch (obj->type) {
+		case UCL_OBJECT:
+			return (ucl_object_t*)ucl_hash_iterate (obj->value.ov, iter);
+			break;
+		case UCL_ARRAY:
+			elt = *iter;
+			if (elt == NULL) {
+				elt = obj->value.av;
+				if (elt == NULL) {
+					return NULL;
+				}
+			}
+			else if (elt == obj->value.av) {
+				return NULL;
+			}
+			*iter = elt->next ? elt->next : obj->value.av;
+			return elt;
+		default:
+			/* Go to linear iteration */
+			break;
+		}
+	}
+	/* Treat everything as a linear list */
+	elt = *iter;
+	if (elt == NULL) {
+		elt = obj;
+		if (elt == NULL) {
+			return NULL;
+		}
+	}
+	else if (elt == obj) {
+		return NULL;
+	}
+	*iter = elt->next ? elt->next : obj;
+	return elt;
+
+	/* Not reached */
+	return NULL;
 }
