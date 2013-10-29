@@ -1,80 +1,31 @@
-/*
- * Copyright 2010 Andrea Mazzoleni. All rights reserved.
+/* Copyright (c) 2013, Vsevolod Stakhov
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * modification, are permitted provided that the following conditions are met:
+ *       * Redistributions of source code must retain the above copyright
+ *         notice, this list of conditions and the following disclaimer.
+ *       * Redistributions in binary form must reproduce the above copyright
+ *         notice, this list of conditions and the following disclaimer in the
+ *         documentation and/or other materials provided with the distribution.
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY ANDREA MAZZOLENI AND CONTRIBUTORS ``AS IS''
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL ANDREA MAZZOLENI OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED ''AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL AUTHOR BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "ucl_hash.h"
 #include "utlist.h"
 
-#include <string.h> /* for memset */
-#include <assert.h> /* for assert */
-
-/******************************************************************************/
-/* hashlin */
-
-/**
- * Reallocation states.
- */
-#define UCL_HASHLIN_STATE_STABLE 0
-#define UCL_HASHLIN_STATE_GROW 1
-#define UCL_HASHLIN_STATE_SHRINK 2
-
-static inline unsigned
-ucl_ilog2_u32 (uint32_t value)
-{
-#if defined(_MSC_VER)
-	unsigned long count;
-	_BitScanReverse(&count, value);
-	return count;
-#elif defined(__GNUC__)
-	/*
-	 * GCC implements __builtin_clz(x) as "__builtin_clz(x) = bsr(x) ^ 31"
-	 *
-	 * Where "x ^ 31 = 31 - x", but gcc does not optimize "31 - __builtin_clz(x)" to bsr(x),
-	 * but generates 31 - (bsr(x) xor 31).
-	 *
-	 * So we write "__builtin_clz(x) ^ 31" instead of "31 - __builtin_clz(x)".
-	 */
-	return __builtin_clz(value) ^ 31;
-#else
-	/* Find the log base 2 of an N-bit integer in O(lg(N)) operations with multiply and lookup */
-	/* from http://graphics.stanford.edu/~seander/bithacks.html */
-	static const int TOMMY_DE_BRUIJN_INDEX_ILOG2[32] = {
-		0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30,
-		8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31
-	};
-
-	value |= value >> 1;
-	value |= value >> 2;
-	value |= value >> 4;
-	value |= value >> 8;
-	value |= value >> 16;
-
-	return TOMMY_DE_BRUIJN_INDEX_ILOG2[(uint32_t)(value * 0x07C4ACDDU) >> 27];
-#endif
-}
+static ucl_hash_node_t* ucl_hash_insert_bucket (ucl_hash_t* hashlin,
+		ucl_hash_node_t *bucket, ucl_hash_node_t *node);
 
 ucl_hash_t*
 ucl_hash_create (void)
@@ -84,18 +35,10 @@ ucl_hash_create (void)
 	new = UCL_ALLOC (sizeof (ucl_hash_t));
 	if (new != NULL) {
 		/* fixed initial size */
-		new->bucket_bit = UCL_HASHLIN_BIT;
-		new->bucket_max = 1 << new->bucket_bit;
-		new->bucket_mask = new->bucket_max - 1;
-		new->bucket[0] = UCL_ALLOC (new->bucket_max * sizeof(ucl_hash_node_t*));
+		new->nbuckets = UCL_HASH_INIT_BUCKETS;
+		new->buckets = UCL_ALLOC (sizeof (ucl_hash_node_t) * UCL_HASH_INIT_BUCKETS);
+		memset (new->buckets, 0, sizeof (ucl_hash_node_t) * UCL_HASH_INIT_BUCKETS);
 		new->nodes_head = new->nodes_tail = NULL;
-		memset (new->bucket[0], 0,
-				new->bucket_max * sizeof(ucl_hash_node_t*));
-		new->bucket_allocated = 1;
-
-		/* stable state */
-		new->state = UCL_HASHLIN_STATE_STABLE;
-
 		new->count = 0;
 	}
 	return new;
@@ -103,308 +46,141 @@ ucl_hash_create (void)
 
 void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func)
 {
-	ucl_hash_node_t *elt, *tmp;
-	/* we assume to be empty, so we free only the first bucket */
-	assert(hashlin->bucket_allocated == 1);
+	ucl_hash_node_t *elt, *tmp, *bucket;
+	unsigned i;
 
-	LL_FOREACH_SAFE2 (hashlin->nodes_head, elt, tmp, elt_next) {
-		if (func != NULL) {
-			func (elt->data);
+	LL_FOREACH_SAFE2 (hashlin->nodes_head, elt, tmp, glob_next) {
+		if (elt->allocated) {
+			if (func != NULL && elt->data != NULL) {
+				func (elt->data);
+			}
+			UCL_FREE (sizeof (ucl_hash_node_t), elt);
 		}
-		UCL_FREE (1, elt);
 	}
-	UCL_FREE (hashlin->bucket_max * sizeof(ucl_hash_node_t*), hashlin->bucket[0]);
+	UCL_FREE (hashlin->bucket_max * sizeof(ucl_hash_node_t*), hashlin->buckets);
 	UCL_FREE (sizeof (ucl_hash_t), hashlin);
 
 }
 
-/**
- * Return the bucket at the specified pos.
- */
-static inline ucl_hash_node_t**
-ucl_hash_pos (ucl_hash_t* hashlin,
-		uint32_t pos)
-{
-	unsigned bsr;
-
-	/* special case for the first bucket */
-	if (pos < (1 << UCL_HASHLIN_BIT)) {
-		return &hashlin->bucket[0][pos];
-	}
-
-	/* get the highest bit set */
-	bsr = ucl_ilog2_u32 (pos);
-
-	/* clear the highest bit */
-	pos -= 1 << bsr;
-
-	return &hashlin->bucket[bsr - UCL_HASHLIN_BIT + 1][pos];
-}
 
 /**
  * Return the bucket to use.
  */
-static inline ucl_hash_node_t**
+static inline ucl_hash_node_t*
 ucl_hash_bucket_ptr (ucl_hash_t* hashlin,
 		uint32_t hash)
 {
 	unsigned pos;
 
-	/* if we are reallocating */
-	if (hashlin->state != UCL_HASHLIN_STATE_STABLE) {
-		/* compute the old position */
-		pos = hash & hashlin->low_mask;
+	pos = hash & (hashlin->nbuckets - 1);
 
-		/* if we have not reallocated this position yet */
-		if (pos >= hashlin->split) {
-
-			/* use it as it was before */
-			return ucl_hash_pos (hashlin, pos);
-		}
-	}
-
-	/* otherwise operates normally */
-	pos = hash & hashlin->bucket_mask;
-
-	return ucl_hash_pos (hashlin, pos);
+	return &hashlin->buckets[pos];
 }
 
-/**
- * Grow one step.
- */
-static inline void
-ucl_hash_grow_step (ucl_hash_t* hashlin)
+static ucl_hash_node_t*
+ucl_hash_insert_bucket (ucl_hash_t* hashlin, ucl_hash_node_t *bucket,
+		ucl_hash_node_t* node)
 {
-	/* grow if more than 50% full */
-	if (hashlin->state != UCL_HASHLIN_STATE_GROW
-			&& hashlin->count > hashlin->bucket_max / 2) {
-		/* if we are stable, setup a new grow state */
-		/* otherwise continue with the already setup shrink one */
-		/* but in backward direction */
-		if (hashlin->state == UCL_HASHLIN_STATE_STABLE) {
-			/* set the lower size */
-			hashlin->low_max = hashlin->bucket_max;
-			hashlin->low_mask = hashlin->bucket_mask;
 
-			/* grow the hash size and allocate */
-			++hashlin->bucket_bit;
-			hashlin->bucket_max = 1 << hashlin->bucket_bit;
-			hashlin->bucket_mask = hashlin->bucket_max - 1;
-			hashlin->bucket[hashlin->bucket_allocated] = UCL_ALLOC (hashlin->low_max * sizeof(ucl_hash_node_t*));
-			++hashlin->bucket_allocated;
-
-			/* start from the beginning going forward */
-			hashlin->split = 0;
+	if (bucket->data == NULL) {
+		/* Got hit */
+		bucket->prev = bucket;
+		bucket->next = NULL;
+		if (node != NULL && node->allocated) {
+			UCL_FREE (sizeof (ucl_hash_node_t), node);
 		}
-
-		/* grow state */
-		hashlin->state = UCL_HASHLIN_STATE_GROW;
+		node = bucket;
+	}
+	else {
+		if (node == NULL) {
+			node = UCL_ALLOC (sizeof (ucl_hash_node_t));
+			node->allocated = true;
+		}
+		DL_APPEND (bucket, node);
 	}
 
-	/* if we are growing */
-	if (hashlin->state == UCL_HASHLIN_STATE_GROW) {
-		/* compute the split target required to finish the reallocation before the next resize */
-		unsigned split_target = 2 * hashlin->count;
-
-		/* reallocate buckets until the split target */
-		while (hashlin->split + hashlin->low_max < split_target) {
-			ucl_hash_node_t** split[2];
-			ucl_hash_node_t* j;
-			unsigned mask;
-
-			/* get the low bucket */
-			split[0] = ucl_hash_pos (hashlin, hashlin->split);
-
-			/* get the high bucket */
-			/* it's always in the second half, so we can index it directly */
-			/* without calling ucl_hash_pos() */
-			split[1] =
-					&hashlin->bucket[hashlin->bucket_allocated - 1][hashlin->split];
-
-			/* save the low bucket */
-			j = *split[0];
-
-			/* reinitialize the buckets */
-			*split[0] = 0;
-			*split[1] = 0;
-
-			/* compute the bit to identify the bucket */
-			mask = hashlin->bucket_mask & ~hashlin->low_mask;
-
-			/* flush the bucket */
-			while (j) {
-				ucl_hash_node_t* j_next = j->next;
-				unsigned index = (j->key & mask) != 0;
-				if (*split[index]) {
-					DL_APPEND (*split[index], j);
-				}
-				else {
-					*split[index] = j;
-					j->next = NULL;
-				}
-				j = j_next;
-			}
-
-			/* go forward */
-			++hashlin->split;
-
-			/* if we have finished, change the state */
-			if (hashlin->split == hashlin->low_max) {
-				hashlin->state = UCL_HASHLIN_STATE_STABLE;
-				break;
-			}
-		}
-	}
+	return node;
 }
 
-/**
- * Shrink one step.
- */
-static inline void
-ucl_hash_shrink_step (ucl_hash_t* hashlin)
+static void
+ucl_hash_insert_glob (ucl_hash_t* hashlin, ucl_hash_node_t *node) {
+	if (hashlin->nodes_tail != NULL) {
+		hashlin->nodes_tail->glob_next = node;
+		hashlin->nodes_tail = node;
+	}
+	else {
+		hashlin->nodes_tail = node;
+		hashlin->nodes_head = node;
+	}
+	node->glob_next = NULL;
+}
+
+static void
+ucl_hash_resize (ucl_hash_t* hashlin)
 {
-	/* shrink if less than 12.5% full */
-	if (hashlin->state != UCL_HASHLIN_STATE_SHRINK
-			&& hashlin->count < hashlin->bucket_max / 8) {
-		/* avoid to shrink the first bucket */
-		if (hashlin->bucket_bit > UCL_HASHLIN_BIT) {
-			/* if we are stable, setup a new shrink state */
-			/* otherwise continue with the already setup grow one */
-			/* but in backward direction */
-			if (hashlin->state == UCL_HASHLIN_STATE_STABLE) {
-				/* set the lower size */
-				hashlin->low_max = hashlin->bucket_max / 2;
-				hashlin->low_mask = hashlin->bucket_mask / 2;
+	ucl_hash_node_t *new_buckets, *bucket, *cur, *tmp1, *tmp2, *head, *node;
+	unsigned new_count, pos, i, new_bit;
 
-				/* start from the half going backward */
-				hashlin->split = hashlin->low_max;
-			}
-
-			/* start reallocation */
-			hashlin->state = UCL_HASHLIN_STATE_SHRINK;
-		}
+	printf ("RESIZE!!\n");
+	new_count = hashlin->nbuckets << 1;
+	new_buckets = UCL_ALLOC (sizeof (ucl_hash_node_t) * new_count);
+	new_bit = new_count - 1;
+	if (new_buckets != NULL) {
+		memset (new_buckets, 0, sizeof (ucl_hash_node_t) * new_count);
 	}
 
-	/* if we are shrinking */
-	if (hashlin->state == UCL_HASHLIN_STATE_SHRINK) {
-		/* compute the split target required to finish the reallocation before the next resize */
-		unsigned split_target = 8 * hashlin->count;
+	head = hashlin->nodes_head;
+	tmp1 = head;
 
-		/* reallocate buckets until the split target */
-		while (hashlin->split + hashlin->low_max > split_target) {
-			ucl_hash_node_t** split[2];
-
-			/* go backward position */
-			--hashlin->split;
-
-			/* get the low bucket */
-			split[0] = ucl_hash_pos (hashlin, hashlin->split);
-
-			/* get the high bucket */
-			/* it's always in the second half, so we can index it directly */
-			/* without calling ucl_hash_pos() */
-			split[1] =
-					&hashlin->bucket[hashlin->bucket_allocated - 1][hashlin->split];
-
-			/* concat the high bucket into the low one */
-			DL_CONCAT (*split[0], *split[1]);
-
-			/* if we have finished, clean up and change the state */
-			if (hashlin->split == 0) {
-				hashlin->state = UCL_HASHLIN_STATE_STABLE;
-
-				/* shrink the hash size */
-				--hashlin->bucket_bit;
-				hashlin->bucket_max = 1 << hashlin->bucket_bit;
-				hashlin->bucket_mask = hashlin->bucket_max - 1;
-
-				/* free the last segment */
-				--hashlin->bucket_allocated;
-				UCL_FREE (hashlin->low_max * sizeof(ucl_hash_node_t*),
-						hashlin->bucket[hashlin->bucket_allocated]);
-				break;
+	LL_FOREACH2 (head, cur, glob_next) {
+		tmp2 = cur->next;
+		pos = cur->key & new_bit;
+		node = ucl_hash_insert_bucket (hashlin, &new_buckets[pos], cur);
+		if (node != cur) {
+			/* Need to replace pointer */
+			if (cur == head) {
+				hashlin->nodes_head = node;
 			}
+			else if (cur == hashlin->nodes_tail) {
+				hashlin->nodes_tail = node;
+			}
+			node->glob_next = tmp2;
+			tmp1->glob_next = node;
+			cur = node;
 		}
+		tmp1 = cur;
+	}
+	UCL_FREE (sizeof (ucl_hash_node_t) * hashlin->nbuckets, hashlin->buckets);
+	hashlin->nbuckets = new_count;
+	hashlin->buckets = new_buckets;
+}
+
+static void
+ucl_hash_maybe_resize (ucl_hash_t* hashlin)
+{
+	if (hashlin->nbuckets <= hashlin->count + hashlin->count / 16) {
+		//ucl_hash_resize (hashlin);
 	}
 }
 
 void
-ucl_hash_insert (ucl_hash_t* hashlin, ucl_hash_node_t* node,
-		void* data, uint32_t hash)
+ucl_hash_insert (ucl_hash_t* hashlin, void* data, uint32_t hash)
 {
-	ucl_hash_node_t** pbucket;
+	ucl_hash_node_t* pbucket, *node;
 	pbucket = ucl_hash_bucket_ptr (hashlin, hash);
-	DL_APPEND (*pbucket, node);
 
+	node = ucl_hash_insert_bucket (hashlin, pbucket, NULL);
+	ucl_hash_insert_glob (hashlin, node);
 	node->data = data;
 	node->key = hash;
-
-	node->elt_next = NULL;
-	if (hashlin->nodes_tail != NULL) {
-		hashlin->nodes_tail->elt_next = node;
-		hashlin->nodes_tail = node;
-	}
-	else {
-		hashlin->nodes_head = node;
-		hashlin->nodes_tail = node;
-	}
-
 	++hashlin->count;
-
-	ucl_hash_grow_step (hashlin);
-}
-
-void*
-ucl_hash_remove_existing (ucl_hash_t* hashlin, ucl_hash_node_t* node)
-{
-	ucl_hash_node_t* bucket;
-
-	bucket = ucl_hash_bucket (hashlin, node->key);
-
-	DL_DELETE (bucket, node);
-
-	--hashlin->count;
-
-	ucl_hash_shrink_step (hashlin);
-
-	return node->data;
+	ucl_hash_maybe_resize (hashlin);
 }
 
 ucl_hash_node_t*
 ucl_hash_bucket (ucl_hash_t* hashlin, uint32_t hash)
 {
-	return *ucl_hash_bucket_ptr (hashlin, hash);
-}
-
-void*
-ucl_hash_remove (ucl_hash_t* hashlin, ucl_hash_cmp_func* cmp,
-		const void* cmp_arg, uint32_t hash)
-{
-	ucl_hash_node_t** let_ptr = ucl_hash_bucket_ptr (hashlin, hash);
-	ucl_hash_node_t* i = *let_ptr;
-
-	while (i) {
-		/* we first check if the hash matches, as in the same bucket we may have multiples hash values */
-		if (i->key == hash && cmp (cmp_arg, i->data) == 0) {
-			DL_DELETE (*let_ptr, i);
-
-			--hashlin->count;
-
-			ucl_hash_shrink_step (hashlin);
-
-			return i->data;
-		}
-		i = i->next;
-	}
-
-	return 0;
-}
-
-size_t
-ucl_hash_memory_usage (ucl_hash_t* hashlin)
-{
-	return hashlin->bucket_max * (size_t) sizeof(hashlin->bucket[0][0])
-			+ hashlin->count * (size_t) sizeof(ucl_hash_node_t);
+	return ucl_hash_bucket_ptr (hashlin, hash);
 }
 
 void*
@@ -422,7 +198,7 @@ ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 		return NULL;
 	}
 
-	*iter = elt->elt_next ? elt->elt_next : hashlin->nodes_head;
+	*iter = elt->glob_next ? elt->glob_next : hashlin->nodes_head;
 	return elt->data;
 }
 
@@ -431,5 +207,5 @@ ucl_hash_iter_has_next (ucl_hash_iter_t iter)
 {
 	ucl_hash_node_t *elt = iter;
 
-	return (elt != NULL && elt->elt_next != NULL);
+	return (elt != NULL && elt->glob_next != NULL);
 }

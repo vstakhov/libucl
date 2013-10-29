@@ -282,19 +282,11 @@ static inline ucl_hash_t *
 ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj)
 {
 	uint32_t hash = XXH32 (obj->key, obj->keylen, UCL_HASH_PRIME);
-	ucl_hash_node_t *node;
 
 	if (hashlin == NULL) {
 		hashlin = ucl_hash_create ();
 	}
-
-	node = UCL_ALLOC (sizeof (ucl_hash_node_t));
-
-	if (node != NULL) {
-		node->next = NULL;
-		node->prev = NULL;
-		ucl_hash_insert (hashlin, node, obj, hash);
-	}
+	ucl_hash_insert (hashlin, obj, hash);
 
 	return hashlin;
 }
