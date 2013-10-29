@@ -187,7 +187,7 @@ typedef struct ucl_hash_node_s
 /** \internal
  * Max number of elements as a power of 2.
  */
-#define UCL_HASHLIN_BIT_MAX 8
+#define UCL_HASHLIN_BIT_MAX 4
 
 typedef int ucl_hash_cmp_func (const void* void_a, const void* void_b);
 typedef void ucl_hash_free_func (void *ptr);
@@ -199,16 +199,16 @@ typedef void* ucl_hash_iter_t;
  */
 typedef struct ucl_hash_struct
 {
-	ucl_hash_node_t** bucket[UCL_HASHLIN_BIT_MAX]; /**< Dynamic array of hash buckes. One list for each hash modulus. */
+	ucl_hash_node_t** bucket[UCL_HASHLIN_BIT_MAX]; /**< Dynamic array of hash buckets. One list for each hash modulus. */
 	ucl_hash_node_t *nodes_head, *nodes_tail; /**< Linked list of ordered nodes */
-	unsigned bucket_bit; /**< Bits used in the bit mask. */
-	unsigned bucket_max; /**< Number of buckets. */
-	unsigned bucket_mask; /**< Bit mask to access the buckets. */
-	unsigned bucket_allocated; /**< Number of vectors allocated. */
-	unsigned low_max; /**< Low order max value. */
-	unsigned low_mask; /**< Low order mask value. */
-	unsigned split; /**< Split position. */
-	unsigned state; /**< Reallocation state. */
+	uint8_t bucket_bit; /**< Bits used in the bit mask. */
+	uint8_t bucket_max; /**< Number of buckets. */
+	uint8_t bucket_mask; /**< Bit mask to access the buckets. */
+	uint8_t state; /**< Reallocation state. */
+	uint16_t bucket_allocated; /**< Number of vectors allocated. */
+	uint16_t low_max; /**< Low order max value. */
+	uint16_t low_mask; /**< Low order mask value. */
+	uint16_t split; /**< Split position. */
 	unsigned count; /**< Number of elements. */
 } ucl_hash_t;
 

@@ -161,14 +161,14 @@ typedef struct ucl_object_s {
 		void* ud;							/**< opaque user data		*/
 	} value;
 	const char *key;						/**< key of an object		*/
-	unsigned keylen;						/**< lenght of a key		*/
-	enum ucl_type type;						/**< real type				*/
-	short int ref;							/**< reference count		*/
-	short int flags;						/**< object flags			*/
-	size_t len;								/**< size of an object		*/
 	struct ucl_object_s *next;				/**< array handle			*/
 	struct ucl_object_s *prev;				/**< array handle			*/
 	unsigned char* trash_stack[2];			/**< pointer to allocated chunks */
+	unsigned keylen;						/**< lenght of a key		*/
+	unsigned len;							/**< size of an object		*/
+	enum ucl_type type;						/**< real type				*/
+	uint16_t ref;							/**< reference count		*/
+	uint16_t flags;							/**< object flags			*/
 } ucl_object_t;
 
 
