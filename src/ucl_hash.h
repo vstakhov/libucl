@@ -25,26 +25,20 @@
 #define __UCL_HASH_H
 
 #include "ucl.h"
+#include "uthash.h"
 
 /******************************************************************************/
 
 typedef struct ucl_hash_node_s
 {
-	uint32_t key;
-	bool allocated;
-
 	ucl_object_t *data;
-
-	struct ucl_hash_node_s* prev;
-	struct ucl_hash_node_s* next;
-	struct ucl_hash_node_s* glob_next;
+	UT_hash_handle hh;
 } ucl_hash_node_t;
 
 typedef int ucl_hash_cmp_func (const void* void_a, const void* void_b);
 typedef void ucl_hash_free_func (void *ptr);
 typedef void* ucl_hash_iter_t;
 
-#define UCL_HASH_INIT_BUCKETS 8
 
 /**
  * Linear chained hashtable.
@@ -52,9 +46,6 @@ typedef void* ucl_hash_iter_t;
 typedef struct ucl_hash_struct
 {
 	ucl_hash_node_t *buckets; /**< array of hash buckets. One list for each hash modulus. */
-	unsigned nbuckets;
-	unsigned count; /**< Number of elements. */
-	ucl_hash_node_t *nodes_head, *nodes_tail;
 } ucl_hash_t;
 
 
@@ -71,52 +62,13 @@ void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func);
 /**
  * Inserts an element in the the hashtable.
  */
-void ucl_hash_insert (ucl_hash_t* hashlin, void* data,
-		uint32_t hash);
-
-/**
- * Gets the bucket of the specified hash.
- * The bucket is guaranteed to contain ALL the elements with the specified hash,
- * but it can contain also others.
- * You can access elements in the bucket following the ::next pointer until 0.
- * \param hash Hash of the element to find.
- * \return The head of the bucket, or 0 if empty.
- */
-ucl_hash_node_t* ucl_hash_bucket (ucl_hash_t* hashlin, uint32_t hash);
+void ucl_hash_insert (ucl_hash_t* hashlin, ucl_object_t *obj, const char *key, unsigned keylen);
 
 /**
  * Searches an element in the hashtable.
- * You have to provide a compare function and the hash of the element you want to find.
- * If more equal elements are present, the first one is returned.
- * \param cmp Compare function called with cmp_arg as first argument and with the element to compare as a second one.
- * The function should return 0 for equal elements, anything other for different elements.
- * \param cmp_arg Compare argument passed as first argument of the compare function.
- * \param hash Hash of the element to find.
- * \return The first element found, or 0 if none.
  */
-static inline void* ucl_hash_search (ucl_hash_t* hashlin, ucl_hash_cmp_func* cmp,
-		const void* cmp_arg, uint32_t hash)
-{
-	ucl_hash_node_t* i;
+ucl_object_t* ucl_hash_search (ucl_hash_t* hashlin, const char *key, unsigned keylen);
 
-	i = ucl_hash_bucket (hashlin, hash);
-
-	while (i) {
-		/* we first check if the hash matches, as in the same bucket we may have multiples hash values */
-		if (i->key == hash && cmp (cmp_arg, i->data) == 0)
-			return i->data;
-		i = i->next;
-	}
-	return 0;
-}
-
-/**
- * Gets the number of elements.
- */
-static inline unsigned ucl_hash_count (ucl_hash_t* hashlin)
-{
-	return hashlin->count;
-}
 
 /**
  * Iterate over hash table

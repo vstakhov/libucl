@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>   /* memcmp,strlen */
 #include <stddef.h>   /* ptrdiff_t */
 #include <stdlib.h>   /* exit() */
+#include "xxhash.h"
 
 /* These macros use decltype or the earlier __typeof GNU extension.
    As decltype is only available in newer compilers (VS2010 or gcc 4.3+
@@ -348,248 +349,18 @@ do {                                                                            
 #ifdef HASH_FUNCTION 
 #define HASH_FCN HASH_FUNCTION
 #else
-#define HASH_FCN HASH_JEN
+#define HASH_FCN HASH_XX
 #endif
 
-/* The Bernstein hash function, used in Perl prior to v5.6 */
-#define HASH_BER(key,keylen,num_bkts,hashv,bkt)                                  \
+#define XX_HASH_PRIME 2654435761U
+
+#define HASH_XX(key,keylen,num_bkts,hashv,bkt)                                  \
 do {                                                                             \
-  unsigned _hb_keylen=keylen;                                                    \
-  char *_hb_key=(char*)(key);                                                    \
-  (hashv) = 0;                                                                   \
-  while (_hb_keylen--)  { (hashv) = ((hashv) * 33) + *_hb_key++; }               \
+  hashv = XXH32 (key, keylen, XX_HASH_PRIME);                                    \
   bkt = (hashv) & (num_bkts-1);                                                  \
 } while (0)
 
 
-/* SAX/FNV/OAT/JEN hash functions are macro variants of those listed at 
- * http://eternallyconfuzzled.com/tuts/algorithms/jsw_tut_hashing.aspx */
-#define HASH_SAX(key,keylen,num_bkts,hashv,bkt)                                  \
-do {                                                                             \
-  unsigned _sx_i;                                                                \
-  char *_hs_key=(char*)(key);                                                    \
-  hashv = 0;                                                                     \
-  for(_sx_i=0; _sx_i < keylen; _sx_i++)                                          \
-      hashv ^= (hashv << 5) + (hashv >> 2) + _hs_key[_sx_i];                     \
-  bkt = hashv & (num_bkts-1);                                                    \
-} while (0)
-
-#define HASH_FNV(key,keylen,num_bkts,hashv,bkt)                                  \
-do {                                                                             \
-  unsigned _fn_i;                                                                \
-  char *_hf_key=(char*)(key);                                                    \
-  hashv = 2166136261UL;                                                          \
-  for(_fn_i=0; _fn_i < keylen; _fn_i++)                                          \
-      hashv = (hashv * 16777619) ^ _hf_key[_fn_i];                               \
-  bkt = hashv & (num_bkts-1);                                                    \
-} while(0) 
- 
-#define HASH_OAT(key,keylen,num_bkts,hashv,bkt)                                  \
-do {                                                                             \
-  unsigned _ho_i;                                                                \
-  char *_ho_key=(char*)(key);                                                    \
-  hashv = 0;                                                                     \
-  for(_ho_i=0; _ho_i < keylen; _ho_i++) {                                        \
-      hashv += _ho_key[_ho_i];                                                   \
-      hashv += (hashv << 10);                                                    \
-      hashv ^= (hashv >> 6);                                                     \
-  }                                                                              \
-  hashv += (hashv << 3);                                                         \
-  hashv ^= (hashv >> 11);                                                        \
-  hashv += (hashv << 15);                                                        \
-  bkt = hashv & (num_bkts-1);                                                    \
-} while(0)
-
-#define HASH_JEN_MIX(a,b,c)                                                      \
-do {                                                                             \
-  a -= b; a -= c; a ^= ( c >> 13 );                                              \
-  b -= c; b -= a; b ^= ( a << 8 );                                               \
-  c -= a; c -= b; c ^= ( b >> 13 );                                              \
-  a -= b; a -= c; a ^= ( c >> 12 );                                              \
-  b -= c; b -= a; b ^= ( a << 16 );                                              \
-  c -= a; c -= b; c ^= ( b >> 5 );                                               \
-  a -= b; a -= c; a ^= ( c >> 3 );                                               \
-  b -= c; b -= a; b ^= ( a << 10 );                                              \
-  c -= a; c -= b; c ^= ( b >> 15 );                                              \
-} while (0)
-
-#define HASH_JEN(key,keylen,num_bkts,hashv,bkt)                                  \
-do {                                                                             \
-  unsigned _hj_i,_hj_j,_hj_k;                                                    \
-  unsigned const char *_hj_key=(unsigned const char*)(key);                                  \
-  hashv = 0xfeedbeef;                                                            \
-  _hj_i = _hj_j = 0x9e3779b9;                                                    \
-  _hj_k = (unsigned)keylen;                                                      \
-  while (_hj_k >= 12) {                                                          \
-    _hj_i +=    (_hj_key[0] + ( (unsigned)_hj_key[1] << 8 )                      \
-        + ( (unsigned)_hj_key[2] << 16 )                                         \
-        + ( (unsigned)_hj_key[3] << 24 ) );                                      \
-    _hj_j +=    (_hj_key[4] + ( (unsigned)_hj_key[5] << 8 )                      \
-        + ( (unsigned)_hj_key[6] << 16 )                                         \
-        + ( (unsigned)_hj_key[7] << 24 ) );                                      \
-    hashv += (_hj_key[8] + ( (unsigned)_hj_key[9] << 8 )                         \
-        + ( (unsigned)_hj_key[10] << 16 )                                        \
-        + ( (unsigned)_hj_key[11] << 24 ) );                                     \
-                                                                                 \
-     HASH_JEN_MIX(_hj_i, _hj_j, hashv);                                          \
-                                                                                 \
-     _hj_key += 12;                                                              \
-     _hj_k -= 12;                                                                \
-  }                                                                              \
-  hashv += keylen;                                                               \
-  switch ( _hj_k ) {                                                             \
-     case 11: hashv += ( (unsigned)_hj_key[10] << 24 );                          \
-     case 10: hashv += ( (unsigned)_hj_key[9] << 16 );                           \
-     case 9:  hashv += ( (unsigned)_hj_key[8] << 8 );                            \
-     case 8:  _hj_j += ( (unsigned)_hj_key[7] << 24 );                           \
-     case 7:  _hj_j += ( (unsigned)_hj_key[6] << 16 );                           \
-     case 6:  _hj_j += ( (unsigned)_hj_key[5] << 8 );                            \
-     case 5:  _hj_j += _hj_key[4];                                               \
-     case 4:  _hj_i += ( (unsigned)_hj_key[3] << 24 );                           \
-     case 3:  _hj_i += ( (unsigned)_hj_key[2] << 16 );                           \
-     case 2:  _hj_i += ( (unsigned)_hj_key[1] << 8 );                            \
-     case 1:  _hj_i += _hj_key[0];                                               \
-  }                                                                              \
-  HASH_JEN_MIX(_hj_i, _hj_j, hashv);                                             \
-  bkt = hashv & (num_bkts-1);                                                    \
-} while(0)
-
-/* The Paul Hsieh hash function */
-#undef get16bits
-#if (defined(__GNUC__) && defined(__i386__)) || defined(__WATCOMC__)             \
-  || defined(_MSC_VER) || defined (__BORLANDC__) || defined (__TURBOC__)
-#define get16bits(d) (*((const uint16_t *) (d)))
-#endif
-
-#if !defined (get16bits)
-#define get16bits(d) ((((uint32_t)(((const uint8_t *)(d))[1])) << 8)             \
-                       +(uint32_t)(((const uint8_t *)(d))[0]) )
-#endif
-#define HASH_SFH(key,keylen,num_bkts,hashv,bkt)                                  \
-do {                                                                             \
-  unsigned const char *_sfh_key=(unsigned const char*)(key);                                 \
-  uint32_t _sfh_tmp, _sfh_len = keylen;                                          \
-                                                                                 \
-  int _sfh_rem = _sfh_len & 3;                                                   \
-  _sfh_len >>= 2;                                                                \
-  hashv = 0xcafebabe;                                                            \
-                                                                                 \
-  /* Main loop */                                                                \
-  for (;_sfh_len > 0; _sfh_len--) {                                              \
-    hashv    += get16bits (_sfh_key);                                            \
-    _sfh_tmp       = (uint32_t)(get16bits (_sfh_key+2)) << 11  ^ hashv;          \
-    hashv     = (hashv << 16) ^ _sfh_tmp;                                        \
-    _sfh_key += 2*sizeof (uint16_t);                                             \
-    hashv    += hashv >> 11;                                                     \
-  }                                                                              \
-                                                                                 \
-  /* Handle end cases */                                                         \
-  switch (_sfh_rem) {                                                            \
-    case 3: hashv += get16bits (_sfh_key);                                       \
-            hashv ^= hashv << 16;                                                \
-            hashv ^= (uint32_t)(_sfh_key[sizeof (uint16_t)] << 18);              \
-            hashv += hashv >> 11;                                                \
-            break;                                                               \
-    case 2: hashv += get16bits (_sfh_key);                                       \
-            hashv ^= hashv << 11;                                                \
-            hashv += hashv >> 17;                                                \
-            break;                                                               \
-    case 1: hashv += *_sfh_key;                                                  \
-            hashv ^= hashv << 10;                                                \
-            hashv += hashv >> 1;                                                 \
-  }                                                                              \
-                                                                                 \
-    /* Force "avalanching" of final 127 bits */                                  \
-    hashv ^= hashv << 3;                                                         \
-    hashv += hashv >> 5;                                                         \
-    hashv ^= hashv << 4;                                                         \
-    hashv += hashv >> 17;                                                        \
-    hashv ^= hashv << 25;                                                        \
-    hashv += hashv >> 6;                                                         \
-    bkt = hashv & (num_bkts-1);                                                  \
-} while(0) 
-
-#ifdef HASH_USING_NO_STRICT_ALIASING
-/* The MurmurHash exploits some CPU's (x86,x86_64) tolerance for unaligned reads.
- * For other types of CPU's (e.g. Sparc) an unaligned read causes a bus error.
- * MurmurHash uses the faster approach only on CPU's where we know it's safe. 
- *
- * Note the preprocessor built-in defines can be emitted using:
- *
- *   gcc -m64 -dM -E - < /dev/null                  (on gcc)
- *   cc -## a.c (where a.c is a simple test file)   (Sun Studio)
- */
-#if (defined(__i386__) || defined(__x86_64__)  || defined(_M_IX86))
-#define MUR_GETBLOCK(p,i) p[i]
-#else /* non intel */
-#define MUR_PLUS0_ALIGNED(p) (((unsigned long)p & 0x3) == 0)
-#define MUR_PLUS1_ALIGNED(p) (((unsigned long)p & 0x3) == 1)
-#define MUR_PLUS2_ALIGNED(p) (((unsigned long)p & 0x3) == 2)
-#define MUR_PLUS3_ALIGNED(p) (((unsigned long)p & 0x3) == 3)
-#define WP(p) ((uint32_t*)((unsigned long)(p) & ~3UL))
-#if (defined(__BIG_ENDIAN__) || defined(SPARC) || defined(__ppc__) || defined(__ppc64__))
-#define MUR_THREE_ONE(p) ((((*WP(p))&0x00ffffff) << 8) | (((*(WP(p)+1))&0xff000000) >> 24))
-#define MUR_TWO_TWO(p)   ((((*WP(p))&0x0000ffff) <<16) | (((*(WP(p)+1))&0xffff0000) >> 16))
-#define MUR_ONE_THREE(p) ((((*WP(p))&0x000000ff) <<24) | (((*(WP(p)+1))&0xffffff00) >>  8))
-#else /* assume little endian non-intel */
-#define MUR_THREE_ONE(p) ((((*WP(p))&0xffffff00) >> 8) | (((*(WP(p)+1))&0x000000ff) << 24))
-#define MUR_TWO_TWO(p)   ((((*WP(p))&0xffff0000) >>16) | (((*(WP(p)+1))&0x0000ffff) << 16))
-#define MUR_ONE_THREE(p) ((((*WP(p))&0xff000000) >>24) | (((*(WP(p)+1))&0x00ffffff) <<  8))
-#endif
-#define MUR_GETBLOCK(p,i) (MUR_PLUS0_ALIGNED(p) ? ((p)[i]) :           \
-                            (MUR_PLUS1_ALIGNED(p) ? MUR_THREE_ONE(p) : \
-                             (MUR_PLUS2_ALIGNED(p) ? MUR_TWO_TWO(p) :  \
-                                                      MUR_ONE_THREE(p))))
-#endif
-#define MUR_ROTL32(x,r) (((x) << (r)) | ((x) >> (32 - (r))))
-#define MUR_FMIX(_h) \
-do {                 \
-  _h ^= _h >> 16;    \
-  _h *= 0x85ebca6b;  \
-  _h ^= _h >> 13;    \
-  _h *= 0xc2b2ae35l; \
-  _h ^= _h >> 16;    \
-} while(0)
-
-#define HASH_MUR(key,keylen,num_bkts,hashv,bkt)                        \
-do {                                                                   \
-  const uint8_t *_mur_data = (const uint8_t*)(key);                    \
-  const int _mur_nblocks = (keylen) / 4;                               \
-  uint32_t _mur_h1 = 0xf88D5353;                                       \
-  uint32_t _mur_c1 = 0xcc9e2d51;                                       \
-  uint32_t _mur_c2 = 0x1b873593;                                       \
-  uint32_t _mur_k1 = 0;                                                \
-  const uint8_t *_mur_tail;                                            \
-  const uint32_t *_mur_blocks = (const uint32_t*)(_mur_data+_mur_nblocks*4); \
-  int _mur_i;                                                          \
-  for(_mur_i = -_mur_nblocks; _mur_i; _mur_i++) {                      \
-    _mur_k1 = MUR_GETBLOCK(_mur_blocks,_mur_i);                        \
-    _mur_k1 *= _mur_c1;                                                \
-    _mur_k1 = MUR_ROTL32(_mur_k1,15);                                  \
-    _mur_k1 *= _mur_c2;                                                \
-                                                                       \
-    _mur_h1 ^= _mur_k1;                                                \
-    _mur_h1 = MUR_ROTL32(_mur_h1,13);                                  \
-    _mur_h1 = _mur_h1*5+0xe6546b64;                                    \
-  }                                                                    \
-  _mur_tail = (const uint8_t*)(_mur_data + _mur_nblocks*4);            \
-  _mur_k1=0;                                                           \
-  switch((keylen) & 3) {                                               \
-    case 3: _mur_k1 ^= _mur_tail[2] << 16;                             \
-    case 2: _mur_k1 ^= _mur_tail[1] << 8;                              \
-    case 1: _mur_k1 ^= _mur_tail[0];                                   \
-    _mur_k1 *= _mur_c1;                                                \
-    _mur_k1 = MUR_ROTL32(_mur_k1,15);                                  \
-    _mur_k1 *= _mur_c2;                                                \
-    _mur_h1 ^= _mur_k1;                                                \
-    case 0: break;	                                                   \
-  }                                                                    \
-  _mur_h1 ^= (keylen);                                                 \
-  MUR_FMIX(_mur_h1);                                                   \
-  hashv = _mur_h1;                                                     \
-  bkt = hashv & (num_bkts-1);                                          \
-} while(0)
-#endif  /* HASH_USING_NO_STRICT_ALIASING */
 
 /* key comparison function; return 0 if keys equal */
 #define HASH_KEYCMP(a,b,len) memcmp(a,b,len) 

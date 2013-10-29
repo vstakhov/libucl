@@ -252,27 +252,11 @@ ucl_maybe_parse_boolean (ucl_object_t *obj, const unsigned char *start, size_t l
 int ucl_maybe_parse_number (ucl_object_t *obj,
 		const char *start, const char *end, const char **pos, bool allow_double);
 
-#define UCL_HASH_PRIME 2654435761U
-
-static inline int
-ucl_object_cmp_key (const void *p1, const void *p2)
-{
-	const ucl_object_t *o1 = p1, *o2 = p2;
-
-	if (o1->keylen == o2->keylen) {
-		return memcmp (o1->key, o2->key, o1->keylen);
-	}
-	else {
-		return (o1->keylen - o2->keylen);
-	}
-}
 
 static inline ucl_object_t *
 ucl_hash_search_obj (ucl_hash_t* hashlin, ucl_object_t *obj)
 {
-	uint32_t hash = XXH32 (obj->key, obj->keylen, UCL_HASH_PRIME);
-
-	return (ucl_object_t *)ucl_hash_search (hashlin, ucl_object_cmp_key, obj, hash);
+	return (ucl_object_t *)ucl_hash_search (hashlin, obj->key, obj->keylen);
 }
 
 static inline ucl_hash_t *
@@ -281,12 +265,10 @@ ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj) UCL_WARN_UNUSED_
 static inline ucl_hash_t *
 ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj)
 {
-	uint32_t hash = XXH32 (obj->key, obj->keylen, UCL_HASH_PRIME);
-
 	if (hashlin == NULL) {
 		hashlin = ucl_hash_create ();
 	}
-	ucl_hash_insert (hashlin, obj, hash);
+	ucl_hash_insert (hashlin, obj, obj->key, obj->keylen);
 
 	return hashlin;
 }
