@@ -29,10 +29,10 @@ int
 main (int argc, char **argv)
 {
 	char inbuf[8192];
-	struct ucl_parser *parser, *parser2;
+	struct ucl_parser *parser = NULL, *parser2 = NULL;
 	ucl_object_t *obj;
 	FILE *in, *out;
-	unsigned char *emitted;
+	unsigned char *emitted = NULL;
 	const char *fname_in = NULL, *fname_out = NULL;
 	int ret = 0;
 
@@ -58,7 +58,7 @@ main (int argc, char **argv)
 	parser = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
 
 	while (!feof (in)) {
-		fread (inbuf, sizeof (inbuf), 1, in);
+		(void)fread (inbuf, sizeof (inbuf), 1, in);
 		ucl_parser_add_chunk (parser, inbuf, strlen (inbuf));
 	}
 	fclose (in);

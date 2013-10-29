@@ -275,8 +275,8 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 	const char *p = start, *c = start;
 	char *endptr;
 	bool got_dot = false, got_exp = false, need_double = false, is_date = false, valid_start = false;
-	double dv;
-	int64_t lv;
+	double dv = 0;
+	int64_t lv = 0;
 
 	if (*p == '-') {
 		p ++;
@@ -1225,7 +1225,7 @@ ucl_state_machine (struct ucl_parser *parser)
 	ucl_object_t *obj;
 	struct ucl_chunk *chunk = parser->chunks;
 	struct ucl_stack *st;
-	const unsigned char *p, *c, *macro_start = NULL;
+	const unsigned char *p, *c = NULL, *macro_start = NULL;
 	size_t macro_len = 0;
 	struct ucl_macro *macro = NULL;
 
