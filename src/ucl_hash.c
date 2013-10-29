@@ -103,15 +103,14 @@ ucl_hash_create (void)
 
 void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func)
 {
-	struct ucl_hash_node_elt *elt, *tmp;
+	ucl_hash_node_t *elt, *tmp;
 	/* we assume to be empty, so we free only the first bucket */
 	assert(hashlin->bucket_allocated == 1);
 
 	LL_FOREACH_SAFE (hashlin->nodes_head, elt, tmp) {
 		if (func != NULL) {
-			func (elt->node->data);
+			func (elt->data);
 		}
-		UCL_FREE (1, elt->node);
 		UCL_FREE (1, elt);
 	}
 	UCL_FREE (hashlin->bucket_max * sizeof(ucl_hash_node_t*), hashlin->bucket[0]);
@@ -334,31 +333,25 @@ ucl_hash_insert (ucl_hash_t* hashlin, ucl_hash_node_t* node,
 		void* data, uint32_t hash)
 {
 	ucl_hash_node_t** pbucket;
-	struct ucl_hash_node_elt *nelt;
+	pbucket = ucl_hash_bucket_ptr (hashlin, hash);
+	DL_APPEND (*pbucket, node);
 
-	nelt = UCL_ALLOC (sizeof (struct ucl_hash_node_elt));
-	if (nelt != NULL) {
-		pbucket = ucl_hash_bucket_ptr (hashlin, hash);
-		DL_APPEND (*pbucket, node);
+	node->data = data;
+	node->key = hash;
 
-		node->data = data;
-		node->key = hash;
-
-		nelt->node = node;
-		nelt->next = NULL;
-		if (hashlin->nodes_tail != NULL) {
-			hashlin->nodes_tail->next = nelt;
-			hashlin->nodes_tail = nelt;
-		}
-		else {
-			hashlin->nodes_head = nelt;
-			hashlin->nodes_tail = nelt;
-		}
-
-		++hashlin->count;
-
-		ucl_hash_grow_step (hashlin);
+	node->elt_next = NULL;
+	if (hashlin->nodes_tail != NULL) {
+		hashlin->nodes_tail->elt_next = node;
+		hashlin->nodes_tail = node;
 	}
+	else {
+		hashlin->nodes_head = node;
+		hashlin->nodes_tail = node;
+	}
+
+	++hashlin->count;
+
+	ucl_hash_grow_step (hashlin);
 }
 
 void*
@@ -417,7 +410,7 @@ ucl_hash_memory_usage (ucl_hash_t* hashlin)
 void*
 ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 {
-	struct ucl_hash_node_elt *elt = *iter;
+	ucl_hash_node_t *elt = *iter;
 
 	if (elt == NULL) {
 		elt = hashlin->nodes_head;
@@ -429,14 +422,14 @@ ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 		return NULL;
 	}
 
-	*iter = elt->next ? elt->next : hashlin->nodes_head;
-	return elt->node->data;
+	*iter = elt->elt_next ? elt->elt_next : hashlin->nodes_head;
+	return elt->data;
 }
 
 bool
 ucl_hash_iter_has_next (ucl_hash_iter_t iter)
 {
-	struct ucl_hash_node_elt *elt = iter;
+	ucl_hash_node_t *elt = iter;
 
-	return (elt != NULL && elt->next != NULL);
+	return (elt != NULL && elt->elt_next != NULL);
 }

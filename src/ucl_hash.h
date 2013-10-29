@@ -178,6 +178,11 @@ typedef struct ucl_hash_node_s
 	 * With lists this field is not used.
 	 */
 	uint32_t key;
+
+	/**
+	 * The next node in global order
+	 */
+	struct ucl_hash_node_s* elt_next;
 } ucl_hash_node_t;
 /** \internal
  * Max number of elements as a power of 2.
@@ -189,18 +194,13 @@ typedef void ucl_hash_free_func (void *ptr);
 typedef void* ucl_hash_iter_t;
 
 
-struct ucl_hash_node_elt {
-	ucl_hash_node_t *node;
-	struct ucl_hash_node_elt *next;
-};
-
 /**
  * Linear chained hashtable.
  */
 typedef struct ucl_hash_struct
 {
 	ucl_hash_node_t** bucket[UCL_HASHLIN_BIT_MAX]; /**< Dynamic array of hash buckes. One list for each hash modulus. */
-	struct ucl_hash_node_elt *nodes_head, *nodes_tail; /**< Linked list of ordered nodes */
+	ucl_hash_node_t *nodes_head, *nodes_tail; /**< Linked list of ordered nodes */
 	unsigned bucket_bit; /**< Bits used in the bit mask. */
 	unsigned bucket_max; /**< Number of buckets. */
 	unsigned bucket_mask; /**< Bit mask to access the buckets. */
