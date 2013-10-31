@@ -87,7 +87,7 @@ ucl_hash_iter_has_next (ucl_hash_iter_t iter)
 {
 	ucl_hash_node_t *elt = iter;
 
-	return (elt != NULL && elt->hh.next != NULL);
+	return (elt == NULL || elt->hh.prev != NULL);
 }
 
 
