@@ -141,7 +141,7 @@ ucl_print_float (UT_string *buf, double val)
 static void
 ucl_elt_obj_write_json (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool compact)
 {
-	ucl_object_t *cur, *tmp;
+	ucl_object_t *cur;
 	ucl_hash_iter_t it = NULL;
 
 	if (start_tabs) {
@@ -479,7 +479,7 @@ ucl_object_emit_rcl (ucl_object_t *obj)
 static void
 ucl_elt_obj_write_yaml (ucl_object_t *obj, UT_string *buf, unsigned int tabs, bool start_tabs, bool is_top)
 {
-	ucl_object_t *cur, *tmp;
+	ucl_object_t *cur;
 	ucl_hash_iter_t it = NULL;
 
 	if (start_tabs) {

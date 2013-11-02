@@ -43,7 +43,6 @@ static void
 ucl_object_free_internal (ucl_object_t *obj, bool allow_rec)
 {
 	ucl_object_t *sub, *tmp;
-	ucl_hash_iter_t it = NULL;
 
 	while (obj != NULL) {
 		if (obj->trash_stack[UCL_TRASH_KEY] != NULL) {
@@ -276,7 +275,6 @@ ucl_parser_get_error(struct ucl_parser *parser)
 bool
 ucl_pubkey_add (struct ucl_parser *parser, const unsigned char *key, size_t len)
 {
-	struct ucl_pubkey *nkey;
 #ifndef HAVE_OPENSSL
 	ucl_create_err (&parser->err, "cannot check signatures without openssl");
 	return false;
@@ -285,6 +283,7 @@ ucl_pubkey_add (struct ucl_parser *parser, const unsigned char *key, size_t len)
 	ucl_create_err (err, "cannot check signatures, openssl version is unsupported");
 	return EXIT_FAILURE;
 # else
+	struct ucl_pubkey *nkey;
 	BIO *mem;
 
 	mem = BIO_new_mem_buf ((void *)key, len);
@@ -517,8 +516,8 @@ ucl_include_url (const unsigned char *data, size_t len,
 {
 
 	bool res;
-	unsigned char *buf = NULL, *sigbuf = NULL;
-	size_t buflen = 0, siglen = 0;
+	unsigned char *buf = NULL;
+	size_t buflen = 0;
 	struct ucl_chunk *chunk;
 	char urlbuf[PATH_MAX];
 
@@ -530,6 +529,8 @@ ucl_include_url (const unsigned char *data, size_t len,
 
 	if (check_signature) {
 #if (defined(HAVE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10000000L)
+		unsigned char *sigbuf = NULL;
+		size_t siglen = 0;
 		/* We need to check signature first */
 		snprintf (urlbuf, sizeof (urlbuf), "%.*s.sig", (int)len, data);
 		if (!ucl_fetch_file (urlbuf, &sigbuf, &siglen, &parser->err)) {
@@ -574,8 +575,8 @@ ucl_include_file (const unsigned char *data, size_t len,
 {
 	bool res;
 	struct ucl_chunk *chunk;
-	unsigned char *buf = NULL, *sigbuf = NULL;
-	size_t buflen, siglen;
+	unsigned char *buf = NULL;
+	size_t buflen;
 	char filebuf[PATH_MAX], realbuf[PATH_MAX];
 
 	snprintf (filebuf, sizeof (filebuf), "%.*s", (int)len, data);
@@ -592,6 +593,8 @@ ucl_include_file (const unsigned char *data, size_t len,
 
 	if (check_signature) {
 #if (defined(HAVE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10000000L)
+		unsigned char *sigbuf = NULL;
+		size_t siglen = 0;
 		/* We need to check signature first */
 		snprintf (filebuf, sizeof (filebuf), "%s.sig", realbuf);
 		if (!ucl_fetch_file (filebuf, &sigbuf, &siglen, &parser->err)) {

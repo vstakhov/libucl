@@ -1,7 +1,7 @@
 CC ?= gcc
 DESTDIR ?= /usr/local
 LD ?= gcc
-C_COMMON_FLAGS ?= -fPIC -Wall -W -Wno-unused-parameter -Wno-unused-variable -Wno-pointer-sign -I./include -I./uthash -I./src
+C_COMMON_FLAGS ?= -fPIC -Wall -W -Wno-unused-parameter -Wno-pointer-sign -I./include -I./uthash -I./src
 MAJOR_VERSION = 0
 MINOR_VERSION = 1
 VERSION = "$(MAJOR_VERSION).$(MINOR_VERSION)"
