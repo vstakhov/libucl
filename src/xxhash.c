@@ -307,7 +307,7 @@ struct XXH_state32_t
 };
 
 
-int XXH32_sizeofState() 
+int XXH32_sizeofState(void)
 {
     XXH_STATIC_ASSERT(XXH32_SIZEOFSTATE >= sizeof(struct XXH_state32_t));   // A compilation error here means XXH32_SIZEOFSTATE is not large enough
     return sizeof(struct XXH_state32_t); 
