@@ -103,3 +103,15 @@ ucl_hash_search (ucl_hash_t* hashlin, const char *key, unsigned keylen)
 	}
 	return NULL;
 }
+
+void
+ucl_hash_delete (ucl_hash_t* hashlin, ucl_object_t *obj)
+{
+	ucl_hash_node_t *found;
+
+	HASH_FIND (hh, hashlin->buckets, obj->key, obj->keylen, found);
+
+	if (found) {
+		HASH_DELETE (hh, hashlin->buckets, found);
+	}
+}
