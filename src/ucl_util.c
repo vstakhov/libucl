@@ -892,6 +892,10 @@ ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
 	elt->key = key;
 	elt->keylen = keylen;
 
+	if (copy_key) {
+		ucl_copy_key_trash (elt);
+	}
+
 	found = ucl_hash_search_obj (top->value.ov, elt);
 
 	if (!found) {
@@ -899,10 +903,6 @@ ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
 	}
 
 	DL_APPEND (found, elt);
-
-	if (copy_key) {
-		ucl_copy_key_trash (elt);
-	}
 
 	return top;
 }
