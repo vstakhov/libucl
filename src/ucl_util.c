@@ -316,7 +316,7 @@ ucl_curl_write_callback (void* contents, size_t size, size_t nmemb, void* ud)
 	struct ucl_curl_cbdata *cbdata = ud;
 	size_t realsize = size * nmemb;
 
-	cbdata->buf = g_realloc (cbdata->buf, cbdata->buflen + realsize + 1);
+	cbdata->buf = realloc (cbdata->buf, cbdata->buflen + realsize + 1);
 	if (cbdata->buf == NULL) {
 		return 0;
 	}
@@ -404,8 +404,8 @@ ucl_fetch_url (const unsigned char *url, unsigned char **buf, size_t *buflen, UT
 		ucl_create_err (err, "error fetching URL %s: %s",
 				url, curl_easy_strerror (r));
 		curl_easy_cleanup (curl);
-		if (buf != NULL) {
-			free (buf);
+		if (cbdata.buf) {
+			free (cbdata.buf);
 		}
 		return false;
 	}
