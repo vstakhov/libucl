@@ -238,6 +238,7 @@ ucl_parser_free (struct ucl_parser *parser)
 	struct ucl_macro *macro, *mtmp;
 	struct ucl_chunk *chunk, *ctmp;
 	struct ucl_pubkey *key, *ktmp;
+	struct ucl_variable *var, *vtmp;
 
 	if (parser->top_obj != NULL) {
 		ucl_object_unref (parser->top_obj);
@@ -256,6 +257,11 @@ ucl_parser_free (struct ucl_parser *parser)
 	}
 	LL_FOREACH_SAFE (parser->keys, key, ktmp) {
 		UCL_FREE (sizeof (struct ucl_pubkey), key);
+	}
+	LL_FOREACH_SAFE (parser->variables, var, vtmp) {
+		free (var->value);
+		free (var->var);
+		UCL_FREE (sizeof (struct ucl_variable), var);
 	}
 
 	if (parser->err != NULL) {

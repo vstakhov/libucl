@@ -56,6 +56,7 @@ main (int argc, char **argv)
 		in = stdin;
 	}
 	parser = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
+	ucl_parser_register_variable (parser, "ABI", "unknown");
 
 	while (!feof (in)) {
 		(void)fread (inbuf, sizeof (inbuf), 1, in);
