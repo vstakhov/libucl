@@ -262,7 +262,7 @@ ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t rema
 }
 
 static const char *
-ucl_check_variable (struct ucl_parser *parser, const char *ptr, size_t remain, size_t *out_len)
+ucl_check_variable (struct ucl_parser *parser, const char *ptr, size_t remain, size_t *out_len, bool *vars_found)
 {
 	const char *p, *end, *ret = ptr;
 
@@ -277,6 +277,9 @@ ucl_check_variable (struct ucl_parser *parser, const char *ptr, size_t remain, s
 					/* {} must be excluded actually */
 					*out_len -= 2;
 					ret ++;
+					if (!*vars_found) {
+						*vars_found = true;
+					}
 				}
 				else {
 					ret --;
@@ -289,6 +292,9 @@ ucl_check_variable (struct ucl_parser *parser, const char *ptr, size_t remain, s
 	else if (*ptr != '$') {
 		/* Not count escaped dollar sign */
 		ret = ucl_check_variable_safe (parser, ptr, remain, out_len, false);
+		if (ret != ptr && !*vars_found) {
+			*vars_found = true;
+		}
 	}
 	else {
 		ret ++;
@@ -342,17 +348,20 @@ ucl_expand_variable (struct ucl_parser *parser, unsigned char **dst,
 	const char *p, *end = src + in_len;
 	unsigned char *d;
 	size_t out_len = 1;
+	bool vars_found = false;
 
 	p = src;
 	while (p != end) {
 		if (*p == '$') {
-			p = ucl_check_variable (parser, p + 1, end - p - 1, &out_len);
+			p = ucl_check_variable (parser, p + 1, end - p - 1, &out_len, &vars_found);
 		}
-		p ++;
+		else {
+			p ++;
+		}
 		out_len ++;
 	}
 
-	if (out_len == in_len) {
+	if (!vars_found) {
 		/* Trivial case */
 		*dst = NULL;
 		return in_len;
@@ -367,7 +376,7 @@ ucl_expand_variable (struct ucl_parser *parser, unsigned char **dst,
 	p = src;
 	while (p != end) {
 		if (*p == '$') {
-			p = ucl_expand_single_variable (parser, p, end - p - 1, &d);
+			p = ucl_expand_single_variable (parser, p, end - p, &d);
 		}
 		else {
 			*d++ = *p++;
