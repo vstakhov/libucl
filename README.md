@@ -161,6 +161,21 @@ by `.sig` suffix appending).
 
 Public keys which are used for the last command are specified by the concrete UCL user.
 
+### Variables support
+
+UCL supports variables in input. Variables are registered by a user of the UCL parser and can be presented in the following forms:
+
+* `${VARIABLE}`
+* `$VARIABLE`
+
+UCL currently does not support nested variables. To escape variables one could use double dollar signs:
+
+* `$${VARIABLE}` is converted to `${VARIABLE}`
+* `$$VARIABLE` is converted to `$VARIABLE`
+
+However, if no valid variables are found in a string, no expansion will be performed (and `$$` thus remains unchanged). This may be a subject
+to change in future libucl releases.
+
 ### Multiline strings
 
 UCL can handle multiline strings as well as single line ones. It uses shell/perl like notation for such objects:
