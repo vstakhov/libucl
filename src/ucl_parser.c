@@ -235,7 +235,7 @@ ucl_lex_is_comment (const unsigned char c1, const unsigned char c2)
 
 static inline const char *
 ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t remain,
-		size_t *out_len, bool strict)
+		size_t *out_len, bool strict, bool *found)
 {
 	struct ucl_variable *var;
 
@@ -244,6 +244,7 @@ ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t rema
 			if (remain == var->var_len) {
 				if (memcmp (ptr, var->var, var->var_len) == 0) {
 					*out_len += var->value_len;
+					*found = true;
 					return (ptr + var->var_len);
 				}
 			}
@@ -252,6 +253,7 @@ ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t rema
 			if (remain >= var->var_len) {
 				if (memcmp (ptr, var->var, var->var_len) == 0) {
 					*out_len += var->value_len;
+					*found = true;
 					return (ptr + var->var_len);
 				}
 			}
@@ -265,6 +267,7 @@ static const char *
 ucl_check_variable (struct ucl_parser *parser, const char *ptr, size_t remain, size_t *out_len, bool *vars_found)
 {
 	const char *p, *end, *ret = ptr;
+	bool found = false;
 
 	if (*ptr == '{') {
 		/* We need to match the variable enclosed in braces */
@@ -272,17 +275,16 @@ ucl_check_variable (struct ucl_parser *parser, const char *ptr, size_t remain, s
 		end = ptr + remain;
 		while (p < end) {
 			if (*p == '}') {
-				ret = ucl_check_variable_safe (parser, ptr + 1, p - ptr - 1, out_len, true);
-				if (ret != ptr + 1) {
+				ret = ucl_check_variable_safe (parser, ptr + 1, p - ptr - 1, out_len, true, &found);
+				if (found) {
 					/* {} must be excluded actually */
-					*out_len -= 2;
 					ret ++;
 					if (!*vars_found) {
 						*vars_found = true;
 					}
 				}
 				else {
-					ret --;
+					*out_len += 2;
 				}
 				break;
 			}
@@ -291,14 +293,17 @@ ucl_check_variable (struct ucl_parser *parser, const char *ptr, size_t remain, s
 	}
 	else if (*ptr != '$') {
 		/* Not count escaped dollar sign */
-		ret = ucl_check_variable_safe (parser, ptr, remain, out_len, false);
-		if (ret != ptr && !*vars_found) {
+		ret = ucl_check_variable_safe (parser, ptr, remain, out_len, false, &found);
+		if (found && !*vars_found) {
 			*vars_found = true;
+		}
+		if (!found) {
+			(*out_len) ++;
 		}
 	}
 	else {
 		ret ++;
-		(*out_len) --;
+		(*out_len) ++;
 	}
 
 	return ret;
@@ -311,12 +316,13 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 	unsigned char *d = *dest;
 	const char *p = ptr + 1, *ret;
 	struct ucl_variable *var;
+	bool found = false;
 
 	ret = ptr + 1;
 	remain --;
 
 	if (*p == '$') {
-		*d++ = *p;
+		*d++ = *p++;
 		*dest = d;
 		return p;
 	}
@@ -332,9 +338,15 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 				memcpy (d, var->value, var->value_len);
 				ret += var->var_len;
 				d += var->value_len;
+				found = true;
 				break;
 			}
 		}
+	}
+	if (!found) {
+		memcpy (d, ptr, 2);
+		d += 2;
+		ret --;
 	}
 
 	*dest = d;
@@ -347,7 +359,7 @@ ucl_expand_variable (struct ucl_parser *parser, unsigned char **dst,
 {
 	const char *p, *end = src + in_len;
 	unsigned char *d;
-	size_t out_len = 1;
+	size_t out_len = 0;
 	bool vars_found = false;
 
 	p = src;
@@ -357,8 +369,8 @@ ucl_expand_variable (struct ucl_parser *parser, unsigned char **dst,
 		}
 		else {
 			p ++;
+			out_len ++;
 		}
-		out_len ++;
 	}
 
 	if (!vars_found) {

@@ -16,3 +16,9 @@ key2 = /some/path;
 key3 = 111some,
 key4: s1,
 "key5": "\n\r123"
+
+# Variables
+keyvar = "$ABItest";
+keyvar = "${ABI}$ABI${ABI}${$ABI}";
+keyvar = "${some}$no${}$$test$$$$$$$";
+keyvar = "$ABI$$ABI$$$ABI$$$$";

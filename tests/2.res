@@ -30,4 +30,8 @@ key4 = "s1";
 key5 = 0.010000;
 key5 = "\n\r123";
 key6 = 2207520000.000000;
+keyvar = "unknowntest";
+keyvar = "unknownunknownunknown${unknown}";
+keyvar = "${some}$no${}$$test$$$$$$$";
+keyvar = "unknown$ABI$unknown$$";
 
