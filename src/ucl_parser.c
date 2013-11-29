@@ -786,7 +786,8 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 	const unsigned char *p, *c = NULL, *end;
 	const char *key;
 	bool got_quote = false, got_eq = false, got_semicolon = false,
-			need_unescape = false, ucl_escape = false, var_expand = false;
+			need_unescape = false, ucl_escape = false, var_expand = false,
+			got_content = false;
 	ucl_object_t *nobj, *tobj;
 	ucl_hash_t *container;
 	ssize_t keylen;
@@ -815,11 +816,13 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 				/* The first symbol */
 				c = p;
 				ucl_chunk_skipc (chunk, p);
+				got_content = true;
 			}
 			else if (*p == '"') {
 				/* JSON style key */
 				c = p + 1;
 				got_quote = true;
+				got_content = true;
 				ucl_chunk_skipc (chunk, p);
 			}
 			else {
@@ -832,6 +835,7 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			/* Parse the body of a key */
 			if (!got_quote) {
 				if (ucl_test_character (*p, UCL_CHARACTER_KEY)) {
+					got_content = true;
 					ucl_chunk_skipc (chunk, p);
 				}
 				else if (ucl_test_character (*p, UCL_CHARACTER_KEY_SEP)) {
@@ -856,9 +860,12 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 		}
 	}
 
-	if (p >= chunk->end) {
+	if (p >= chunk->end && got_content) {
 		ucl_set_err (chunk, UCL_ESYNTAX, "unfinished key", &parser->err);
 		return false;
+	}
+	else if (!got_content) {
+		return true;
 	}
 
 	/* We are now at the end of the key, need to parse the rest */
@@ -899,7 +906,7 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk)
 		}
 	}
 
-	if (p >= chunk->end) {
+	if (p >= chunk->end && got_content) {
 		ucl_set_err (chunk, UCL_ESYNTAX, "unfinished key", &parser->err);
 		return false;
 	}
@@ -1397,6 +1404,15 @@ ucl_state_machine (struct ucl_parser *parser)
 	size_t macro_len = 0;
 	struct ucl_macro *macro = NULL;
 
+	if (parser->top_obj == NULL) {
+		obj = ucl_object_new ();
+		parser->cur_obj = obj;
+		parser->top_obj = obj;
+		st = UCL_ALLOC (sizeof (struct ucl_stack));
+		st->obj = obj;
+		LL_PREPEND (parser->stack, st);
+	}
+
 	p = chunk->pos;
 	while (chunk->pos < chunk->end) {
 		switch (parser->state) {
@@ -1406,6 +1422,7 @@ ucl_state_machine (struct ucl_parser *parser)
 			 * if we got [ or { correspondingly or can just treat new data as
 			 * a key of newly created object
 			 */
+			obj = parser->top_obj;
 			if (!ucl_skip_comments (parser)) {
 				parser->prev_state = parser->state;
 				parser->state = UCL_STATE_ERROR;
@@ -1413,7 +1430,6 @@ ucl_state_machine (struct ucl_parser *parser)
 			}
 			else {
 				p = chunk->pos;
-				obj = ucl_object_new ();
 				if (*p == '[') {
 					parser->state = UCL_STATE_VALUE;
 					obj->type = UCL_ARRAY;
@@ -1426,12 +1442,7 @@ ucl_state_machine (struct ucl_parser *parser)
 					if (*p == '{') {
 						ucl_chunk_skipc (chunk, p);
 					}
-				};
-				parser->cur_obj = obj;
-				parser->top_obj = obj;
-				st = UCL_ALLOC (sizeof (struct ucl_stack));
-				st->obj = obj;
-				LL_PREPEND (parser->stack, st);
+				}
 			}
 			break;
 		case UCL_STATE_KEY:
