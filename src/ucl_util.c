@@ -444,19 +444,26 @@ ucl_fetch_file (const unsigned char *filename, unsigned char **buf, size_t *bufl
 				filename, strerror (errno));
 		return false;
 	}
-	if ((fd = open (filename, O_RDONLY)) == -1) {
-		ucl_create_err (err, "cannot open file %s: %s",
-				filename, strerror (errno));
-		return false;
+	if (st.st_size == 0) {
+		/* Do not map empty files */
+		*buf = "";
+		*buflen = 0;
 	}
-	if ((*buf = mmap (NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {
+	else {
+		if ((fd = open (filename, O_RDONLY)) == -1) {
+			ucl_create_err (err, "cannot open file %s: %s",
+					filename, strerror (errno));
+			return false;
+		}
+		if ((*buf = mmap (NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {
+			close (fd);
+			ucl_create_err (err, "cannot mmap file %s: %s",
+					filename, strerror (errno));
+			return false;
+		}
+		*buflen = st.st_size;
 		close (fd);
-		ucl_create_err (err, "cannot mmap file %s: %s",
-				filename, strerror (errno));
-		return false;
 	}
-	*buflen = st.st_size;
-	close (fd);
 
 	return true;
 }
@@ -548,10 +555,14 @@ ucl_include_url (const unsigned char *data, size_t len,
 			ucl_create_err (&parser->err, "cannot verify url %s: %s",
 							urlbuf,
 							ERR_error_string (ERR_get_error (), NULL));
-			munmap (sigbuf, siglen);
+			if (siglen > 0) {
+				munmap (sigbuf, siglen);
+			}
 			return false;
 		}
-		munmap (sigbuf, siglen);
+		if (siglen > 0) {
+			munmap (sigbuf, siglen);
+		}
 #endif
 	}
 
@@ -612,10 +623,14 @@ ucl_include_file (const unsigned char *data, size_t len,
 			ucl_create_err (&parser->err, "cannot verify file %s: %s",
 							filebuf,
 							ERR_error_string (ERR_get_error (), NULL));
-			munmap (sigbuf, siglen);
+			if (siglen > 0) {
+				munmap (sigbuf, siglen);
+			}
 			return false;
 		}
-		munmap (sigbuf, siglen);
+		if (siglen > 0) {
+			munmap (sigbuf, siglen);
+		}
 #endif
 	}
 
@@ -628,7 +643,9 @@ ucl_include_file (const unsigned char *data, size_t len,
 			UCL_FREE (sizeof (struct ucl_chunk), chunk);
 		}
 	}
-	munmap (buf, buflen);
+	if (buflen > 0) {
+		munmap (buf, buflen);
+	}
 
 	return res;
 }
@@ -688,7 +705,9 @@ ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 
 	ret = ucl_parser_add_chunk (parser, buf, len);
 
-	munmap (buf, len);
+	if (len > 0) {
+		munmap (buf, len);
+	}
 
 	return ret;
 }
