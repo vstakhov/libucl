@@ -224,7 +224,7 @@ ucl_copy_value_trash (ucl_object_t *obj)
 ucl_object_t*
 ucl_parser_get_object (struct ucl_parser *parser)
 {
-	if (parser->state != UCL_STATE_INIT && parser->state != UCL_STATE_ERROR) {
+	if (parser->state != UCL_STATE_ERROR) {
 		return ucl_object_ref (parser->top_obj);
 	}
 
@@ -881,6 +881,17 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 	if (top == NULL) {
 		top = ucl_object_new ();
 		top->type = UCL_OBJECT;
+	}
+
+	if (top->type != UCL_OBJECT) {
+		/* It is possible to convert NULL type to an object */
+		if (top->type == UCL_NULL) {
+			top->type = UCL_OBJECT;
+		}
+		else {
+			/* Refuse converting of other object types */
+			return top;
+		}
 	}
 
 	if (top->value.ov == NULL) {

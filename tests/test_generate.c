@@ -51,7 +51,7 @@ main (int argc, char **argv)
 		out = stdout;
 	}
 
-	obj = ucl_object_new ();
+	obj = ucl_object_typed_new (UCL_OBJECT);
 	/* Create some strings */
 	cur = ucl_object_fromstring_common ("  test string    ", 0, UCL_STRING_TRIM);
 	obj = ucl_object_insert_key (obj, cur, "key1", 0, false);

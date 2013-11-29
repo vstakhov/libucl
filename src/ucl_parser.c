@@ -1408,7 +1408,7 @@ ucl_state_machine (struct ucl_parser *parser)
 	struct ucl_macro *macro = NULL;
 
 	if (parser->top_obj == NULL) {
-		obj = ucl_object_new ();
+		obj = ucl_object_typed_new (UCL_OBJECT);
 		parser->cur_obj = obj;
 		parser->top_obj = obj;
 		st = UCL_ALLOC (sizeof (struct ucl_stack));
