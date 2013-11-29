@@ -1213,8 +1213,11 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 				ucl_set_err (chunk, 0, "string value must not be empty", &parser->err);
 				return false;
 			}
-
-			if (!ucl_maybe_parse_boolean (obj, c, str_len)) {
+			else if (str_len == 4 && memcmp (c, "null", 4) == 0) {
+				obj->len = 0;
+				obj->type = UCL_NULL;
+			}
+			else if (!ucl_maybe_parse_boolean (obj, c, str_len)) {
 				obj->type = UCL_STRING;
 				if ((str_len = ucl_copy_or_store_ptr (parser, c, &obj->trash_stack[UCL_TRASH_VALUE],
 						&obj->value.sv, str_len, false, false, var_expand)) == -1) {

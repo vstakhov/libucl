@@ -103,7 +103,8 @@ enum ucl_type {
 	UCL_STRING,    //!< UCL_STRING
 	UCL_BOOLEAN,   //!< UCL_BOOLEAN
 	UCL_TIME,      //!< UCL_TIME
-	UCL_USERDATA   //!< UCL_USERDATA
+	UCL_USERDATA,  //!< UCL_USERDATA
+	UCL_NULL       //!< UCL_NULL
 };
 
 /**
@@ -200,6 +201,7 @@ ucl_object_new (void)
 	if (new != NULL) {
 		memset (new, 0, sizeof (ucl_object_t));
 		new->ref = 1;
+		new->type = UCL_NULL;
 	}
 	return new;
 }
