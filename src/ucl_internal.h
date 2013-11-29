@@ -221,11 +221,11 @@ ucl_maybe_parse_boolean (ucl_object_t *obj, const unsigned char *start, size_t l
 		}
 	}
 	else if (len == 3) {
-		if ((p[0] == 'y' || p[0] == 'T') && strncasecmp (p, "yes", 3) == 0) {
+		if ((p[0] == 'y' || p[0] == 'Y') && strncasecmp (p, "yes", 3) == 0) {
 			ret = true;
 			val = true;
 		}
-		else if ((p[0]) == 'o' || p[0] == 'O') && strncasecmp (p, "off", 3) == 0) {
+		else if ((p[0] == 'o' || p[0] == 'O') && strncasecmp (p, "off", 3) == 0) {
 			ret = true;
 			val = false;
 		}
