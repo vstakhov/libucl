@@ -59,6 +59,7 @@ main (int argc, char **argv)
 	ucl_parser_register_variable (parser, "ABI", "unknown");
 
 	while (!feof (in)) {
+		memset(inbuf, 0, sizeof(inbuf));
 		(void)fread (inbuf, sizeof (inbuf), 1, in);
 		ucl_parser_add_chunk (parser, inbuf, strlen (inbuf));
 	}
