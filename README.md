@@ -114,6 +114,51 @@ is converted to:
 }
 ```
 
+### Named keys hierarchy
+
+UCL accepts named keys and organize them into objects hierarchy internally. Here is an example of this process:
+```nginx
+section "blah" {
+	key = value;
+}
+section foo {
+	key = value;
+}
+```
+
+is converted to the following object:
+
+```nginx
+section {
+	blah {
+			key = value;
+	}
+	foo {
+			key = value;
+	}
+}
+```
+    
+Plain definitions may be more complex and contain more than a single level of nested objects:
+   
+```nginx
+section "blah" "foo" {
+	key = value;
+}
+```
+
+is presented as:
+
+```nginx    
+section {
+	blah {
+			foo {
+					key = value;
+			}
+	}
+}
+```
+
 ### Convenient numbers and booleans
 
 * Numbers can have suffixes to specify standard multipliers:
