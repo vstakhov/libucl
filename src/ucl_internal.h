@@ -96,6 +96,7 @@ struct ucl_macro {
 struct ucl_stack {
 	ucl_object_t *obj;
 	struct ucl_stack *next;
+	int level;
 };
 
 struct ucl_chunk {
