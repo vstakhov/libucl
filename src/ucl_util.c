@@ -288,7 +288,7 @@ ucl_pubkey_add (struct ucl_parser *parser, const unsigned char *key, size_t len)
 	return false;
 #else
 # if (OPENSSL_VERSION_NUMBER < 0x10000000L)
-	ucl_create_err (err, "cannot check signatures, openssl version is unsupported");
+	ucl_create_err (&parser->err, "cannot check signatures, openssl version is unsupported");
 	return EXIT_FAILURE;
 # else
 	struct ucl_pubkey *nkey;
