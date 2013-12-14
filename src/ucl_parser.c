@@ -1675,7 +1675,7 @@ ucl_state_machine (struct ucl_parser *parser)
 				return false;
 			}
 			macro_len = ucl_expand_variable (parser, &macro_escaped, macro_start, macro_len);
-			parser->state = UCL_STATE_AFTER_VALUE;
+			parser->state = UCL_STATE_KEY;
 			if (macro_escaped == NULL) {
 				if (!macro->handler (macro_start, macro_len, macro->ud)) {
 					return false;
