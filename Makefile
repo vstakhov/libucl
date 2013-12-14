@@ -19,6 +19,7 @@ RMDIR ?= rmdir
 LN ?= ln
 LD_SHARED_FLAGS ?= -Wl,-soname,$(SONAME) -shared -lm
 LD_UCL_FLAGS ?= -L$(OBJDIR) -Wl,-rpath,$(OBJDIR) -lucl
+LD_ADD ?= -lrt
 COPT_FLAGS ?= -g -O0
 HDEPS = $(SRCDIR)/ucl_hash.h $(SRCDIR)/ucl_chartable.h $(SRCDIR)/ucl_internal.h $(INCLUDEDIR)/ucl.h $(SRCDIR)/xxhash.h
 OBJECTS = $(OBJDIR)/ucl_hash.o $(OBJDIR)/ucl_util.o $(OBJDIR)/ucl_parser.o $(OBJDIR)/ucl_emitter.o $(OBJDIR)/xxhash.o
@@ -67,9 +68,9 @@ run-test: test
 $(OBJDIR)/test_basic: $(TESTDIR)/test_basic.c $(OBJDIR)/$(SONAME)
 	$(CC) -o $(OBJDIR)/test_basic $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_basic.c $(LD_UCL_FLAGS)
 $(OBJDIR)/test_speed: $(TESTDIR)/test_speed.c $(OBJDIR)/$(SONAME)
-	$(CC) -o $(OBJDIR)/test_speed $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_speed.c $(LD_UCL_FLAGS) -lrt
+	$(CC) -o $(OBJDIR)/test_speed $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_speed.c $(LD_UCL_FLAGS) $(LD_ADD)
 $(OBJDIR)/test_generate: $(TESTDIR)/test_generate.c $(OBJDIR)/$(SONAME)
-	$(CC) -o $(OBJDIR)/test_generate $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_generate.c $(LD_UCL_FLAGS) -lrt
+	$(CC) -o $(OBJDIR)/test_generate $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_generate.c $(LD_UCL_FLAGS) $(LD_ADD)
 
 install: $(OBJDIR)/$(SONAME)
 	$(INSTALL) -m0755 $(SONAME) $(DESTDIR)/lib/$(SONAME)

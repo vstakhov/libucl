@@ -37,7 +37,8 @@ if [ $# -gt 2 ] ; then
 	rm ${TEST_DIR}/generate.out
 fi
 
-if [ $# -gt 1 -a -x "/usr/bin/xz" ] ; then
+sh -c "xz -c < /dev/null > /dev/null"
+if [ $? -eq 0 -a $# -gt 1 ] ; then
 	echo 'Running speed tests'
 	for _tin in ${TEST_DIR}/*.xz ; do
 		echo "Unpacking $_tin..."

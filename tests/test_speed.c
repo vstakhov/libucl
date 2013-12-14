@@ -31,7 +31,28 @@
 #include <fcntl.h>
 #include <time.h>
 
+#ifdef __APPLE__
+#include <mach/mach_time.h>
+#endif
+
 #include "ucl.h"
+
+static double
+get_ticks (void)
+{
+	double res;
+
+#ifdef __APPLE__
+	res = mach_absolute_time () / 1000000000.;
+#else
+	struct timespec ts;
+	clock_gettime (CLOCK_MONOTONIC, &ts);
+
+	res = (double)ts.ts_sec + ts.ts_nsec / 1000000000.;
+#endif
+
+	return res;
+}
 
 int
 main (int argc, char **argv)
@@ -44,8 +65,7 @@ main (int argc, char **argv)
 	struct stat st;
 	const char *fname_in = NULL;
 	int ret = 0;
-	struct timespec start, end;
-	double seconds;
+	double start, end, seconds;
 
 	switch (argc) {
 	case 2:
@@ -69,51 +89,51 @@ main (int argc, char **argv)
 
 	close (fin);
 
-	clock_gettime (CLOCK_MONOTONIC, &start);
+	start = get_ticks ();
 	ucl_parser_add_chunk (parser, map, st.st_size);
 
 	obj = ucl_parser_get_object (parser);
-	clock_gettime (CLOCK_MONOTONIC, &end);
+	end = get_ticks ();
 
-	seconds = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1000000000.;
+	seconds = end - start;
 	printf ("ucl: parsed input in %.4f seconds\n", seconds);
 	if (ucl_parser_get_error(parser)) {
 		printf ("Error occurred: %s\n", ucl_parser_get_error(parser));
 		ret = 1;
 	}
 
-	clock_gettime (CLOCK_MONOTONIC, &start);
+	start = get_ticks ();
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
-	clock_gettime (CLOCK_MONOTONIC, &end);
+	end = get_ticks ();
 
-	seconds = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1000000000.;
+	seconds = end - start;
 	printf ("ucl: emitted config in %.4f seconds\n", seconds);
 
 	free (emitted);
 
-	clock_gettime (CLOCK_MONOTONIC, &start);
+	start = get_ticks ();
 	emitted = ucl_object_emit (obj, UCL_EMIT_JSON);
-	clock_gettime (CLOCK_MONOTONIC, &end);
+	end = get_ticks ();
 
-	seconds = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1000000000.;
+	seconds = end - start;
 	printf ("ucl: emitted json in %.4f seconds\n", seconds);
 
 	free (emitted);
 
-	clock_gettime (CLOCK_MONOTONIC, &start);
+	start = get_ticks ();
 	emitted = ucl_object_emit (obj, UCL_EMIT_JSON_COMPACT);
-	clock_gettime (CLOCK_MONOTONIC, &end);
+	end = get_ticks ();
 
-	seconds = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1000000000.;
+	seconds = end - start;
 	printf ("ucl: emitted compact json in %.4f seconds\n", seconds);
 
 	free (emitted);
 
-	clock_gettime (CLOCK_MONOTONIC, &start);
+	start = get_ticks ();
 	emitted = ucl_object_emit (obj, UCL_EMIT_YAML);
-	clock_gettime (CLOCK_MONOTONIC, &end);
+	end = get_ticks ();
 
-	seconds = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1000000000.;
+	seconds = end - start;
 	printf ("ucl: emitted yaml in %.4f seconds\n", seconds);
 
 	free (emitted);
