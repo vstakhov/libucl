@@ -1232,6 +1232,14 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 				return false;
 			}
 			str_len = chunk->pos - c - 2;
+
+			/* May be it's boolean? */
+			if (ucl_maybe_parse_boolean(obj, c + 1, str_len)) {
+				parser->state = UCL_STATE_AFTER_VALUE;
+				p = chunk->pos;
+				return true;
+			}
+
 			obj->type = UCL_STRING;
 			if ((str_len = ucl_copy_or_store_ptr (parser, c + 1, &obj->trash_stack[UCL_TRASH_VALUE],
 					&obj->value.sv, str_len, need_unescape, false, var_expand)) == -1) {
