@@ -25,6 +25,8 @@
 #include "ucl_internal.h"
 #include "ucl_chartable.h"
 
+#include <libgen.h> /* For dirname */
+
 #ifdef HAVE_OPENSSL
 #include <openssl/err.h>
 #include <openssl/sha.h>
@@ -439,7 +441,7 @@ ucl_fetch_file (const unsigned char *filename, unsigned char **buf, size_t *bufl
 	int fd;
 	struct stat st;
 
-	if (stat (filename, &st) == -1) {
+	if (stat (filename, &st) == -1 || !S_ISREG (st.st_mode)) {
 		ucl_create_err (err, "cannot stat file %s: %s",
 				filename, strerror (errno));
 		return false;
@@ -596,7 +598,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 	struct ucl_chunk *chunk;
 	unsigned char *buf = NULL;
 	size_t buflen;
-	char filebuf[PATH_MAX], realbuf[PATH_MAX];
+	char filebuf[PATH_MAX], realbuf[PATH_MAX], *curdir;
 
 	snprintf (filebuf, sizeof (filebuf), "%.*s", (int)len, data);
 	if (realpath (filebuf, realbuf) == NULL) {
@@ -633,6 +635,10 @@ ucl_include_file (const unsigned char *data, size_t len,
 		}
 #endif
 	}
+
+	ucl_parser_register_variable (parser, "FILENAME", realbuf);
+	curdir = dirname (realbuf);
+	ucl_parser_register_variable (parser, "CURDIR", curdir);
 
 	res = ucl_parser_add_chunk (parser, buf, buflen);
 	if (res == true) {
@@ -698,10 +704,23 @@ ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 	unsigned char *buf;
 	size_t len;
 	bool ret;
+	char realbuf[PATH_MAX], *curdir;
 
-	if (!ucl_fetch_file (filename, &buf, &len, &parser->err)) {
+	if (realpath (filename, realbuf) == NULL) {
+		ucl_create_err (&parser->err, "cannot open file %s: %s",
+				filename,
+				strerror (errno));
 		return false;
 	}
+
+	if (!ucl_fetch_file (realbuf, &buf, &len, &parser->err)) {
+		return false;
+	}
+
+	/* Define variables */
+	ucl_parser_register_variable (parser, "FILENAME", realbuf);
+	curdir = dirname (realbuf);
+	ucl_parser_register_variable (parser, "CURDIR", curdir);
 
 	ret = ucl_parser_add_chunk (parser, buf, len);
 
