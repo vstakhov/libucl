@@ -932,6 +932,12 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk, bool *next_ke
 				*end_of_object = true;
 				return true;
 			}
+			else if (*p == '.') {
+				ucl_chunk_skipc (chunk, p);
+				parser->prev_state = parser->state;
+				parser->state = UCL_STATE_MACRO_NAME;
+				return true;
+			}
 			else {
 				/* Invalid identifier */
 				ucl_set_err (chunk, UCL_ESYNTAX, "key must begin with a letter", &parser->err);
@@ -1540,8 +1546,14 @@ ucl_state_machine (struct ucl_parser *parser)
 	bool next_key = false, end_of_object = false;
 
 	if (parser->top_obj == NULL) {
-		obj = ucl_add_parser_stack (NULL, parser, false, 0);
+		if (*chunk->pos == '[') {
+			obj = ucl_add_parser_stack (NULL, parser, true, 0);
+		}
+		else {
+			obj = ucl_add_parser_stack (NULL, parser, false, 0);
+		}
 		parser->top_obj = obj;
+		parser->cur_obj = obj;
 		parser->state = UCL_STATE_INIT;
 	}
 
@@ -1554,7 +1566,7 @@ ucl_state_machine (struct ucl_parser *parser)
 			 * if we got [ or { correspondingly or can just treat new data as
 			 * a key of newly created object
 			 */
-			obj = parser->top_obj;
+			obj = parser->cur_obj;
 			if (!ucl_skip_comments (parser)) {
 				parser->prev_state = parser->state;
 				parser->state = UCL_STATE_ERROR;
@@ -1564,14 +1576,10 @@ ucl_state_machine (struct ucl_parser *parser)
 				p = chunk->pos;
 				if (*p == '[') {
 					parser->state = UCL_STATE_VALUE;
-					obj->type = UCL_ARRAY;
-					ucl_hash_destroy (obj->value.ov, NULL);
-					obj->value.av = NULL;
 					ucl_chunk_skipc (chunk, p);
 				}
 				else {
 					parser->state = UCL_STATE_KEY;
-					obj->type = UCL_OBJECT;
 					if (*p == '{') {
 						ucl_chunk_skipc (chunk, p);
 					}

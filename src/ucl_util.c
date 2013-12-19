@@ -537,6 +537,7 @@ ucl_include_url (const unsigned char *data, size_t len,
 	size_t buflen = 0;
 	struct ucl_chunk *chunk;
 	char urlbuf[PATH_MAX];
+	int prev_state;
 
 	snprintf (urlbuf, sizeof (urlbuf), "%.*s", (int)len, data);
 
@@ -568,6 +569,9 @@ ucl_include_url (const unsigned char *data, size_t len,
 #endif
 	}
 
+	prev_state = parser->state;
+	parser->state = UCL_STATE_INIT;
+
 	res = ucl_parser_add_chunk (parser, buf, buflen);
 	if (res == true) {
 		/* Remove chunk from the stack */
@@ -577,6 +581,8 @@ ucl_include_url (const unsigned char *data, size_t len,
 			UCL_FREE (sizeof (struct ucl_chunk), chunk);
 		}
 	}
+
+	parser->state = prev_state;
 	free (buf);
 
 	return res;
@@ -599,6 +605,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 	unsigned char *buf = NULL;
 	size_t buflen;
 	char filebuf[PATH_MAX], realbuf[PATH_MAX];
+	int prev_state;
 
 	snprintf (filebuf, sizeof (filebuf), "%.*s", (int)len, data);
 	if (realpath (filebuf, realbuf) == NULL) {
@@ -638,6 +645,9 @@ ucl_include_file (const unsigned char *data, size_t len,
 
 	ucl_parser_set_filevars (parser, realbuf, false);
 
+	prev_state = parser->state;
+	parser->state = UCL_STATE_INIT;
+
 	res = ucl_parser_add_chunk (parser, buf, buflen);
 	if (res == true) {
 		/* Remove chunk from the stack */
@@ -647,6 +657,9 @@ ucl_include_file (const unsigned char *data, size_t len,
 			UCL_FREE (sizeof (struct ucl_chunk), chunk);
 		}
 	}
+
+	parser->state = prev_state;
+
 	if (buflen > 0) {
 		munmap (buf, buflen);
 	}
