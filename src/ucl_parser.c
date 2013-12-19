@@ -1714,6 +1714,9 @@ ucl_parser_new (int flags)
 
 	new->flags = flags;
 
+	/* Initial assumption about filevars */
+	ucl_parser_set_filevars (new, NULL, false);
+
 	return new;
 }
 
@@ -1736,16 +1739,51 @@ void
 ucl_parser_register_variable (struct ucl_parser *parser, const char *var,
 		const char *value)
 {
-	struct ucl_variable *new;
+	struct ucl_variable *new = NULL, *cur;
 
-	new = UCL_ALLOC (sizeof (struct ucl_variable));
-	memset (new, 0, sizeof (struct ucl_variable));
-	new->var = strdup (var);
-	new->var_len = strlen (var);
-	new->value = strdup (value);
-	new->value_len = strlen (value);
+	if (var == NULL) {
+		return;
+	}
 
-	LL_PREPEND (parser->variables, new);
+	/* Find whether a variable already exists */
+	LL_FOREACH (parser->variables, cur) {
+		if (strcmp (cur->var, var) == 0) {
+			new = cur;
+			break;
+		}
+	}
+
+	if (value == NULL) {
+
+		if (new != NULL) {
+			/* Remove variable */
+			LL_DELETE (parser->variables, new);
+			free (new->var);
+			free (new->value);
+			UCL_FREE (sizeof (struct ucl_variable), new);
+		}
+		else {
+			/* Do nothing */
+			return;
+		}
+	}
+	else {
+		if (new == NULL) {
+			new = UCL_ALLOC (sizeof (struct ucl_variable));
+			memset (new, 0, sizeof (struct ucl_variable));
+			new->var = strdup (var);
+			new->var_len = strlen (var);
+			new->value = strdup (value);
+			new->value_len = strlen (value);
+
+			LL_PREPEND (parser->variables, new);
+		}
+		else {
+			free (new->value);
+			new->value = strdup (value);
+			new->value_len = strlen (value);
+		}
+	}
 }
 
 bool

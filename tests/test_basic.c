@@ -58,8 +58,12 @@ main (int argc, char **argv)
 	parser = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
 	ucl_parser_register_variable (parser, "ABI", "unknown");
 
+	if (fname_in != NULL) {
+		ucl_parser_set_filevars (parser, fname_in, true);
+	}
+
 	while (!feof (in)) {
-		memset(inbuf, 0, sizeof(inbuf));
+		memset (inbuf, 0, sizeof (inbuf));
 		(void)fread (inbuf, sizeof (inbuf), 1, in);
 		ucl_parser_add_chunk (parser, inbuf, strlen (inbuf));
 	}

@@ -598,7 +598,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 	struct ucl_chunk *chunk;
 	unsigned char *buf = NULL;
 	size_t buflen;
-	char filebuf[PATH_MAX], realbuf[PATH_MAX], *curdir;
+	char filebuf[PATH_MAX], realbuf[PATH_MAX];
 
 	snprintf (filebuf, sizeof (filebuf), "%.*s", (int)len, data);
 	if (realpath (filebuf, realbuf) == NULL) {
@@ -636,9 +636,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 #endif
 	}
 
-	ucl_parser_register_variable (parser, "FILENAME", realbuf);
-	curdir = dirname (realbuf);
-	ucl_parser_register_variable (parser, "CURDIR", curdir);
+	ucl_parser_set_filevars (parser, realbuf, false);
 
 	res = ucl_parser_add_chunk (parser, buf, buflen);
 	if (res == true) {
@@ -699,12 +697,42 @@ ucl_includes_handler (const unsigned char *data, size_t len, void* ud)
 }
 
 bool
+ucl_parser_set_filevars (struct ucl_parser *parser, const char *filename, bool need_expand)
+{
+	char realbuf[PATH_MAX], *curdir;
+
+	if (filename != NULL) {
+		if (need_expand) {
+			if (realpath (filename, realbuf) == NULL) {
+				return false;
+			}
+		}
+		else {
+			ucl_strlcpy (realbuf, filename, sizeof (realbuf));
+		}
+
+		/* Define variables */
+		ucl_parser_register_variable (parser, "FILENAME", realbuf);
+		curdir = dirname (realbuf);
+		ucl_parser_register_variable (parser, "CURDIR", curdir);
+	}
+	else {
+		/* Set everything from the current dir */
+		curdir = getcwd (realbuf, sizeof (realbuf));
+		ucl_parser_register_variable (parser, "FILENAME", "undef");
+		ucl_parser_register_variable (parser, "CURDIR", curdir);
+	}
+
+	return true;
+}
+
+bool
 ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 {
 	unsigned char *buf;
 	size_t len;
 	bool ret;
-	char realbuf[PATH_MAX], *curdir;
+	char realbuf[PATH_MAX];
 
 	if (realpath (filename, realbuf) == NULL) {
 		ucl_create_err (&parser->err, "cannot open file %s: %s",
@@ -717,11 +745,7 @@ ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 		return false;
 	}
 
-	/* Define variables */
-	ucl_parser_register_variable (parser, "FILENAME", realbuf);
-	curdir = dirname (realbuf);
-	ucl_parser_register_variable (parser, "CURDIR", curdir);
-
+	ucl_parser_set_filevars (parser, realbuf, false);
 	ret = ucl_parser_add_chunk (parser, buf, len);
 
 	if (len > 0) {
