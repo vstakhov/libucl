@@ -86,8 +86,14 @@ ucl_chunk_restore_state (struct ucl_chunk *chunk, struct ucl_parser_saved_state 
 static inline void
 ucl_set_err (struct ucl_chunk *chunk, int code, const char *str, UT_string **err)
 {
-	ucl_create_err (err, "error on line %d at column %d: '%s', character: '%c'",
-			chunk->line, chunk->column, str, *chunk->pos);
+	if (isgraph (*chunk->pos)) {
+		ucl_create_err (err, "error on line %d at column %d: '%s', character: '%c'",
+				chunk->line, chunk->column, str, *chunk->pos);
+	}
+	else {
+		ucl_create_err (err, "error on line %d at column %d: '%s', character: '0x%02x'",
+				chunk->line, chunk->column, str, (int)*chunk->pos);
+	}
 }
 
 /**
@@ -1675,7 +1681,7 @@ ucl_state_machine (struct ucl_parser *parser)
 				return false;
 			}
 			macro_len = ucl_expand_variable (parser, &macro_escaped, macro_start, macro_len);
-			parser->state = UCL_STATE_KEY;
+			parser->state = parser->prev_state;
 			if (macro_escaped == NULL) {
 				if (!macro->handler (macro_start, macro_len, macro->ud)) {
 					return false;
