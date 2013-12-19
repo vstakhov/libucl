@@ -48,7 +48,7 @@ get_ticks (void)
 	struct timespec ts;
 	clock_gettime (CLOCK_MONOTONIC, &ts);
 
-	res = (double)ts.ts_sec + ts.ts_nsec / 1000000000.;
+	res = (double)ts.tv_sec + ts.tv_nsec / 1000000000.;
 #endif
 
 	return res;
