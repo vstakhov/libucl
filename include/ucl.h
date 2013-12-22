@@ -44,21 +44,21 @@
  * named function. All API functions *must* use naming ucl_object_*. Usage of
  * ucl_obj* should be avoided.
  */
-#define ucl_object_todouble_safe ucl_obj_todouble_safe
-#define ucl_object_todouble ucl_obj_todouble
-#define ucl_object_tostring ucl_obj_tostring
-#define ucl_object_tostring_safe ucl_obj_tostring_safe
-#define ucl_object_tolstring ucl_obj_tolstring
-#define ucl_object_tolstring_safe ucl_obj_tolstring_safe
-#define ucl_object_toint ucl_obj_toint
-#define ucl_object_toint_safe ucl_obj_toint_safe
-#define ucl_object_toboolean ucl_obj_toboolean
-#define ucl_object_toboolean_safe ucl_obj_toboolean_safe
-#define ucl_object_find_key ucl_obj_get_key
-#define ucl_object_find_keyl ucl_obj_get_keyl
-#define ucl_object_unref ucl_obj_unref
-#define ucl_object_ref ucl_obj_ref
-#define ucl_object_free ucl_obj_free
+#define ucl_obj_todouble_safe ucl_object_todouble_safe
+#define ucl_obj_todouble ucl_object_todouble
+#define ucl_obj_tostring ucl_object_tostring
+#define ucl_obj_tostring_safe ucl_object_tostring_safe
+#define ucl_obj_tolstring ucl_object_tolstring
+#define ucl_obj_tolstring_safe ucl_object_tolstring_safe
+#define ucl_obj_toint ucl_object_toint
+#define ucl_obj_toint_safe ucl_object_toint_safe
+#define ucl_obj_toboolean ucl_object_toboolean
+#define ucl_obj_toboolean_safe ucl_object_toboolean_safe
+#define ucl_obj_get_key ucl_object_find_key
+#define ucl_obj_get_keyl ucl_object_find_keyl
+#define ucl_obj_unref ucl_object_unref
+#define ucl_obj_ref ucl_object_ref
+#define ucl_obj_free ucl_object_free
 
 /**
  * Memory allocation utilities
@@ -409,7 +409,7 @@ ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
  * @return true if conversion was successful
  */
 static inline bool
-ucl_obj_todouble_safe (ucl_object_t *obj, double *target)
+ucl_object_todouble_safe (ucl_object_t *obj, double *target)
 {
 	if (obj == NULL) {
 		return false;
@@ -435,7 +435,7 @@ ucl_obj_todouble_safe (ucl_object_t *obj, double *target)
  * @return double value
  */
 static inline double
-ucl_obj_todouble (ucl_object_t *obj)
+ucl_object_todouble (ucl_object_t *obj)
 {
 	double result = 0.;
 
@@ -450,7 +450,7 @@ ucl_obj_todouble (ucl_object_t *obj)
  * @return true if conversion was successful
  */
 static inline bool
-ucl_obj_toint_safe (ucl_object_t *obj, int64_t *target)
+ucl_object_toint_safe (ucl_object_t *obj, int64_t *target)
 {
 	if (obj == NULL) {
 		return false;
@@ -476,7 +476,7 @@ ucl_obj_toint_safe (ucl_object_t *obj, int64_t *target)
  * @return int value
  */
 static inline int64_t
-ucl_obj_toint (ucl_object_t *obj)
+ucl_object_toint (ucl_object_t *obj)
 {
 	int64_t result = 0;
 
@@ -491,7 +491,7 @@ ucl_obj_toint (ucl_object_t *obj)
  * @return true if conversion was successful
  */
 static inline bool
-ucl_obj_toboolean_safe (ucl_object_t *obj, bool *target)
+ucl_object_toboolean_safe (ucl_object_t *obj, bool *target)
 {
 	if (obj == NULL) {
 		return false;
@@ -513,7 +513,7 @@ ucl_obj_toboolean_safe (ucl_object_t *obj, bool *target)
  * @return boolean value
  */
 static inline bool
-ucl_obj_toboolean (ucl_object_t *obj)
+ucl_object_toboolean (ucl_object_t *obj)
 {
 	bool result = false;
 
@@ -528,7 +528,7 @@ ucl_obj_toboolean (ucl_object_t *obj)
  * @return true if conversion was successful
  */
 static inline bool
-ucl_obj_tostring_safe (ucl_object_t *obj, const char **target)
+ucl_object_tostring_safe (ucl_object_t *obj, const char **target)
 {
 	if (obj == NULL) {
 		return false;
@@ -551,7 +551,7 @@ ucl_obj_tostring_safe (ucl_object_t *obj, const char **target)
  * @return string value
  */
 static inline const char *
-ucl_obj_tostring (ucl_object_t *obj)
+ucl_object_tostring (ucl_object_t *obj)
 {
 	const char *result = NULL;
 
@@ -579,7 +579,7 @@ ucl_object_tostring_forced (ucl_object_t *obj)
  * @return true if conversion was successful
  */
 static inline bool
-ucl_obj_tolstring_safe (ucl_object_t *obj, const char **target, size_t *tlen)
+ucl_object_tolstring_safe (ucl_object_t *obj, const char **target, size_t *tlen)
 {
 	if (obj == NULL) {
 		return false;
@@ -602,7 +602,7 @@ ucl_obj_tolstring_safe (ucl_object_t *obj, const char **target, size_t *tlen)
  * @return string value
  */
 static inline const char *
-ucl_obj_tolstring (ucl_object_t *obj, size_t *tlen)
+ucl_object_tolstring (ucl_object_t *obj, size_t *tlen)
 {
 	const char *result = NULL;
 
@@ -616,7 +616,7 @@ ucl_obj_tolstring (ucl_object_t *obj, size_t *tlen)
  * @param key key to search
  * @return object matched the specified key or NULL if key is not found
  */
-ucl_object_t * ucl_obj_get_key (ucl_object_t *obj, const char *key);
+ucl_object_t * ucl_object_find_key (ucl_object_t *obj, const char *key);
 
 /**
  * Return object identified by a fixed size key in the specified object
@@ -625,7 +625,7 @@ ucl_object_t * ucl_obj_get_key (ucl_object_t *obj, const char *key);
  * @param klen length of a key
  * @return object matched the specified key or NULL if key is not found
  */
-ucl_object_t *ucl_obj_get_keyl (ucl_object_t *obj, const char *key, size_t klen);
+ucl_object_t *ucl_object_find_keyl (ucl_object_t *obj, const char *key, size_t klen);
 
 /**
  * Returns a key of an object as a NULL terminated string
@@ -732,14 +732,14 @@ void ucl_parser_free (struct ucl_parser *parser);
  * Free cl object
  * @param obj cl object to free
  */
-void ucl_obj_free (ucl_object_t *obj);
+void ucl_object_free (ucl_object_t *obj);
 
 /**
  * Icrease reference count for an object
  * @param obj object to ref
  */
 static inline ucl_object_t *
-ucl_obj_ref (ucl_object_t *obj) {
+ucl_object_ref (ucl_object_t *obj) {
 	obj->ref ++;
 	return obj;
 }
@@ -749,7 +749,7 @@ ucl_obj_ref (ucl_object_t *obj) {
  * @param obj object to unref
  */
 static inline void
-ucl_obj_unref (ucl_object_t *obj) {
+ucl_object_unref (ucl_object_t *obj) {
 	if (--obj->ref <= 0) {
 		ucl_obj_free (obj);
 	}

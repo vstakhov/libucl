@@ -78,7 +78,7 @@ ucl_object_free_internal (ucl_object_t *obj, bool allow_rec)
 }
 
 void
-ucl_obj_free (ucl_object_t *obj)
+ucl_object_free (ucl_object_t *obj)
 {
 	ucl_object_free_internal (obj, true);
 }
@@ -1043,7 +1043,7 @@ ucl_object_insert_key_merged (ucl_object_t *top, ucl_object_t *elt,
 }
 
 ucl_object_t *
-ucl_obj_get_keyl (ucl_object_t *obj, const char *key, size_t klen)
+ucl_object_find_keyl (ucl_object_t *obj, const char *key, size_t klen)
 {
 	ucl_object_t *ret, srch;
 
@@ -1059,7 +1059,7 @@ ucl_obj_get_keyl (ucl_object_t *obj, const char *key, size_t klen)
 }
 
 ucl_object_t *
-ucl_obj_get_key (ucl_object_t *obj, const char *key)
+ucl_object_find_key (ucl_object_t *obj, const char *key)
 {
 	size_t klen;
 	ucl_object_t *ret, srch;
