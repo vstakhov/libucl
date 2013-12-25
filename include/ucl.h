@@ -21,8 +21,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RCL_H_
-#define RCL_H_
+#ifndef UCL_H_
+#define UCL_H_
 
 #include <string.h>
 #include <stddef.h>
@@ -32,35 +32,16 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+
 /**
- * @file rcl.h
- * RCL is an rspamd configuration language, which is a form of
+ * UCL is universal configuration language, which is a form of
  * JSON with less strict rules that make it more comfortable for
  * using as a configuration language
  */
-
-/**
- * XXX: Poorly named API functions, need to replace them with the appropriate
- * named function. All API functions *must* use naming ucl_object_*. Usage of
- * ucl_obj* should be avoided.
- */
-#define ucl_obj_todouble_safe ucl_object_todouble_safe
-#define ucl_obj_todouble ucl_object_todouble
-#define ucl_obj_tostring ucl_object_tostring
-#define ucl_obj_tostring_safe ucl_object_tostring_safe
-#define ucl_obj_tolstring ucl_object_tolstring
-#define ucl_obj_tolstring_safe ucl_object_tolstring_safe
-#define ucl_obj_toint ucl_object_toint
-#define ucl_obj_toint_safe ucl_object_toint_safe
-#define ucl_obj_toboolean ucl_object_toboolean
-#define ucl_obj_toboolean_safe ucl_object_toboolean_safe
-#define ucl_obj_get_key ucl_object_find_key
-#define ucl_obj_get_keyl ucl_object_find_keyl
-#define ucl_obj_unref ucl_object_unref
-#define ucl_obj_ref ucl_object_ref
-#define ucl_obj_free ucl_object_free
-
-/**
+#ifdef  __cplusplus
+extern "C" {
+#endif
+/*
  * Memory allocation utilities
  * UCL_ALLOC(size) - allocate memory for UCL
  * UCL_FREE(size, ptr) - free memory of specified size at ptr
@@ -80,55 +61,89 @@
 #define UCL_WARN_UNUSED_RESULT
 #endif
 
-enum ucl_error {
-	UCL_EOK = 0,   //!< UCL_EOK
-	UCL_ESYNTAX,   //!< UCL_ESYNTAX
-	UCL_EIO,       //!< UCL_EIO
-	UCL_ESTATE,    //!< UCL_ESTATE
-	UCL_ENESTED,   //!< UCL_ENESTED
-	UCL_EMACRO,    //!< UCL_EMACRO
-	UCL_ERECURSION,//!< UCL_ERECURSION
-	UCL_EINTERNAL, //!< UCL_EINTERNAL
-	UCL_ESSL       //!< UCL_ESSL
-};
+/**
+ * ucl_error:
+ * @UCL_EOK: No error
+ * @UCL_ESYNTAX: Syntax error occurred during parsing
+ * @UCL_EIO: IO error occurred during parsing
+ * @UCL_ESTATE: Invalid state machine state
+ * @UCL_ENESTED: Input has too many recursion levels
+ * @UCL_EMACRO: Error processing a macro
+ * @UCL_EINTERNAL: Internal unclassified error
+ * @UCL_ESSL: SSL error
+ *
+ * The common error codes returned by ucl parser
+ */
+typedef enum ucl_error {
+	UCL_EOK = 0,
+	UCL_ESYNTAX,
+	UCL_EIO,
+	UCL_ESTATE,
+	UCL_ENESTED,
+	UCL_EMACRO,
+	UCL_EINTERNAL,
+	UCL_ESSL
+} ucl_error_t;
 
 /**
- * Object types
+ * ucl_type:
+ * @UCL_OBJECT: UCL object - key/value pairs
+ * @UCL_ARRAY: UCL array
+ * @UCL_INT: Integer number
+ * @UCL_FLOAT: Floating point number
+ * @UCL_STRING: Null terminated string
+ * @UCL_BOOLEAN: Boolean value
+ * @UCL_TIME: Time value (floating point number of seconds)
+ * @UCL_USERDATA: Opaque userdata pointer (may be used in macros)
+ * @UCL_NULL: null value
+ *
+ * #ucl_object_t may have one of specified types, some types are compatible with each other and some are not.
+ * For example, you can always convert #UCL_TIME to #UCL_FLOAT. Also you can convert #UCL_FLOAT to #UCL_NUMBER
+ * by loosing floating point. Every object may be converted to a string by ucl_object_tostring_forced() function.
+ *
  */
-enum ucl_type {
-	UCL_OBJECT = 0,//!< UCL_OBJECT
-	UCL_ARRAY,     //!< UCL_ARRAY
-	UCL_INT,       //!< UCL_INT
-	UCL_FLOAT,     //!< UCL_FLOAT
-	UCL_STRING,    //!< UCL_STRING
-	UCL_BOOLEAN,   //!< UCL_BOOLEAN
-	UCL_TIME,      //!< UCL_TIME
-	UCL_USERDATA,  //!< UCL_USERDATA
-	UCL_NULL       //!< UCL_NULL
-};
+typedef enum ucl_type {
+	UCL_OBJECT = 0,
+	UCL_ARRAY,
+	UCL_INT,
+	UCL_FLOAT,
+	UCL_STRING,
+	UCL_BOOLEAN,
+	UCL_TIME,
+	UCL_USERDATA,
+	UCL_NULL
+} ucl_type_t;
 
 /**
- * Emitting types
+ * ucl_emitter:
+ * @UCL_EMIT_JSON: Emit fine formatted JSON
+ * @UCL_EMIT_JSON_COMPACT: Emit compacted JSON
+ * @UCL_EMIT_CONFIG: Emit human readable config format
+ * @UCL_EMIT_YAML: Emit embedded YAML format
+ *
+ * You can use one of these types to serialise #ucl_object_t by using ucl_object_emit().
  */
-enum ucl_emitter {
-	UCL_EMIT_JSON = 0,    //!< UCL_EMIT_JSON
-	UCL_EMIT_JSON_COMPACT,//!< UCL_EMIT_JSON_COMPACT
-	UCL_EMIT_CONFIG,      //!< UCL_EMIT_CONFIG
-	UCL_EMIT_YAML         //!< UCL_EMIT_YAML
-};
+typedef enum ucl_emitter {
+	UCL_EMIT_JSON = 0,
+	UCL_EMIT_JSON_COMPACT,
+	UCL_EMIT_CONFIG,
+	UCL_EMIT_YAML
+} ucl_emitter_t;
 
 /**
- * Parsing flags
+ * ucl_parser_flags:
+ * @UCL_PARSER_KEY_LOWERCASE: Convert all keys to lower case
+ * @UCL_PARSER_ZEROCOPY: Parse input in zero-copy mode if possible
  */
-enum ucl_parser_flags {
-	UCL_PARSER_KEY_LOWERCASE = 0x1,//!< UCL_FLAG_KEY_LOWERCASE
-	UCL_PARSER_ZEROCOPY = 0x2      //!< UCL_FLAG_ZEROCOPY
-};
+typedef enum ucl_parser_flags {
+	UCL_PARSER_KEY_LOWERCASE = 0x1,
+	UCL_PARSER_ZEROCOPY = 0x2
+} ucl_parser_flags_t;
 
 /**
  * String conversion flags
  */
-enum ucl_string_flags {
+typedef enum ucl_string_flags {
 	UCL_STRING_ESCAPE = 0x1,  /**< UCL_STRING_ESCAPE perform JSON escape */
 	UCL_STRING_TRIM = 0x2,    /**< UCL_STRING_TRIM trim leading and trailing whitespaces */
 	UCL_STRING_PARSE_BOOLEAN = 0x4,    /**< UCL_STRING_PARSE_BOOLEAN parse passed string and detect boolean */
@@ -139,16 +154,16 @@ enum ucl_string_flags {
 	UCL_STRING_PARSE =  UCL_STRING_PARSE_BOOLEAN|UCL_STRING_PARSE_NUMBER,   /**<
 									UCL_STRING_PARSE parse passed string (and detect booleans and numbers) */
 	UCL_STRING_PARSE_BYTES = 0x20  /**< Treat numbers as bytes */
-};
+} ucl_string_flags_t;
 
 /**
  * Basic flags for an object
  */
-enum ucl_object_flags {
+typedef enum ucl_object_flags {
 	UCL_OBJECT_ALLOCATED_KEY = 1, //!< UCL_OBJECT_ALLOCATED_KEY
 	UCL_OBJECT_ALLOCATED_VALUE = 2, //!< UCL_OBJECT_ALLOCATED_VALUE
 	UCL_OBJECT_NEED_KEY_ESCAPE = 4 //!< UCL_OBJECT_NEED_KEY_ESCAPE
-};
+} ucl_object_flags_t;
 
 /**
  * UCL object
@@ -751,7 +766,7 @@ ucl_object_ref (ucl_object_t *obj) {
 static inline void
 ucl_object_unref (ucl_object_t *obj) {
 	if (--obj->ref <= 0) {
-		ucl_obj_free (obj);
+		ucl_object_free (obj);
 	}
 }
 
@@ -796,4 +811,28 @@ typedef void* ucl_object_iter_t;
  */
 ucl_object_t* ucl_iterate_object (ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_values);
 
-#endif /* RCL_H_ */
+#ifdef  __cplusplus
+}
+#endif
+/*
+ * XXX: Poorly named API functions, need to replace them with the appropriate
+ * named function. All API functions *must* use naming ucl_object_*. Usage of
+ * ucl_obj* should be avoided.
+ */
+#define ucl_obj_todouble_safe ucl_object_todouble_safe
+#define ucl_obj_todouble ucl_object_todouble
+#define ucl_obj_tostring ucl_object_tostring
+#define ucl_obj_tostring_safe ucl_object_tostring_safe
+#define ucl_obj_tolstring ucl_object_tolstring
+#define ucl_obj_tolstring_safe ucl_object_tolstring_safe
+#define ucl_obj_toint ucl_object_toint
+#define ucl_obj_toint_safe ucl_object_toint_safe
+#define ucl_obj_toboolean ucl_object_toboolean
+#define ucl_obj_toboolean_safe ucl_object_toboolean_safe
+#define ucl_obj_get_key ucl_object_find_key
+#define ucl_obj_get_keyl ucl_object_find_keyl
+#define ucl_obj_unref ucl_object_unref
+#define ucl_obj_ref ucl_object_ref
+#define ucl_obj_free ucl_object_free
+
+#endif /* UCL_H_ */
