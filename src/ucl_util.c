@@ -943,7 +943,7 @@ ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags
 
 static ucl_object_t *
 ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
-		const char *key, size_t keylen, bool copy_key, bool merge)
+		const char *key, size_t keylen, bool copy_key, bool merge, bool replace)
 {
 	ucl_object_t *found, *cur;
 	ucl_object_iter_t it = NULL;
@@ -997,30 +997,39 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 		top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
 		DL_APPEND (found, elt);
 	}
-	else if (!merge) {
-		DL_APPEND (found, elt);
-	}
 	else {
-		if (found->type != UCL_OBJECT && elt->type == UCL_OBJECT) {
-			/* Insert old elt to new one */
-			elt = ucl_object_insert_key_common (elt, found, found->key, found->keylen, copy_key, false);
+		if (replace) {
 			ucl_hash_delete (top->value.ov, found);
+			ucl_object_unref (found);
 			top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
+			found = NULL;
+			DL_APPEND (found, elt);
 		}
-		else if (found->type == UCL_OBJECT && elt->type != UCL_OBJECT) {
-			/* Insert new to old */
-			found = ucl_object_insert_key_common (found, elt, elt->key, elt->keylen, copy_key, false);
-		}
-		else if (found->type == UCL_OBJECT && elt->type == UCL_OBJECT) {
-			/* Mix two hashes */
-			while ((cur = ucl_iterate_object (elt, &it, true)) != NULL) {
-				ucl_object_ref (cur);
-				found = ucl_object_insert_key_common (found, cur, cur->key, cur->keylen, copy_key, false);
+		else if (merge) {
+			if (found->type != UCL_OBJECT && elt->type == UCL_OBJECT) {
+				/* Insert old elt to new one */
+				elt = ucl_object_insert_key_common (elt, found, found->key, found->keylen, copy_key, false, false);
+				ucl_hash_delete (top->value.ov, found);
+				top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
 			}
-			ucl_object_unref (elt);
+			else if (found->type == UCL_OBJECT && elt->type != UCL_OBJECT) {
+				/* Insert new to old */
+				found = ucl_object_insert_key_common (found, elt, elt->key, elt->keylen, copy_key, false, false);
+			}
+			else if (found->type == UCL_OBJECT && elt->type == UCL_OBJECT) {
+				/* Mix two hashes */
+				while ((cur = ucl_iterate_object (elt, &it, true)) != NULL) {
+					ucl_object_ref (cur);
+					found = ucl_object_insert_key_common (found, cur, cur->key, cur->keylen, copy_key, false, false);
+				}
+				ucl_object_unref (elt);
+			}
+			else {
+				/* Just make a list of scalars */
+				DL_APPEND (found, elt);
+			}
 		}
 		else {
-			/* Just make a list of scalars */
 			DL_APPEND (found, elt);
 		}
 	}
@@ -1032,14 +1041,21 @@ ucl_object_t *
 ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
 		const char *key, size_t keylen, bool copy_key)
 {
-	return ucl_object_insert_key_common (top, elt, key, keylen, copy_key, false);
+	return ucl_object_insert_key_common (top, elt, key, keylen, copy_key, false, false);
 }
 
 ucl_object_t *
 ucl_object_insert_key_merged (ucl_object_t *top, ucl_object_t *elt,
 		const char *key, size_t keylen, bool copy_key)
 {
-	return ucl_object_insert_key_common (top, elt, key, keylen, copy_key, true);
+	return ucl_object_insert_key_common (top, elt, key, keylen, copy_key, true, false);
+}
+
+ucl_object_t *
+ucl_object_replace_key (ucl_object_t *top, ucl_object_t *elt,
+		const char *key, size_t keylen, bool copy_key)
+{
+	return ucl_object_insert_key_common (top, elt, key, keylen, copy_key, false, true);
 }
 
 ucl_object_t *

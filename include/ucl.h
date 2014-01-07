@@ -349,6 +349,19 @@ ucl_object_t* ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
 		const char *key, size_t keylen, bool copy_key) UCL_WARN_UNUSED_RESULT;
 
 /**
+ * Replace a object 'elt' to the hash 'top' and associate it with key 'key', old object will be unrefed,
+ * if no object has been found this function works like ucl_object_insert_key()
+ * @param top destination object (will be created automatically if top is NULL)
+ * @param elt element to insert (must NOT be NULL)
+ * @param key key to associate with this object (either const or preallocated)
+ * @param keylen length of the key (or 0 for NULL terminated keys)
+ * @param copy_key make an internal copy of key
+ * @return new value of top object
+ */
+ucl_object_t* ucl_object_replace_key (ucl_object_t *top, ucl_object_t *elt,
+		const char *key, size_t keylen, bool copy_key) UCL_WARN_UNUSED_RESULT;
+
+/**
  * Insert a object 'elt' to the hash 'top' and associate it with key 'key', if the specified key exist,
  * try to merge its content
  * @param top destination object (will be created automatically if top is NULL)
