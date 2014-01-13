@@ -754,7 +754,8 @@ ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type)
 	return res;
 }
 
-bool ucl_object_emit_full (ucl_object_t *obj, enum ucl_emitter emit_type,
+bool
+ucl_object_emit_full (ucl_object_t *obj, enum ucl_emitter emit_type,
 		struct ucl_emitter_functions *emitter)
 {
 	if (emit_type == UCL_EMIT_JSON) {
