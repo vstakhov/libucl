@@ -196,7 +196,6 @@ ucl_copy_key_trash (ucl_object_t *obj)
 char *
 ucl_copy_value_trash (ucl_object_t *obj)
 {
-	UT_string *emitted;
 	if (obj->trash_stack[UCL_TRASH_VALUE] == NULL) {
 		if (obj->type == UCL_STRING) {
 			/* Special case for strings */
@@ -209,14 +208,9 @@ ucl_copy_value_trash (ucl_object_t *obj)
 		}
 		else {
 			/* Just emit value in json notation */
-			utstring_new (emitted);
-
-			if (emitted != NULL) {
-				ucl_elt_write_json (obj, emitted, 0, 0, true);
-				obj->trash_stack[UCL_TRASH_VALUE] = emitted->d;
-				obj->len = emitted->i;
-				free (emitted);
-			}
+			obj->trash_stack[UCL_TRASH_VALUE] = ucl_object_emit (obj,
+					UCL_EMIT_JSON_COMPACT);
+			obj->len = strlen (obj->trash_stack[UCL_TRASH_VALUE]);
 		}
 		obj->flags |= UCL_OBJECT_ALLOCATED_VALUE;
 	}

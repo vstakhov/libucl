@@ -840,6 +840,23 @@ bool ucl_parser_set_filevars (struct ucl_parser *parser, const char *filename,
  *
  * @{
  */
+
+/**
+ * Structure using for emitter callbacks
+ */
+struct ucl_emitter_functions {
+	/** Append a single character */
+	int (*ucl_emitter_append_character) (unsigned char c, size_t nchars, void *ud);
+	/** Append a string of a specified length */
+	int (*ucl_emitter_append_len) (unsigned const char *str, size_t len, void *ud);
+	/** Append a 64 bit integer */
+	int (*ucl_emitter_append_int) (int64_t elt, void *ud);
+	/** Append floating point element */
+	int (*ucl_emitter_append_double) (double elt, void *ud);
+	/** Opaque userdata pointer */
+	void *ud;
+};
+
 /**
  * Emit object to a string
  * @param obj object
@@ -848,6 +865,16 @@ bool ucl_parser_set_filevars (struct ucl_parser *parser, const char *filename,
  * @return dump of an object (must be freed after using) or NULL in case of error
  */
 unsigned char *ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type);
+
+/**
+ * Emit object to a string
+ * @param obj object
+ * @param emit_type if type is #UCL_EMIT_JSON then emit json, if type is
+ * #UCL_EMIT_CONFIG then emit config like object
+ * @return dump of an object (must be freed after using) or NULL in case of error
+ */
+bool ucl_object_emit_full (ucl_object_t *obj, enum ucl_emitter emit_type,
+		struct ucl_emitter_functions *emitter);
 /** @} */
 
 #ifdef  __cplusplus
