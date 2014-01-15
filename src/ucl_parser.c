@@ -1078,6 +1078,7 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk, bool *next_ke
 	else {
 		DL_APPEND (tobj, nobj);
 	}
+	parser->stack->obj->len ++;
 
 	if (ucl_escape) {
 		nobj->flags |= UCL_OBJECT_NEED_KEY_ESCAPE;
@@ -1230,6 +1231,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 				DL_APPEND (t, obj);
 				parser->cur_obj = obj;
 				parser->stack->obj->value.av = t;
+				parser->stack->obj->len ++;
 			}
 			else {
 				/* Object has been already allocated */
