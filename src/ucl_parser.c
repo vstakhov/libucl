@@ -1074,11 +1074,11 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk, bool *next_ke
 		container = ucl_hash_insert_object (container, nobj);
 		nobj->prev = nobj;
 		nobj->next = NULL;
+		parser->stack->obj->len ++;
 	}
 	else {
 		DL_APPEND (tobj, nobj);
 	}
-	parser->stack->obj->len ++;
 
 	if (ucl_escape) {
 		nobj->flags |= UCL_OBJECT_NEED_KEY_ESCAPE;
