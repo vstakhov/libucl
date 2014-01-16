@@ -1,4 +1,4 @@
-section "blah" { # test
+section blah { # test
 	param = "value"
 }
 section test {

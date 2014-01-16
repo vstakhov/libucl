@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <unistd.h>
 #include "ucl.h"
 
 int
@@ -34,15 +35,30 @@ main (int argc, char **argv)
 	FILE *in, *out;
 	unsigned char *emitted = NULL;
 	const char *fname_in = NULL, *fname_out = NULL;
-	int ret = 0, inlen;
+	int ret = 0, inlen, opt, json = 0;
+
+	while ((opt = getopt(argc, argv, "j")) != -1) {
+		switch (opt) {
+		case 'j':
+			json = 1;
+			break;
+		default: /* '?' */
+			fprintf (stderr, "Usage: %s [-j] [in] [out]\n",
+					argv[0]);
+			exit (EXIT_FAILURE);
+		}
+	}
+
+	argc -= optind;
+	argv += optind;
 
 	switch (argc) {
-	case 2:
-		fname_in = argv[1];
+	case 1:
+		fname_in = argv[0];
 		break;
-	case 3:
-		fname_in = argv[1];
-		fname_out = argv[2];
+	case 2:
+		fname_in = argv[0];
+		fname_out = argv[1];
 		break;
 	}
 
@@ -87,7 +103,12 @@ main (int argc, char **argv)
 		goto end;
 	}
 	obj = ucl_parser_get_object (parser);
-	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
+	if (json) {
+		emitted = ucl_object_emit (obj, UCL_EMIT_JSON);
+	}
+	else {
+		emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
+	}
 	ucl_parser_free (parser);
 	ucl_object_unref (obj);
 	parser2 = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
@@ -103,7 +124,12 @@ main (int argc, char **argv)
 		free (emitted);
 	}
 	obj = ucl_parser_get_object (parser2);
-	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
+	if (json) {
+		emitted = ucl_object_emit (obj, UCL_EMIT_JSON);
+	}
+	else {
+		emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
+	}
 
 	fprintf (out, "%s\n", emitted);
 	ucl_object_unref (obj);
