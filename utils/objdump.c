@@ -117,7 +117,7 @@ main(int argc, char **argv)
 	}
 
 	parser = ucl_parser_new (0);
-	while (!feof (in)) {
+	while (!feof (in) && r < (int)sizeof (inbuf)) {
 		r += fread (inbuf + r, 1, sizeof (inbuf) - r, in);
 	}
 	ucl_parser_add_chunk (parser, inbuf, r);
