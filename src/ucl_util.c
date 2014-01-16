@@ -161,7 +161,7 @@ ucl_unescape_json_string (char *str, size_t len)
 				}
 				break;
 			default:
-				*t++ = '?';
+				*t++ = *h;
 				break;
 			}
 			h ++;
