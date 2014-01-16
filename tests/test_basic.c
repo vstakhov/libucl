@@ -28,13 +28,13 @@
 int
 main (int argc, char **argv)
 {
-	char inbuf[8192];
+	char inbuf[8192], *test_in = NULL;
 	struct ucl_parser *parser = NULL, *parser2 = NULL;
 	ucl_object_t *obj;
 	FILE *in, *out;
 	unsigned char *emitted = NULL;
 	const char *fname_in = NULL, *fname_out = NULL;
-	int ret = 0;
+	int ret = 0, inlen;
 
 	switch (argc) {
 	case 2:
@@ -64,8 +64,11 @@ main (int argc, char **argv)
 
 	while (!feof (in)) {
 		memset (inbuf, 0, sizeof (inbuf));
-		(void)fread (inbuf, sizeof (inbuf), 1, in);
-		ucl_parser_add_chunk (parser, inbuf, strlen (inbuf));
+		(void)fread (inbuf, sizeof (inbuf) - 1, 1, in);
+		inlen = strlen (inbuf);
+		test_in = malloc (inlen);
+		memcpy (test_in, inbuf, inlen);
+		ucl_parser_add_chunk (parser, test_in, inlen);
 	}
 	fclose (in);
 
@@ -111,6 +114,9 @@ end:
 	}
 	if (parser2 != NULL) {
 		ucl_parser_free (parser2);
+	}
+	if (test_in != NULL) {
+		free (test_in);
 	}
 
 	fclose (out);
