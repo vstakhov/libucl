@@ -1119,7 +1119,7 @@ ucl_parse_string_value (struct ucl_parser *parser,
 		}
 		else if (*p == '}') {
 			braces[UCL_BRACE_FIGURE][1] ++;
-			if (braces[UCL_BRACE_FIGURE][1] == braces[UCL_BRACE_FIGURE][0]) {
+			if (braces[UCL_BRACE_FIGURE][1] <= braces[UCL_BRACE_FIGURE][0]) {
 				/* This is not a termination symbol, continue */
 				ucl_chunk_skipc (chunk, p);
 				continue;
@@ -1131,7 +1131,7 @@ ucl_parse_string_value (struct ucl_parser *parser,
 		}
 		else if (*p == ']') {
 			braces[UCL_BRACE_SQUARE][1] ++;
-			if (braces[UCL_BRACE_SQUARE][1] == braces[UCL_BRACE_SQUARE][0]) {
+			if (braces[UCL_BRACE_SQUARE][1] <= braces[UCL_BRACE_SQUARE][0]) {
 				/* This is not a termination symbol, continue */
 				ucl_chunk_skipc (chunk, p);
 				continue;
