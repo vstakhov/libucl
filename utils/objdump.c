@@ -47,7 +47,7 @@ ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
 			printf ("%skey: \"%s\"\n", pre, ucl_object_key (obj));
 		}
 		printf ("%sref: %hd\n", pre, obj->ref);
-		printf ("%slen: %zd\n", pre, obj->len);
+		printf ("%slen: %u\n", pre, obj->len);
 		printf ("%sprev: %p\n", pre, obj->prev);
 		printf ("%snext: %p\n", pre, obj->next);
 		if (obj->type == UCL_OBJECT) {
@@ -97,7 +97,7 @@ main(int argc, char **argv)
 	const char *fn = NULL;
 	char inbuf[8192];
 	struct ucl_parser *parser;
-	int k, ret = 0;
+	int k, ret = 0, r = 0;
 	ucl_object_t *obj = NULL;
 	ucl_object_t *par;
 	FILE *in;
@@ -118,9 +118,9 @@ main(int argc, char **argv)
 
 	parser = ucl_parser_new (0);
 	while (!feof (in)) {
-		fread (inbuf, sizeof (inbuf), 1, in);
-		ucl_parser_add_chunk (parser, inbuf, strlen (inbuf));
+		r += fread (inbuf + r, 1, sizeof (inbuf) - r, in);
 	}
+	ucl_parser_add_chunk (parser, inbuf, r);
 	fclose (in);
 	if (ucl_parser_get_error(parser)) {
 		printf ("Error occured: %s\n", ucl_parser_get_error(parser));
