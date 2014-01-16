@@ -86,13 +86,18 @@ ucl_chunk_restore_state (struct ucl_chunk *chunk, struct ucl_parser_saved_state 
 static inline void
 ucl_set_err (struct ucl_chunk *chunk, int code, const char *str, UT_string **err)
 {
-	if (isgraph (*chunk->pos)) {
-		ucl_create_err (err, "error on line %d at column %d: '%s', character: '%c'",
-				chunk->line, chunk->column, str, *chunk->pos);
+	if (chunk->pos < chunk->end) {
+		if (isgraph (*chunk->pos)) {
+			ucl_create_err (err, "error on line %d at column %d: '%s', character: '%c'",
+					chunk->line, chunk->column, str, *chunk->pos);
+		}
+		else {
+			ucl_create_err (err, "error on line %d at column %d: '%s', character: '0x%02x'",
+					chunk->line, chunk->column, str, (int)*chunk->pos);
+		}
 	}
 	else {
-		ucl_create_err (err, "error on line %d at column %d: '%s', character: '0x%02x'",
-				chunk->line, chunk->column, str, (int)*chunk->pos);
+		ucl_create_err (err, "error at the end of chunk: %s", str);
 	}
 }
 
@@ -150,7 +155,7 @@ start:
 				ucl_chunk_skipc (chunk, p);
 			}
 			if (comments_nested != 0) {
-				ucl_set_err (chunk, UCL_ENESTED, "comments nesting is invalid", &parser->err);
+				ucl_set_err (chunk, UCL_ENESTED, "unfinished multiline comment", &parser->err);
 				return false;
 			}
 		}
@@ -848,10 +853,6 @@ ucl_lex_json_string (struct ucl_parser *parser,
 					ucl_chunk_skipc (chunk, p);
 				}
 			}
-			else {
-				ucl_set_err (chunk, UCL_ESYNTAX, "invalid escape character", &parser->err);
-				return false;
-			}
 			*need_unescape = true;
 			*ucl_escape = true;
 			continue;
@@ -1098,7 +1099,7 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk, bool *next_ke
  */
 static bool
 ucl_parse_string_value (struct ucl_parser *parser,
-		struct ucl_chunk *chunk, bool *var_expand)
+		struct ucl_chunk *chunk, bool *var_expand, bool *need_unescape)
 {
 	const unsigned char *p;
 	enum {
@@ -1138,6 +1139,14 @@ ucl_parse_string_value (struct ucl_parser *parser,
 		}
 		else if (*p == '$') {
 			*var_expand = true;
+		}
+		else if (*p == '\\') {
+			*need_unescape = true;
+			ucl_chunk_skipc (chunk, p);
+			if (p < chunk->end) {
+				ucl_chunk_skipc (chunk, p);
+			}
+			continue;
 		}
 
 		if (ucl_lex_is_atom_end (*p) || (chunk->remain >= 2 && ucl_lex_is_comment (p[0], p[1]))) {
@@ -1330,7 +1339,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 				/* Fallback to normal string */
 			}
 
-			if (!ucl_parse_string_value (parser, chunk, &var_expand)) {
+			if (!ucl_parse_string_value (parser, chunk, &var_expand, &need_unescape)) {
 				return false;
 			}
 			/* Cut trailing spaces */
@@ -1351,7 +1360,8 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			else if (!ucl_maybe_parse_boolean (obj, c, str_len)) {
 				obj->type = UCL_STRING;
 				if ((str_len = ucl_copy_or_store_ptr (parser, c, &obj->trash_stack[UCL_TRASH_VALUE],
-						&obj->value.sv, str_len, false, false, var_expand)) == -1) {
+						&obj->value.sv, str_len, need_unescape,
+						false, var_expand)) == -1) {
 					return false;
 				}
 				obj->len = str_len;
@@ -1379,7 +1389,6 @@ ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 	const unsigned char *p;
 	bool got_sep = false;
 	struct ucl_stack *st;
-	int last_level;
 
 	p = chunk->pos;
 
@@ -1408,14 +1417,15 @@ ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 
 					/* Pop all nested objects from a stack */
 					st = parser->stack;
-					last_level = st->level;
 					parser->stack = st->next;
 					UCL_FREE (sizeof (struct ucl_stack), st);
 
-					while (parser->stack != NULL && last_level > 0 && parser->stack->level == last_level) {
+					while (parser->stack != NULL) {
 						st = parser->stack;
+						if (st->next == NULL || st->next->level == st->level) {
+							break;
+						}
 						parser->stack = st->next;
-						last_level = st->level;
 						UCL_FREE (sizeof (struct ucl_stack), st);
 					}
 				}
