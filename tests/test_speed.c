@@ -100,6 +100,7 @@ main (int argc, char **argv)
 	if (ucl_parser_get_error(parser)) {
 		printf ("Error occurred: %s\n", ucl_parser_get_error(parser));
 		ret = 1;
+		goto err;
 	}
 
 	start = get_ticks ();
@@ -141,6 +142,7 @@ main (int argc, char **argv)
 	ucl_parser_free (parser);
 	ucl_object_unref (obj);
 
+err:
 	munmap (map, st.st_size);
 
 	return ret;
