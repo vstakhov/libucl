@@ -558,17 +558,29 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 {
 	const char *p = start, *c = start;
 	char *endptr;
-	bool got_dot = false, got_exp = false, need_double = false, is_date = false, valid_start = false;
+	bool got_dot = false, got_exp = false, need_double = false,
+			is_date = false, valid_start = false, is_hex = false,
+			is_neg = false;
 	double dv = 0;
 	int64_t lv = 0;
 
 	if (*p == '-') {
+		is_neg = true;
+		c ++;
 		p ++;
 	}
 	while (p < end) {
-		if (isdigit (*p)) {
+		if (is_hex && isxdigit (*p)) {
+			p ++;
+		}
+		else if (isdigit (*p)) {
 			valid_start = true;
 			p ++;
+		}
+		else if (!is_hex && (*p == 'x' || *p == 'X')) {
+			is_hex = true;
+			allow_double = false;
+			c = p + 1;
 		}
 		else if (allow_double) {
 			if (p == c) {
@@ -632,7 +644,12 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 		dv = strtod (c, &endptr);
 	}
 	else {
-		lv = strtoimax (c, &endptr, 10);
+		if (is_hex) {
+			lv = strtoimax (c, &endptr, 16);
+		}
+		else {
+			lv = strtoimax (c, &endptr, 10);
+		}
 	}
 	if (errno == ERANGE) {
 		*pos = start;
@@ -763,11 +780,11 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 		else {
 			obj->type = UCL_TIME;
 		}
-		obj->value.dv = dv;
+		obj->value.dv = is_neg ? (-dv) : dv;
 	}
 	else {
 		obj->type = UCL_INT;
-		obj->value.iv = lv;
+		obj->value.iv = is_neg ? (-lv) : lv;
 	}
 	*pos = p;
 	return 0;
