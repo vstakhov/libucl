@@ -397,6 +397,7 @@ ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
 		top->value.av = elt;
 		elt->next = NULL;
 		elt->prev = elt;
+		top->len = 1;
 	}
 	else {
 		head = top->value.av;
@@ -404,6 +405,7 @@ ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
 		head->prev->next = elt;
 		head->prev = elt;
 		elt->next = NULL;
+		top->len ++;
 	}
 
 	return top;
