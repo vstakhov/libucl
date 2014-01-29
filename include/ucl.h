@@ -377,7 +377,7 @@ ucl_object_t* ucl_object_insert_key_merged (ucl_object_t *top, ucl_object_t *elt
 /**
  * Append an element to the array object
  * @param top destination object (will be created automatically if top is NULL)
- * @param eltelement to append (must NOT be NULL)
+ * @param elt element to append (must NOT be NULL)
  * @return new value of top object
  */
 static inline ucl_object_t * ucl_array_append (ucl_object_t *top,
@@ -392,8 +392,7 @@ ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
 	}
 
 	if (top == NULL) {
-		top = ucl_object_new ();
-		top->type = UCL_ARRAY;
+		top = ucl_object_typed_new (UCL_ARRAY);
 		top->value.av = elt;
 		elt->next = NULL;
 		elt->prev = elt;
@@ -401,9 +400,15 @@ ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
 	}
 	else {
 		head = top->value.av;
-		elt->prev = head->prev;
-		head->prev->next = elt;
-		head->prev = elt;
+		if (head == NULL) {
+			top->value.av = elt;
+			elt->prev = elt;
+		}
+		else {
+			elt->prev = head->prev;
+			head->prev->next = elt;
+			head->prev = elt;
+		}
 		elt->next = NULL;
 		top->len ++;
 	}
