@@ -6,3 +6,5 @@
 
 key = value;
 .include "$CURDIR/9.inc"
+
+.try_include "/non/existent"

@@ -202,6 +202,7 @@ There are two internal macros provided by UCL:
 
 * `include` - read a file `/path/to/file` or an url `http://example.com/file` and include it to the current place of
 UCL configuration;
+* `try\_include` - try to read a file or url and include it but do not create a fatal error if a file or url is not accessible;
 * `includes` - read a file or an url like the previous macro, but fetch and check the signature file (which is obtained
 by `.sig` suffix appending).
 
