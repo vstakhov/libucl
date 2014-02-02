@@ -8,3 +8,6 @@ key = value;
 .include "$CURDIR/9.inc"
 
 .try_include "/non/existent"
+#.try_include "$CURDIR/9.incorrect.inc"
+# 9.incorrect.inc contains '{}}'
+#key = value;
