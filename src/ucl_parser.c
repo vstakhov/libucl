@@ -1694,7 +1694,8 @@ ucl_state_machine (struct ucl_parser *parser)
 			}
 			else if (p - c > 0) {
 				/* We got macro name */
-				HASH_FIND (hh, parser->macroes, c, (p - c), macro);
+				macro_len = (size_t)(p - c);
+				HASH_FIND (hh, parser->macroes, c, macro_len, macro);
 				if (macro == NULL) {
 					ucl_create_err (&parser->err, "error on line %d at column %d: "
 							"unknown macro: '%.*s', character: '%c'",

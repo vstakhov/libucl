@@ -219,7 +219,7 @@ ucl_copy_value_trash (ucl_object_t *obj)
 ucl_object_t*
 ucl_parser_get_object (struct ucl_parser *parser)
 {
-	if (parser->state != UCL_STATE_ERROR) {
+	if (parser->state != UCL_STATE_ERROR && parser->top_obj != NULL) {
 		return ucl_object_ref (parser->top_obj);
 	}
 

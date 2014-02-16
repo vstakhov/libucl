@@ -714,7 +714,7 @@ ucl_object_ref (ucl_object_t *obj) {
  */
 static inline void
 ucl_object_unref (ucl_object_t *obj) {
-	if (--obj->ref <= 0) {
+	if (obj != NULL && --obj->ref <= 0) {
 		ucl_object_free (obj);
 	}
 }
