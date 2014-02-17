@@ -30,7 +30,7 @@ Provide basic utilities to manage `ucl` objects
 
 Parser functions operates with `struct ucl_parser`.
 
-### `ucl_parser_new`
+### ucl_parser_new
 
 ~~~C
 struct ucl_parser* ucl_parser_new (int flags);
@@ -41,7 +41,7 @@ Creates new parser with the specified flags:
 - `UCL_PARSER_KEY_LOWERCASE` - lowercase keys parsed
 - `UCL_PARSER_ZEROCOPY` - try to use zero-copy mode when reading files (in zero-copy mode text chunk being parsed without copying strings so it should exist till any object parsed is used)
 
-### `ucl_parser_register_macro`
+### ucl_parser_register_macro
 
 ~~~C
 void ucl_parser_register_macro (struct ucl_parser *parser,
@@ -57,7 +57,7 @@ bool (*ucl_macro_handler) (const unsigned char *data,
 
 Handler function accepts macro text `data` of length `len` and the opaque pointer `ud`. If macro is parsed successfully the handler should return `true`. `false` indicates parsing failure and the parser can be terminated.
 
-### `ucl_parser_register_variable`
+### ucl_parser_register_variable
 
 ~~~C
 void ucl_parser_register_variable (struct ucl_parser *parser,
@@ -66,7 +66,7 @@ void ucl_parser_register_variable (struct ucl_parser *parser,
 
 Register new variable $`var` that should be replaced by the parser to the `value` string.
 
-### `ucl_parser_add_chunk`
+### ucl_parser_add_chunk
 
 ~~~C
 bool ucl_parser_add_chunk (struct ucl_parser *parser, 
@@ -87,7 +87,7 @@ while this one won't be parsed correctly:
 
 This limitation may possible be removed in future.
 
-### `ucl_parser_add_file`
+### ucl_parser_add_file
 
 ~~~C
 bool ucl_parser_add_file (struct ucl_parser *parser, 
@@ -96,7 +96,7 @@ bool ucl_parser_add_file (struct ucl_parser *parser,
 
 Load file `filename` and parse it with the specified `parser`. This function uses `mmap` call to load file, therefore, it should not be `shrinked` during parsing. Otherwise, `libucl` can cause memory corruption and terminate the calling application. This function is also used by the internal handler of `include` macro, hence, this macro has the same limitation.
 
-### `ucl_parser_get_object`
+### ucl_parser_get_object
 
 ~~~C
 ucl_object_t* ucl_parser_get_object (struct ucl_parser *parser);
@@ -104,7 +104,7 @@ ucl_object_t* ucl_parser_get_object (struct ucl_parser *parser);
 
 If the `ucl` data has been parsed correctly this function returns the top object for the parser. Otherwise, this function returns the `NULL` pointer. The reference count for `ucl` object returned is increased by one, therefore, a caller should decrease reference by using `ucl_object_unref` to free object after usage.
 
-### `ucl_parser_get_error`
+### ucl_parser_get_error
 
 ~~~C
 const char *ucl_parser_get_error(struct ucl_parser *parser);
@@ -112,7 +112,7 @@ const char *ucl_parser_get_error(struct ucl_parser *parser);
 
 Returns the constant error string for the parser object. If no error occurred during parsing a `NULL` object is returned. A caller should not try to free or modify this string.
 
-### `ucl_parser_free`
+### ucl_parser_free
 
 ~~~C
 void ucl_parser_free (struct ucl_parser *parser);
@@ -120,7 +120,7 @@ void ucl_parser_free (struct ucl_parser *parser);
 
 Frees memory occupied by the parser object. The reference count for top object is decreased as well, however if the function `ucl_parser_get_object` was called previously then the top object won't be freed.
 
-### `ucl_pubkey_add`
+### ucl_pubkey_add
 
 ~~~C
 bool ucl_pubkey_add (struct ucl_parser *parser, 
@@ -129,7 +129,7 @@ bool ucl_pubkey_add (struct ucl_parser *parser,
 
 This function adds a public key from text blob `key` of length `len` to the `parser` object. This public key should be in the `PEM` format and can be used by `.includes` macro for checking signatures of files included. `Openssl` support should be enabled to make this function working. If a key cannot be added (e.g. due to format error) or `openssl` was not linked to `libucl` then this function returns `false`.
 
-### `ucl_parser_set_filevars`
+### ucl_parser_set_filevars
 
 ~~~C
 bool ucl_parser_set_filevars (struct ucl_parser *parser, 
