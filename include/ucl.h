@@ -499,6 +499,34 @@ ucl_array_delete (ucl_object_t *top, ucl_object_t *elt)
 }
 
 /**
+ * Returns the first element of the array `top`
+ * @param top array ucl object
+ * @return element or NULL if `top` is NULL or not an array
+ */
+static inline ucl_object_t *
+ucl_array_head (ucl_object_t *top)
+{
+	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
+		return NULL;
+	}
+	return top->value.av;
+}
+
+/**
+ * Returns the last element of the array `top`
+ * @param top array ucl object
+ * @return element or NULL if `top` is NULL or not an array
+ */
+static inline ucl_object_t *
+ucl_array_tail (ucl_object_t *top)
+{
+	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
+		return NULL;
+	}
+	return top->value.av->prev;
+}
+
+/**
  * Removes the last element from the array `top`. Caller must unref the returned object when it is not
  * needed.
  * @param top array ucl object
@@ -507,10 +535,7 @@ ucl_array_delete (ucl_object_t *top, ucl_object_t *elt)
 static inline ucl_object_t *
 ucl_array_pop_last (ucl_object_t *top)
 {
-	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
-		return NULL;
-	}
-	return ucl_array_delete (top, top->value.av->prev);
+	return ucl_array_delete (top, ucl_array_tail (top));
 }
 
 /**
@@ -522,10 +547,7 @@ ucl_array_pop_last (ucl_object_t *top)
 static inline ucl_object_t *
 ucl_array_pop_first (ucl_object_t *top)
 {
-	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
-		return NULL;
-	}
-	return ucl_array_delete (top, top->value.av);
+	return ucl_array_delete (top, ucl_array_head (top));
 }
 
 /**
