@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <assert.h>
 #include "ucl.h"
 
 int
@@ -64,6 +65,26 @@ main (int argc, char **argv)
 	ar = ucl_array_append (NULL, cur);
 	cur = ucl_object_fromdouble (10.1);
 	ar = ucl_array_append (ar, cur);
+	cur = ucl_object_fromdouble (9.999);
+	ar = ucl_array_prepend (ar, cur);
+
+	/* Removing from an array */
+	cur = ucl_object_fromdouble (1.0);
+	ar = ucl_array_append (ar, cur);
+	cur = ucl_array_delete (ar, cur);
+	assert (ucl_object_todouble (cur) == 1.0);
+	ucl_object_unref (cur);
+	cur = ucl_object_fromdouble (2.0);
+	ar = ucl_array_append (ar, cur);
+	cur = ucl_array_pop_last (ar);
+	assert (ucl_object_todouble (cur) == 2.0);
+	ucl_object_unref (cur);
+	cur = ucl_object_fromdouble (3.0);
+	ar = ucl_array_prepend (ar, cur);
+	cur = ucl_array_pop_first (ar);
+	assert (ucl_object_todouble (cur) == 3.0);
+	ucl_object_unref (cur);
+
 	obj = ucl_object_insert_key (obj, ar, "key4", 0, false);
 	cur = ucl_object_frombool (true);
 	obj = ucl_object_insert_key (obj, cur, "key4", 0, false);

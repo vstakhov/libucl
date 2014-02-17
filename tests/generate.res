@@ -2,6 +2,7 @@ key1 = "test string";
 key2 = "test \\nstring";
 key3 = "  test string    \n";
 key4 [
+    9.999000,
     10,
     10.100000,
 ]

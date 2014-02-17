@@ -375,7 +375,7 @@ ucl_object_t* ucl_object_insert_key_merged (ucl_object_t *top, ucl_object_t *elt
 		const char *key, size_t keylen, bool copy_key) UCL_WARN_UNUSED_RESULT;
 
 /**
- * Append an element to the array object
+ * Append an element to the front of array object
  * @param top destination object (will be created automatically if top is NULL)
  * @param elt element to append (must NOT be NULL)
  * @return new value of top object
@@ -414,6 +414,118 @@ ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
 	}
 
 	return top;
+}
+
+/**
+ * Append an element to the start of array object
+ * @param top destination object (will be created automatically if top is NULL)
+ * @param elt element to append (must NOT be NULL)
+ * @return new value of top object
+ */
+static inline ucl_object_t * ucl_array_prepend (ucl_object_t *top,
+		ucl_object_t *elt) UCL_WARN_UNUSED_RESULT;
+static inline ucl_object_t *
+ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
+{
+	ucl_object_t *head;
+
+	if (elt == NULL) {
+		return NULL;
+	}
+
+	if (top == NULL) {
+		top = ucl_object_typed_new (UCL_ARRAY);
+		top->value.av = elt;
+		elt->next = NULL;
+		elt->prev = elt;
+		top->len = 1;
+	}
+	else {
+		head = top->value.av;
+		if (head == NULL) {
+			top->value.av = elt;
+			elt->prev = elt;
+		}
+		else {
+			elt->prev = head->prev;
+			head->prev = elt;
+		}
+		elt->next = head;
+		top->value.av = elt;
+		top->len ++;
+	}
+
+	return top;
+}
+
+/**
+ * Removes an element `elt` from the array `top`. Caller must unref the returned object when it is not
+ * needed.
+ * @param top array ucl object
+ * @param elt element to remove
+ * @return removed element or NULL if `top` is NULL or not an array
+ */
+static inline ucl_object_t *
+ucl_array_delete (ucl_object_t *top, ucl_object_t *elt)
+{
+	ucl_object_t *head;
+
+	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
+		return NULL;
+	}
+	head = top->value.av;
+
+	if (elt->prev == elt) {
+		top->value.av = NULL;
+	}
+	else if (elt == head) {
+		elt->next->prev = elt->prev;
+		top->value.av = elt->next;
+	}
+	else {
+		elt->prev->next = elt->next;
+		if (elt->next) {
+			elt->next->prev = elt->prev;
+		}
+		else {
+			head->prev = elt->prev;
+		}
+	}
+	elt->next = NULL;
+	elt->prev = elt;
+	top->len --;
+
+	return elt;
+}
+
+/**
+ * Removes the last element from the array `top`. Caller must unref the returned object when it is not
+ * needed.
+ * @param top array ucl object
+ * @return removed element or NULL if `top` is NULL or not an array
+ */
+static inline ucl_object_t *
+ucl_array_pop_last (ucl_object_t *top)
+{
+	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
+		return NULL;
+	}
+	return ucl_array_delete (top, top->value.av->prev);
+}
+
+/**
+ * Removes the first element from the array `top`. Caller must unref the returned object when it is not
+ * needed.
+ * @param top array ucl object
+ * @return removed element or NULL if `top` is NULL or not an array
+ */
+static inline ucl_object_t *
+ucl_array_pop_first (ucl_object_t *top)
+{
+	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
+		return NULL;
+	}
+	return ucl_array_delete (top, top->value.av);
 }
 
 /**
