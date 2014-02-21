@@ -1077,10 +1077,12 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk, bool *next_ke
 	keylen = ucl_copy_or_store_ptr (parser, c, &nobj->trash_stack[UCL_TRASH_KEY],
 			&key, end - c, need_unescape, parser->flags & UCL_PARSER_KEY_LOWERCASE, false);
 	if (keylen == -1) {
+		ucl_object_free(nobj);
 		return false;
 	}
 	else if (keylen == 0) {
 		ucl_set_err (chunk, UCL_ESYNTAX, "empty keys are not allowed", &parser->err);
+		ucl_object_free(nobj);
 		return false;
 	}
 
