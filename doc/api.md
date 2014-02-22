@@ -241,3 +241,23 @@ bool ucl_object_emit_full (ucl_object_t *obj, enum ucl_emitter emit_type,
 ~~~
 
 This function is similar to the previous with the exception that it accepts the additional argument `emitter` that defines the concrete set of output functions. This emit function could be useful for custom structures or streams emitters (including C++ ones, for example).
+
+# Conversion functions
+
+Conversion functions are used to convert UCL objects to primitive types, such as strings, numbers or boolean values. There are two types of conversion functions:
+
+- safe: try to convert an ucl object to a primitive type and fail if such a conversion is not possible
+- unsafe: return primitive type without additional checks, if the object cannot be converted then some reasonable default is returned (NULL for strings and 0 for numbers)
+
+Also there is a single `ucl_object_tostring_forced` function that converts any UCL object (including compound types - arrays and objects) to a string representation. For compound and numeric types this function performs emitting to a compact json format actually.
+
+Here is a list of all conversion functions:
+
+- `ucl_object_toint` - returns `int64_t` of UCL object
+- `ucl_object_todouble` - returns `double` of UCL object
+- `ucl_object_toboolean` - returns `bool` of UCL object
+- `ucl_object_tostring` - returns `const char *` of UCL object (this string is NULL terminated)
+- `ucl_object_tolstring` - returns `const char *` and `size_t` len of UCL object (string can be not NULL terminated)
+- `ucl_object_tostring_forced` - returns string representation of any UCL object
+
+Strings returned by these pointers are associated with the UCL object and exist over its lifetime. A caller should not free this memory.

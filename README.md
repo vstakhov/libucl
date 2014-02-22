@@ -3,6 +3,8 @@
 This document describes the main features and principles of the configuration
 language called `UCL` - universal configuration language.
 
+If you are looking for the libucl API documentation you can find it at [this page](doc/api.md).
+
 ## Basic structure
 
 UCL is heavily infused by `nginx` configuration as the example of a convenient configuration
