@@ -186,3 +186,58 @@ if (obj != NULL) {
 }
 return ret;
 ~~~
+
+# Emitting functions
+
+Libucl can transform UCL objects to a number of tectual formats:
+
+- configuration (`UCL_EMIT_CONFIG`) - nginx like human readable configuration file where implicit arrays are transformed to the duplicate keys
+- compact json: `UCL_EMIT_JSON_COMPACT` - single line valid json without spaces
+- formatted json: `UCL_EMIT_JSON` - pretty formatted JSON with newlines and spaces
+- compact yaml: `UCL_EMIT_YAML` - compact YAML output
+
+Moreover, libucl API allows to select a custom set of emitting functions allowing 
+efficent and zero-copy output of libucl objects. Libucl uses the following structure to support this feature:
+
+~~~C
+struct ucl_emitter_functions {
+	/** Append a single character */
+	int (*ucl_emitter_append_character) (unsigned char c, size_t nchars, void *ud);
+	/** Append a string of a specified length */
+	int (*ucl_emitter_append_len) (unsigned const char *str, size_t len, void *ud);
+	/** Append a 64 bit integer */
+	int (*ucl_emitter_append_int) (int64_t elt, void *ud);
+	/** Append floating point element */
+	int (*ucl_emitter_append_double) (double elt, void *ud);
+	/** Opaque userdata pointer */
+	void *ud;
+};
+~~~
+
+This structure defines the following callbacks:
+
+- `ucl_emitter_append_character` - a function that is called to append `nchars` characters equal to `c`
+- `ucl_emitter_append_len` - used to append a string of length `len` starting from pointer `str`
+- `ucl_emitter_append_int` - this function applies to integer numbers
+- `ucl_emitter_append_double` - this function is intended to output floating point variable
+
+The set of these functions could be used to output text formats of `UCL` objects to different structures or streams.
+
+Libucl provides the following functions for emitting UCL objects:
+
+### ucl_object_emit
+
+~~~C
+unsigned char *ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type);
+~~~
+
+Allocate a string that is suitable to fit the underlying UCL object `obj` and fill it with the textual representation of the object `obj` according to style `emit_type`. The caller should free the returned string after using.
+
+### ucl_object_emit_full
+
+~~~C
+bool ucl_object_emit_full (ucl_object_t *obj, enum ucl_emitter emit_type,
+		struct ucl_emitter_functions *emitter);
+~~~
+
+This function is similar to the previous with the exception that it accepts the additional argument `emitter` that defines the concrete set of output functions. This emit function could be useful for custom structures or streams emitters (including C++ ones, for example).
