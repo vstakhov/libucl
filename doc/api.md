@@ -261,3 +261,61 @@ Here is a list of all conversion functions:
 - `ucl_object_tostring_forced` - returns string representation of any UCL object
 
 Strings returned by these pointers are associated with the UCL object and exist over its lifetime. A caller should not free this memory.
+
+# Generation functions
+
+It is possible to generate UCL objects from C primitive types. Moreover, libucl permits to create and modify complex UCL objects, such as arrays or associative objects. 
+
+## ucl_object_new
+~~~C
+ucl_object_t * ucl_object_new (void)
+~~~
+
+Creates new object of type `UCL_NULL`. This object should be released by caller.
+
+## ucl_object_typed_new
+~~~C
+ucl_object_t * ucl_object_typed_new (unsigned int type)
+~~~
+
+Create an object of a specified type:
+- `UCL_OBJECT` - UCL object - key/value pairs
+- `UCL_ARRAY` - UCL array
+- `UCL_INT` - integer number
+- `UCL_FLOAT` - floating point number
+- `UCL_STRING` - NULL terminated string
+- `UCL_BOOLEAN` - boolean value
+- `UCL_TIME` - time value (floating point number of seconds)
+- `UCL_USERDATA` - opaque userdata pointer (may be used in macros)
+- `UCL_NULL` - null value
+
+This object should be released by caller.
+
+## Primitive objects generation
+Libucl provides the functions similar to inverse conversion functions called with the specific C type:
+- `ucl_object_fromint` - converts `int64_t` to UCL object
+- `ucl_object_fromdouble` - converts `double` to UCL object
+- `ucl_object_fromboolean` - converts `bool` to UCL object
+- `ucl_object_fromstring` - converts `const char *` to UCL object (this string is NULL terminated)
+- `ucl_object_fromlstring` - converts `const char *` and `size_t` len to UCL object (string can be not NULL terminated)
+
+Also there is a function to generate UCL object from a string performing various parsing or conversion operations called `ucl_object_fromstring_common`.
+
+## ucl_object_fromstring_common
+~~~C
+ucl_object_t * ucl_object_fromstring_common (const char *str, 
+	size_t len, enum ucl_string_flags flags)
+~~~
+
+This function is used to convert a string `str` of size `len` to an UCL objects applying `flags` conversions. If `len` is equal to zero then a `str` is assumed as NULL-terminated. This function supports the following flags (a set of flags can be specified using logical `OR` operation):
+
+- `UCL_STRING_ESCAPE` - perform JSON escape
+- `UCL_STRING_TRIM` - trim leading and trailing whitespaces
+- `UCL_STRING_PARSE_BOOLEAN` - parse passed string and detect boolean
+- `UCL_STRING_PARSE_INT` - parse passed string and detect integer number
+- `UCL_STRING_PARSE_DOUBLE` - parse passed string and detect integer or float number
+- `UCL_STRING_PARSE_NUMBER` - parse passed string and detect number (both float or integer types)
+- `UCL_STRING_PARSE` - parse passed string (and detect booleans and numbers)
+- `UCL_STRING_PARSE_BYTES` - assume that numeric multipliers are in bytes notation, for example `10k` means `10*1024` and not `10*1000` as assumed without this flag
+
+If parsing operations fail then the resulting UCL object will be a `UCL_STRING`. A caller should always check the type of the returned object and release it after using.
