@@ -1124,6 +1124,29 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 	return top;
 }
 
+bool
+ucl_object_delete_keyl(ucl_object_t *top, const char *key, size_t keylen)
+{
+	ucl_object_t *found;
+
+	found = ucl_object_find_keyl(top, key, keylen);
+
+	if (found == NULL)
+		return false;
+
+	ucl_hash_delete(top->value.ov, found);
+	ucl_object_unref (found);
+	top->len --;
+
+	return true;
+}
+
+bool
+ucl_object_delete_key(ucl_object_t *top, const char *key)
+{
+	return ucl_object_delete_keyl(top, key, 0);
+}
+
 ucl_object_t *
 ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
 		const char *key, size_t keylen, bool copy_key)

@@ -368,6 +368,21 @@ UCL_EXTERN ucl_object_t* ucl_object_replace_key (ucl_object_t *top, ucl_object_t
 		const char *key, size_t keylen, bool copy_key) UCL_WARN_UNUSED_RESULT;
 
 /**
+ * Delete a object associated with key 'key', old object will be unrefered,
+ * @param top object
+ * @param key key associated to the object to remove
+ * @param keylen length of the key (or 0 for NULL terminated keys)
+ */
+UCL_EXTERN bool ucl_object_delete_keyl (ucl_object_t *top, const char *key, size_t keylen);
+
+/**
+ * Delete a object associated with key 'key', old object will be unrefered,
+ * @param top object
+ * @param key key associated to the object to remove
+ */
+UCL_EXTERN bool ucl_object_delete_key (ucl_object_t *top, const char *key);
+
+/**
  * Insert a object 'elt' to the hash 'top' and associate it with key 'key', if the specified key exist,
  * try to merge its content
  * @param top destination object (will be created automatically if top is NULL)
