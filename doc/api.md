@@ -319,3 +319,30 @@ This function is used to convert a string `str` of size `len` to an UCL objects 
 - `UCL_STRING_PARSE_BYTES` - assume that numeric multipliers are in bytes notation, for example `10k` means `10*1024` and not `10*1000` as assumed without this flag
 
 If parsing operations fail then the resulting UCL object will be a `UCL_STRING`. A caller should always check the type of the returned object and release it after using.
+
+# Iteration function
+
+Iteration are used to iterate over UCL compound types: arrays and objects. Moreover, iterations could be performed over the keys with multiple values (implicit arrays). To iterate over an object, an array or a key with multiple values there is a function `ucl_iterate_object`.
+
+## ucl_iterate_object
+~~~C
+ucl_object_t* ucl_iterate_object (ucl_object_t *obj, 
+	ucl_object_iter_t *iter, bool expand_values);
+~~~
+
+This function accept opaque iterator pointer `iter`. In the first call this iterator *must* be initialized to `NULL`. Iterator is changed by this function call. `ucl_iterate_object` returns the next UCL object in the compound object `obj` or `NULL` if all objects have been iterated. The reference count of the object returned is not increased, so a caller should not unref the object or modify its content (e.g. by inserting to another compound object). The object `obj` should not be changed during the iteration process as well. `expand_values` flag speicifies whether `ucl_iterate_object` should expand keys with multiple values. The general rule is that if you need to iterate throught the *object* or *explicit array*, then you always need to set this flag to `true`. However, if you get some key in the object and want to extract all its values then you should set `expand_values` to `false`. Mixing of iteration types are not permitted since the iterator is set according to the iteration type and cannot be reused. Here is an example of iteration over the objects using libucl API (assuming that `top` is `UCL_OBJECT` in this example):
+
+~~~C
+ucl_object_iter_t it = NULL, it_obj = NULL;
+ucl_object_t *cur, *tmp;
+
+/* Iterate over the object */
+while ((obj = ucl_iterate_object (top, &it, true))) {
+	printf ("key: \"%s\"\n", ucl_object_key (obj));
+	/* Iterate over the values of a key */
+	while ((cur = ucl_iterate_object (obj, &it_obj, false))) {
+		printf ("value: \"%s\"\n", 
+			ucl_object_tostring_forced (cur));
+	}
+}
+~~~
