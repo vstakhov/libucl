@@ -544,6 +544,10 @@ ucl_add_parser_stack (ucl_object_t *obj, struct ucl_parser *parser, bool is_arra
 	}
 
 	st = UCL_ALLOC (sizeof (struct ucl_stack));
+	if (st == NULL) {
+		ucl_set_err (parser->chunks, 0, "cannot allocate memory for an object", &parser->err);
+		return NULL;
+	}
 	st->obj = obj;
 	st->level = level;
 	LL_PREPEND (parser->stack, st);
@@ -1308,6 +1312,9 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			obj = ucl_get_value_object (parser);
 			/* We have a new object */
 			obj = ucl_add_parser_stack (obj, parser, false, parser->stack->level);
+			if (obj == NULL) {
+				return false;
+			}
 
 			ucl_chunk_skipc (chunk, p);
 			return true;
@@ -1316,6 +1323,9 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			obj = ucl_get_value_object (parser);
 			/* We have a new array */
 			obj = ucl_add_parser_stack (obj, parser, true, parser->stack->level);
+			if (obj == NULL) {
+				return false;
+			}
 
 			ucl_chunk_skipc (chunk, p);
 			return true;
@@ -1608,6 +1618,9 @@ ucl_state_machine (struct ucl_parser *parser)
 		else {
 			obj = ucl_add_parser_stack (NULL, parser, false, 0);
 		}
+		if (obj == NULL) {
+			return false;
+		}
 		parser->top_obj = obj;
 		parser->cur_obj = obj;
 		parser->state = UCL_STATE_INIT;
@@ -1673,7 +1686,11 @@ ucl_state_machine (struct ucl_parser *parser)
 			else if (parser->state != UCL_STATE_MACRO_NAME) {
 				if (next_key && parser->stack->obj->type == UCL_OBJECT) {
 					/* Parse more keys and nest objects accordingly */
-					obj = ucl_add_parser_stack (parser->cur_obj, parser, false, parser->stack->level + 1);
+					obj = ucl_add_parser_stack (parser->cur_obj, parser, false,
+							parser->stack->level + 1);
+					if (obj == NULL) {
+						return false;
+					}
 				}
 				else {
 					parser->state = UCL_STATE_VALUE;
@@ -1787,6 +1804,9 @@ ucl_parser_new (int flags)
 	struct ucl_parser *new;
 
 	new = UCL_ALLOC (sizeof (struct ucl_parser));
+	if (new == NULL) {
+		return NULL;
+	}
 	memset (new, 0, sizeof (struct ucl_parser));
 
 	ucl_parser_register_macro (new, "include", ucl_include_handler, new);
@@ -1808,7 +1828,13 @@ ucl_parser_register_macro (struct ucl_parser *parser, const char *macro,
 {
 	struct ucl_macro *new;
 
+	if (macro == NULL || handler == NULL) {
+		return;
+	}
 	new = UCL_ALLOC (sizeof (struct ucl_macro));
+	if (new == NULL) {
+		return;
+	}
 	memset (new, 0, sizeof (struct ucl_macro));
 	new->handler = handler;
 	new->name = strdup (macro);
@@ -1851,6 +1877,9 @@ ucl_parser_register_variable (struct ucl_parser *parser, const char *var,
 	else {
 		if (new == NULL) {
 			new = UCL_ALLOC (sizeof (struct ucl_variable));
+			if (new == NULL) {
+				return;
+			}
 			memset (new, 0, sizeof (struct ucl_variable));
 			new->var = strdup (var);
 			new->var_len = strlen (var);
@@ -1875,6 +1904,10 @@ ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
 
 	if (parser->state != UCL_STATE_ERROR) {
 		chunk = UCL_ALLOC (sizeof (struct ucl_chunk));
+		if (chunk == NULL) {
+			ucl_create_err (&parser->err, "cannot allocate chunk structure");
+			return false;
+		}
 		chunk->begin = data;
 		chunk->remain = len;
 		chunk->pos = chunk->begin;

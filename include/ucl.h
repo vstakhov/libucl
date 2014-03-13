@@ -607,7 +607,7 @@ ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
 static inline bool
 ucl_object_todouble_safe (ucl_object_t *obj, double *target)
 {
-	if (obj == NULL) {
+	if (obj == NULL || target == NULL) {
 		return false;
 	}
 	switch (obj->type) {
@@ -648,7 +648,7 @@ ucl_object_todouble (ucl_object_t *obj)
 static inline bool
 ucl_object_toint_safe (ucl_object_t *obj, int64_t *target)
 {
-	if (obj == NULL) {
+	if (obj == NULL || target == NULL) {
 		return false;
 	}
 	switch (obj->type) {
@@ -689,7 +689,7 @@ ucl_object_toint (ucl_object_t *obj)
 static inline bool
 ucl_object_toboolean_safe (ucl_object_t *obj, bool *target)
 {
-	if (obj == NULL) {
+	if (obj == NULL || target == NULL) {
 		return false;
 	}
 	switch (obj->type) {
@@ -726,7 +726,7 @@ ucl_object_toboolean (ucl_object_t *obj)
 static inline bool
 ucl_object_tostring_safe (ucl_object_t *obj, const char **target)
 {
-	if (obj == NULL) {
+	if (obj == NULL || target == NULL) {
 		return false;
 	}
 
@@ -777,13 +777,15 @@ ucl_object_tostring_forced (ucl_object_t *obj)
 static inline bool
 ucl_object_tolstring_safe (ucl_object_t *obj, const char **target, size_t *tlen)
 {
-	if (obj == NULL) {
+	if (obj == NULL || target == NULL) {
 		return false;
 	}
 	switch (obj->type) {
 	case UCL_STRING:
 		*target = obj->value.sv;
-		*tlen = obj->len;
+		if (tlen != NULL) {
+			*tlen = obj->len;
+		}
 		break;
 	default:
 		return false;
@@ -843,6 +845,9 @@ ucl_object_key (ucl_object_t *obj)
 static inline const char *
 ucl_object_keyl (ucl_object_t *obj, size_t *len)
 {
+	if (len == NULL || obj == NULL) {
+		return NULL;
+	}
 	*len = obj->keylen;
 	return obj->key;
 }
@@ -859,7 +864,9 @@ UCL_EXTERN void ucl_object_free (ucl_object_t *obj);
  */
 static inline ucl_object_t *
 ucl_object_ref (ucl_object_t *obj) {
-	obj->ref ++;
+	if (obj != NULL) {
+		obj->ref ++;
+	}
 	return obj;
 }
 
