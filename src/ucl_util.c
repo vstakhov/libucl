@@ -1294,3 +1294,415 @@ ucl_iterate_object (ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_valu
 	/* Not reached */
 	return NULL;
 }
+
+
+ucl_object_t *
+ucl_object_new (void)
+{
+	ucl_object_t *new;
+	new = malloc (sizeof (ucl_object_t));
+	if (new != NULL) {
+		memset (new, 0, sizeof (ucl_object_t));
+		new->ref = 1;
+		new->type = UCL_NULL;
+	}
+	return new;
+}
+
+ucl_object_t *
+ucl_object_typed_new (unsigned int type)
+{
+	ucl_object_t *new;
+	new = malloc (sizeof (ucl_object_t));
+	if (new != NULL) {
+		memset (new, 0, sizeof (ucl_object_t));
+		new->ref = 1;
+		new->type = (type <= UCL_NULL ? type : UCL_NULL);
+	}
+	return new;
+}
+
+ucl_object_t*
+ucl_object_fromstring (const char *str)
+{
+	return ucl_object_fromstring_common (str, 0, UCL_STRING_ESCAPE);
+}
+
+ucl_object_t *
+ucl_object_fromlstring (const char *str, size_t len)
+{
+	return ucl_object_fromstring_common (str, len, UCL_STRING_ESCAPE);
+}
+
+ucl_object_t *
+ucl_object_fromint (int64_t iv)
+{
+	ucl_object_t *obj;
+
+	obj = ucl_object_new ();
+	if (obj != NULL) {
+		obj->type = UCL_INT;
+		obj->value.iv = iv;
+	}
+
+	return obj;
+}
+
+ucl_object_t *
+ucl_object_fromdouble (double dv)
+{
+	ucl_object_t *obj;
+
+	obj = ucl_object_new ();
+	if (obj != NULL) {
+		obj->type = UCL_FLOAT;
+		obj->value.dv = dv;
+	}
+
+	return obj;
+}
+
+ucl_object_t*
+ucl_object_frombool (bool bv)
+{
+	ucl_object_t *obj;
+
+	obj = ucl_object_new ();
+	if (obj != NULL) {
+		obj->type = UCL_BOOLEAN;
+		obj->value.iv = bv;
+	}
+
+	return obj;
+}
+
+ucl_object_t *
+ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
+{
+	ucl_object_t *head;
+
+	if (elt == NULL) {
+		return NULL;
+	}
+
+	if (top == NULL) {
+		top = ucl_object_typed_new (UCL_ARRAY);
+		top->value.av = elt;
+		elt->next = NULL;
+		elt->prev = elt;
+		top->len = 1;
+	}
+	else {
+		head = top->value.av;
+		if (head == NULL) {
+			top->value.av = elt;
+			elt->prev = elt;
+		}
+		else {
+			elt->prev = head->prev;
+			head->prev->next = elt;
+			head->prev = elt;
+		}
+		elt->next = NULL;
+		top->len ++;
+	}
+
+	return top;
+}
+
+ucl_object_t *
+ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
+{
+	ucl_object_t *head;
+
+	if (elt == NULL) {
+		return NULL;
+	}
+
+	if (top == NULL) {
+		top = ucl_object_typed_new (UCL_ARRAY);
+		top->value.av = elt;
+		elt->next = NULL;
+		elt->prev = elt;
+		top->len = 1;
+	}
+	else {
+		head = top->value.av;
+		if (head == NULL) {
+			top->value.av = elt;
+			elt->prev = elt;
+		}
+		else {
+			elt->prev = head->prev;
+			head->prev = elt;
+		}
+		elt->next = head;
+		top->value.av = elt;
+		top->len ++;
+	}
+
+	return top;
+}
+
+ucl_object_t *
+ucl_array_delete (ucl_object_t *top, ucl_object_t *elt)
+{
+	ucl_object_t *head;
+
+	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
+		return NULL;
+	}
+	head = top->value.av;
+
+	if (elt->prev == elt) {
+		top->value.av = NULL;
+	}
+	else if (elt == head) {
+		elt->next->prev = elt->prev;
+		top->value.av = elt->next;
+	}
+	else {
+		elt->prev->next = elt->next;
+		if (elt->next) {
+			elt->next->prev = elt->prev;
+		}
+		else {
+			head->prev = elt->prev;
+		}
+	}
+	elt->next = NULL;
+	elt->prev = elt;
+	top->len --;
+
+	return elt;
+}
+
+ucl_object_t *
+ucl_array_head (ucl_object_t *top)
+{
+	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
+		return NULL;
+	}
+	return top->value.av;
+}
+
+ucl_object_t *
+ucl_array_tail (ucl_object_t *top)
+{
+	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
+		return NULL;
+	}
+	return top->value.av->prev;
+}
+
+ucl_object_t *
+ucl_array_pop_last (ucl_object_t *top)
+{
+	return ucl_array_delete (top, ucl_array_tail (top));
+}
+
+ucl_object_t *
+ucl_array_pop_first (ucl_object_t *top)
+{
+	return ucl_array_delete (top, ucl_array_head (top));
+}
+
+ucl_object_t *
+ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
+{
+
+	if (head == NULL) {
+		elt->next = NULL;
+		elt->prev = elt;
+		head = elt;
+	}
+	else {
+		elt->prev = head->prev;
+		head->prev->next = elt;
+		head->prev = elt;
+		elt->next = NULL;
+	}
+
+	return head;
+}
+
+bool
+ucl_object_todouble_safe (ucl_object_t *obj, double *target)
+{
+	if (obj == NULL || target == NULL) {
+		return false;
+	}
+	switch (obj->type) {
+	case UCL_INT:
+		*target = obj->value.iv; /* Probaly could cause overflow */
+		break;
+	case UCL_FLOAT:
+	case UCL_TIME:
+		*target = obj->value.dv;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+double
+ucl_object_todouble (ucl_object_t *obj)
+{
+	double result = 0.;
+
+	ucl_object_todouble_safe (obj, &result);
+	return result;
+}
+
+bool
+ucl_object_toint_safe (ucl_object_t *obj, int64_t *target)
+{
+	if (obj == NULL || target == NULL) {
+		return false;
+	}
+	switch (obj->type) {
+	case UCL_INT:
+		*target = obj->value.iv;
+		break;
+	case UCL_FLOAT:
+	case UCL_TIME:
+		*target = obj->value.dv; /* Loosing of decimal points */
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+int64_t
+ucl_object_toint (ucl_object_t *obj)
+{
+	int64_t result = 0;
+
+	ucl_object_toint_safe (obj, &result);
+	return result;
+}
+
+bool
+ucl_object_toboolean_safe (ucl_object_t *obj, bool *target)
+{
+	if (obj == NULL || target == NULL) {
+		return false;
+	}
+	switch (obj->type) {
+	case UCL_BOOLEAN:
+		*target = (obj->value.iv == true);
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+bool
+ucl_object_toboolean (ucl_object_t *obj)
+{
+	bool result = false;
+
+	ucl_object_toboolean_safe (obj, &result);
+	return result;
+}
+
+bool
+ucl_object_tostring_safe (ucl_object_t *obj, const char **target)
+{
+	if (obj == NULL || target == NULL) {
+		return false;
+	}
+
+	switch (obj->type) {
+	case UCL_STRING:
+		*target = ucl_copy_value_trash (obj);
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+const char *
+ucl_object_tostring (ucl_object_t *obj)
+{
+	const char *result = NULL;
+
+	ucl_object_tostring_safe (obj, &result);
+	return result;
+}
+
+const char *
+ucl_object_tostring_forced (ucl_object_t *obj)
+{
+	return ucl_copy_value_trash (obj);
+}
+
+bool
+ucl_object_tolstring_safe (ucl_object_t *obj, const char **target, size_t *tlen)
+{
+	if (obj == NULL || target == NULL) {
+		return false;
+	}
+	switch (obj->type) {
+	case UCL_STRING:
+		*target = obj->value.sv;
+		if (tlen != NULL) {
+			*tlen = obj->len;
+		}
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+const char *
+ucl_object_tolstring (ucl_object_t *obj, size_t *tlen)
+{
+	const char *result = NULL;
+
+	ucl_object_tolstring_safe (obj, &result, tlen);
+	return result;
+}
+
+const char *
+ucl_object_key (ucl_object_t *obj)
+{
+	return ucl_copy_key_trash (obj);
+}
+
+const char *
+ucl_object_keyl (ucl_object_t *obj, size_t *len)
+{
+	if (len == NULL || obj == NULL) {
+		return NULL;
+	}
+	*len = obj->keylen;
+	return obj->key;
+}
+
+ucl_object_t *
+ucl_object_ref (ucl_object_t *obj)
+{
+	if (obj != NULL) {
+		obj->ref ++;
+	}
+	return obj;
+}
+
+void
+ucl_object_unref (ucl_object_t *obj)
+{
+	if (obj != NULL && --obj->ref <= 0) {
+		ucl_object_free (obj);
+	}
+}
