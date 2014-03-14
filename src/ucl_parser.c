@@ -558,12 +558,13 @@ ucl_add_parser_stack (ucl_object_t *obj, struct ucl_parser *parser, bool is_arra
 
 int
 ucl_maybe_parse_number (ucl_object_t *obj,
-		const char *start, const char *end, const char **pos, bool allow_double, bool number_bytes)
+		const char *start, const char *end, const char **pos,
+		bool allow_double, bool number_bytes, bool allow_time)
 {
 	const char *p = start, *c = start;
 	char *endptr;
 	bool got_dot = false, got_exp = false, need_double = false,
-			is_date = false, valid_start = false, is_hex = false,
+			is_time = false, valid_start = false, is_hex = false,
 			is_neg = false;
 	double dv = 0;
 	int64_t lv = 0;
@@ -682,7 +683,7 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 						need_double = true;
 						dv = lv;
 					}
-					is_date = true;
+					is_time = true;
 					if (p[0] == 'm' || p[0] == 'M') {
 						dv /= 1000.;
 					}
@@ -712,7 +713,7 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 					p ++;
 					goto set_obj;
 				}
-				else if (end - p >= 3) {
+				else if (allow_time && end - p >= 3) {
 					if (tolower (p[0]) == 'm' &&
 							tolower (p[1]) == 'i' &&
 							tolower (p[2]) == 'n') {
@@ -721,7 +722,7 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 							need_double = true;
 							dv = lv;
 						}
-						is_date = true;
+						is_time = true;
 						dv *= 60.;
 						p += 3;
 						goto set_obj;
@@ -741,13 +742,14 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 			break;
 		case 'S':
 		case 's':
-			if (p == end - 1 || ucl_lex_is_atom_end (p[1])) {
+			if (allow_time &&
+					(p == end - 1 || ucl_lex_is_atom_end (p[1]))) {
 				if (!need_double) {
 					need_double = true;
 					dv = lv;
 				}
 				p ++;
-				is_date = true;
+				is_time = true;
 				goto set_obj;
 			}
 			break;
@@ -759,12 +761,13 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 		case 'W':
 		case 'Y':
 		case 'y':
-			if (p == end - 1 || ucl_lex_is_atom_end (p[1])) {
+			if (allow_time &&
+					(p == end - 1 || ucl_lex_is_atom_end (p[1]))) {
 				if (!need_double) {
 					need_double = true;
 					dv = lv;
 				}
-				is_date = true;
+				is_time = true;
 				dv *= ucl_lex_time_multiplier (*p);
 				p ++;
 				goto set_obj;
@@ -777,8 +780,8 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 	return EINVAL;
 
 	set_obj:
-	if (allow_double && (need_double || is_date)) {
-		if (!is_date) {
+	if (allow_double && (need_double || is_time)) {
+		if (!is_time) {
 			obj->type = UCL_FLOAT;
 		}
 		else {
@@ -807,7 +810,8 @@ ucl_lex_number (struct ucl_parser *parser,
 	const unsigned char *pos;
 	int ret;
 
-	ret = ucl_maybe_parse_number (obj, chunk->pos, chunk->end, (const char **)&pos, true, false);
+	ret = ucl_maybe_parse_number (obj, chunk->pos, chunk->end, (const char **)&pos,
+			true, false, ((parser->flags & UCL_PARSER_NO_TIME) == 0));
 
 	if (ret == 0) {
 		chunk->remain -= pos - chunk->pos;

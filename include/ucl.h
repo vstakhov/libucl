@@ -138,7 +138,8 @@ typedef enum ucl_emitter {
  */
 typedef enum ucl_parser_flags {
 	UCL_PARSER_KEY_LOWERCASE = 0x1, /**< Convert all keys to lower case */
-	UCL_PARSER_ZEROCOPY = 0x2 /**< Parse input in zero-copy mode if possible */
+	UCL_PARSER_ZEROCOPY = 0x2, /**< Parse input in zero-copy mode if possible */
+	UCL_PARSER_NO_TIME = 0x4 /**< Do not parse time and treat time values as strings */
 } ucl_parser_flags_t;
 
 /**
@@ -150,11 +151,12 @@ typedef enum ucl_string_flags {
 	UCL_STRING_PARSE_BOOLEAN = 0x4,    /**< Parse passed string and detect boolean */
 	UCL_STRING_PARSE_INT = 0x8,    /**< Parse passed string and detect integer number */
 	UCL_STRING_PARSE_DOUBLE = 0x10,    /**< Parse passed string and detect integer or float number */
-	UCL_STRING_PARSE_NUMBER =  UCL_STRING_PARSE_INT|UCL_STRING_PARSE_DOUBLE ,  /**<
+	UCL_STRING_PARSE_TIME = 0x20, /**< Parse time strings */
+	UCL_STRING_PARSE_NUMBER =  UCL_STRING_PARSE_INT|UCL_STRING_PARSE_DOUBLE|UCL_STRING_PARSE_TIME,  /**<
 									Parse passed string and detect number */
 	UCL_STRING_PARSE =  UCL_STRING_PARSE_BOOLEAN|UCL_STRING_PARSE_NUMBER,   /**<
 									Parse passed string (and detect booleans and numbers) */
-	UCL_STRING_PARSE_BYTES = 0x20  /**< Treat numbers as bytes */
+	UCL_STRING_PARSE_BYTES = 0x40  /**< Treat numbers as bytes */
 } ucl_string_flags_t;
 
 /**
