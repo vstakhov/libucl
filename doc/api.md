@@ -9,22 +9,26 @@ Description
 Libucl is a parser and `C` API to parse and generate `ucl` objects. Libucl consist of several groups of functions:
 
 ### Parser functions
-Used to parse `ucl` files and provide interface to extract `ucl` object
+Used to parse `ucl` files and provide interface to extract `ucl` object. Currently, `libucl` can parse only full `ucl` documents, for instance, it is impossible to parse a part of document and therefore it is impossible to use `libucl` as a streaming parser. In future, this limitation can be removed.
 
 ### Emitting functions
-Convert `ucl` objects to some textual or binary representation.
+Convert `ucl` objects to some textual or binary representation. Currently, libucl supports the following exports:
+
+- `JSON` - valid json format (can possibly loose some original data, such as implicit arrays)
+- `Config` - human-readable configuration format (losseless)
+- `YAML` - embedded yaml format (has the same limitations as `json` output)
 
 ### Conversion functions
-Help to convert `ucl` objects to C types
+Help to convert `ucl` objects to C types. These functions are used to convert `ucl_object_t` to C primitive types, such as numbers, strings or boolean values.
 
 ### Generation functions
-Allow creating of `ucl` objects from C types
+Allow creating of `ucl` objects from C types and creating of complex `ucl` objects, such as hashes or arrays from primitive `ucl` objects, such as numbers or strings.
 
 ### Iteration functions
-Iterate over `ucl` objects
+Iterate over `ucl` complex objects or over a chain of values, for example when a key in an object has multiple values (that can be treated as implicit array or implicit consolidation).
 
 ### Utility functions
-Provide basic utilities to manage `ucl` objects
+Provide basic utilities to manage `ucl` objects: creating, removing, retaining and releasing reference count and so on.
 
 # Parser functions
 
@@ -40,6 +44,7 @@ Creates new parser with the specified flags:
 
 - `UCL_PARSER_KEY_LOWERCASE` - lowercase keys parsed
 - `UCL_PARSER_ZEROCOPY` - try to use zero-copy mode when reading files (in zero-copy mode text chunk being parsed without copying strings so it should exist till any object parsed is used)
+- `UCL_PARSER_NO_TIME` - treat time values as strings without parsing them as floats
 
 ### ucl_parser_register_macro
 
@@ -314,8 +319,9 @@ This function is used to convert a string `str` of size `len` to an UCL objects 
 - `UCL_STRING_PARSE_BOOLEAN` - parse passed string and detect boolean
 - `UCL_STRING_PARSE_INT` - parse passed string and detect integer number
 - `UCL_STRING_PARSE_DOUBLE` - parse passed string and detect integer or float number
-- `UCL_STRING_PARSE_NUMBER` - parse passed string and detect number (both float or integer types)
-- `UCL_STRING_PARSE` - parse passed string (and detect booleans and numbers)
+- `UCL_STRING_PARSE_TIME` - parse time values as floating point numbers
+- `UCL_STRING_PARSE_NUMBER` - parse passed string and detect number (both float, integer and time types)
+- `UCL_STRING_PARSE` - parse passed string (and detect booleans, numbers and time values)
 - `UCL_STRING_PARSE_BYTES` - assume that numeric multipliers are in bytes notation, for example `10k` means `10*1024` and not `10*1000` as assumed without this flag
 
 If parsing operations fail then the resulting UCL object will be a `UCL_STRING`. A caller should always check the type of the returned object and release it after using.
