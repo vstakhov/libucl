@@ -92,6 +92,14 @@ while this one won't be parsed correctly:
 
 This limitation may possible be removed in future.
 
+### ucl_parser_add_string
+~~~C
+bool ucl_parser_add_string (struct ucl_parser *parser, 
+    const char *data, size_t len);
+~~~
+
+This function acts exactly like `ucl_parser_add_chunk` does but if `len` argument is zero, then the string `data` must be zero-terminated and the actual length is calculated up to `\0` character. 
+
 ### ucl_parser_add_file
 
 ~~~C

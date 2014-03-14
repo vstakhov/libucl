@@ -1906,6 +1906,10 @@ ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
 {
 	struct ucl_chunk *chunk;
 
+	if (data == NULL || len == 0) {
+		ucl_create_err (&parser->err, "invalid chunk added");
+		return false;
+	}
 	if (parser->state != UCL_STATE_ERROR) {
 		chunk = UCL_ALLOC (sizeof (struct ucl_chunk));
 		if (chunk == NULL) {
@@ -1931,4 +1935,19 @@ ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
 	ucl_create_err (&parser->err, "a parser is in an invalid state");
 
 	return false;
+}
+
+bool
+ucl_parser_add_string (struct ucl_parser *parser, const char *data,
+		size_t len)
+{
+	if (data == NULL) {
+		ucl_create_err (&parser->err, "invalid string added");
+		return false;
+	}
+	if (len == 0) {
+		len = strlen (data);
+	}
+
+	return ucl_parser_add_chunk (parser, (const unsigned char *)data, len);
 }

@@ -600,7 +600,18 @@ UCL_EXTERN void ucl_parser_register_variable (struct ucl_parser *parser, const c
  * @param err if *err is NULL it is set to parser error
  * @return true if chunk has been added and false in case of error
  */
-UCL_EXTERN bool ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data, size_t len);
+UCL_EXTERN bool ucl_parser_add_chunk (struct ucl_parser *parser,
+		const unsigned char *data, size_t len);
+
+/**
+ * Load ucl object from a string
+ * @param parser parser structure
+ * @param data the pointer to the string
+ * @param len the length of the string, if `len` is 0 then `data` must be zero-terminated string
+ * @return true if string has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_string (struct ucl_parser *parser,
+		const char *data,size_t len);
 
 /**
  * Load and add data from a file
