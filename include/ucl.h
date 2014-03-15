@@ -728,6 +728,46 @@ UCL_EXTERN bool ucl_object_emit_full (ucl_object_t *obj, enum ucl_emitter emit_t
 		struct ucl_emitter_functions *emitter);
 /** @} */
 
+/**
+ * @defgroup schema Schema functions
+ * These functions are used to validate UCL objects using json schema format
+ *
+ * @{
+ */
+
+/**
+ * Used to define UCL schema error
+ */
+enum ucl_schema_error_code {
+	UCL_SCHEMA_TYPE_MISMATCH,   /**< type of object is incorrect */
+	UCL_SCHEMA_INVALID_SCHEMA,  /**< schema is invalid */
+	UCL_SCHEMA_MISSING_PROPERTY,/**< one or more missing properties */
+	UCL_SCHEMA_CONSTRAINT,      /**< constraint found */
+	UCL_SCHEMA_UNKNOWN          /**< generic error */
+};
+
+/**
+ * Generic ucl schema error
+ */
+struct ucl_schema_error {
+	enum ucl_schema_error_code code;	/**< error code */
+	char msg[128];						/**< error message */
+	ucl_object_t *obj;					/**< object where error occured */
+};
+
+/**
+ * Validate object `obj` using schema object `schema`.
+ * @param schema schema object
+ * @param obj object to validate
+ * @param err error pointer, if this parameter is not NULL and error has been
+ * occured, then `err` is filled with the exact error definition.
+ * @return true if `obj` is valid using `schema`
+ */
+UCL_EXTERN bool ucl_object_validate (const ucl_object_t *schema,
+		const ucl_object_t *obj, struct ucl_schema_error *err);
+
+/** @} */
+
 #ifdef  __cplusplus
 }
 #endif
