@@ -1176,10 +1176,15 @@ ucl_object_delete_keyl(ucl_object_t *top, const char *key, size_t keylen)
 {
 	ucl_object_t *found;
 
+	if (top == NULL || key == NULL) {
+		return false;
+	}
+
 	found = ucl_object_find_keyl(top, key, keylen);
 
-	if (found == NULL)
+	if (found == NULL) {
 		return false;
+	}
 
 	ucl_hash_delete(top->value.ov, found);
 	ucl_object_unref (found);
@@ -1192,6 +1197,31 @@ bool
 ucl_object_delete_key(ucl_object_t *top, const char *key)
 {
 	return ucl_object_delete_keyl(top, key, 0);
+}
+
+ucl_object_t*
+ucl_object_pop_keyl (ucl_object_t *top, const char *key, size_t keylen)
+{
+	ucl_object_t *found;
+
+	if (top == NULL || key == NULL) {
+		return false;
+	}
+	found = ucl_object_find_keyl(top, key, keylen);
+
+	if (found == NULL) {
+		return NULL;
+	}
+	ucl_hash_delete(top->value.ov, found);
+	top->len --;
+
+	return found;
+}
+
+ucl_object_t*
+ucl_object_pop_key (ucl_object_t *top, const char *key)
+{
+	return ucl_object_pop_keyl (top, key, 0);
 }
 
 ucl_object_t *

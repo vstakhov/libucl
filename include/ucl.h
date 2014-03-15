@@ -316,6 +316,28 @@ UCL_EXTERN bool ucl_object_delete_keyl (ucl_object_t *top, const char *key, size
  */
 UCL_EXTERN bool ucl_object_delete_key (ucl_object_t *top, const char *key);
 
+
+/**
+ * Delete key from `top` object returning the object deleted. This object is not
+ * released
+ * @param top object
+ * @param key key to remove
+ * @param keylen length of the key (or 0 for NULL terminated keys)
+ * @return removed object or NULL if object has not been found
+ */
+UCL_EXTERN ucl_object_t* ucl_object_pop_keyl (ucl_object_t *top, const char *key,
+		size_t keylen) UCL_WARN_UNUSED_RESULT;
+
+/**
+ * Delete key from `top` object returning the object deleted. This object is not
+ * released
+ * @param top object
+ * @param key key to remove
+ * @return removed object or NULL if object has not been found
+ */
+UCL_EXTERN ucl_object_t* ucl_object_pop_key (ucl_object_t *top, const char *key)
+	UCL_WARN_UNUSED_RESULT;
+
 /**
  * Insert a object 'elt' to the hash 'top' and associate it with key 'key', if the specified key exist,
  * try to merge its content
