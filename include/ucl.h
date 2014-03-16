@@ -763,8 +763,8 @@ struct ucl_schema_error {
  * occured, then `err` is filled with the exact error definition.
  * @return true if `obj` is valid using `schema`
  */
-UCL_EXTERN bool ucl_object_validate (const ucl_object_t *schema,
-		const ucl_object_t *obj, struct ucl_schema_error *err);
+UCL_EXTERN bool ucl_object_validate (ucl_object_t *schema,
+		ucl_object_t *obj, struct ucl_schema_error *err);
 
 /** @} */
 

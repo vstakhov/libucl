@@ -58,7 +58,7 @@ ucl_string_to_type (const char *input, ucl_type_t *res)
 }
 
 static const char *
-ucl_type_to_string (ucl_type_t type)
+ucl_object_type_to_string (ucl_type_t type)
 {
 	const char *res = "unknown";
 
@@ -105,4 +105,57 @@ ucl_schema_create_error (struct ucl_schema_error *err,
 		vsnprintf (err->msg, sizeof (err->msg), fmt, va);
 		va_end (va);
 	}
+}
+
+bool
+ucl_object_validate (ucl_object_t *schema,
+		ucl_object_t *obj, struct ucl_schema_error *err)
+{
+	ucl_type_t type;
+	ucl_object_t *elt;
+	const char *type_str;
+
+	elt = ucl_object_find_key (schema, "type");
+
+	/* Allow exactly one type attribute */
+	if (elt == NULL || elt->next != NULL ||
+			!ucl_object_tostring_safe (elt, &type_str) ||
+			!ucl_string_to_type (type_str, &type)) {
+		ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, schema,
+				"Type attribute is invalid in schema");
+		return false;
+	}
+
+	if (obj->type != type) {
+		/* Some types are actually compatible */
+		if (obj->type != UCL_TIME && type != UCL_FLOAT) {
+			ucl_schema_create_error (err, UCL_SCHEMA_TYPE_MISMATCH, obj,
+					"Invalid type of %s, expected %s",
+					ucl_object_type_to_string (obj->type),
+					type);
+			return false;
+		}
+	}
+
+	/* XXX: to implement */
+	switch (type) {
+	case UCL_OBJECT:
+		break;
+	case UCL_ARRAY:
+		break;
+	case UCL_INT:
+		break;
+	case UCL_FLOAT:
+		break;
+	case UCL_STRING:
+		break;
+	case UCL_BOOLEAN:
+		break;
+	case UCL_NULL:
+		break;
+	default:
+		break;
+	}
+
+	return false;
 }
