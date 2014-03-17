@@ -469,18 +469,31 @@ ucl_schema_validate_array (ucl_object_t *schema,
 	int64_t minmax;
 
 	while (ret && (elt = ucl_iterate_object (schema, &iter, true)) != NULL) {
-		if (elt->type == UCL_ARRAY &&
-				strcmp (ucl_object_key (elt), "items") == 0) {
-			found = obj->value.av;
-			while (ret && (it = ucl_iterate_object (elt, &piter, true)) != NULL) {
-				if (found) {
-					ret = ucl_object_validate (it, found, err);
-					found = found->next;
+		if (strcmp (ucl_object_key (elt), "items") == 0) {
+			if (elt->type == UCL_ARRAY) {
+				found = obj->value.av;
+				while (ret && (it = ucl_iterate_object (elt, &piter, true)) != NULL) {
+					if (found) {
+						ret = ucl_object_validate (it, found, err);
+						found = found->next;
+					}
+				}
+				if (found != NULL) {
+					/* The first element that is not validated */
+					first_unvalidated = found;
 				}
 			}
-			if (found != NULL) {
-				/* The first element that is not validated */
-				first_unvalidated = found;
+			else if (elt->type == UCL_OBJECT) {
+				/* Validate all items using the specified schema */
+				while (ret && (it = ucl_iterate_object (obj, &piter, true)) != NULL) {
+					ret = ucl_object_validate (elt, it, err);
+				}
+			}
+			else {
+				ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, elt,
+						"items attribute is invalid in schema");
+				ret = false;
+				break;
 			}
 		}
 		else if (strcmp (ucl_object_key (elt), "additionalItems") == 0) {
@@ -602,7 +615,7 @@ ucl_schema_type_is_allowed (ucl_object_t *type, ucl_object_t *obj,
 				ucl_schema_create_error (err, UCL_SCHEMA_TYPE_MISMATCH, obj,
 						"Invalid type of %s, expected %s",
 						ucl_object_type_to_string (obj->type),
-						t);
+						ucl_object_type_to_string (t));
 			}
 		}
 		else {
@@ -620,6 +633,11 @@ ucl_object_validate (ucl_object_t *schema,
 {
 	ucl_object_t *elt;
 
+	if (schema->type != UCL_OBJECT) {
+		ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, schema,
+				"schema is %s instead of object", ucl_object_type_to_string (schema->type));
+		return false;
+	}
 	elt = ucl_object_find_key (schema, "type");
 
 	if (!ucl_schema_type_is_allowed (elt, obj, err)) {
