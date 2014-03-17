@@ -663,5 +663,5 @@ ucl_object_validate (ucl_object_t *schema,
 		break;
 	}
 
-	return false;
+	return true;
 }

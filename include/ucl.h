@@ -739,6 +739,7 @@ UCL_EXTERN bool ucl_object_emit_full (ucl_object_t *obj, enum ucl_emitter emit_t
  * Used to define UCL schema error
  */
 enum ucl_schema_error_code {
+	UCL_SCHEMA_OK = 0,          /**< no error */
 	UCL_SCHEMA_TYPE_MISMATCH,   /**< type of object is incorrect */
 	UCL_SCHEMA_INVALID_SCHEMA,  /**< schema is invalid */
 	UCL_SCHEMA_MISSING_PROPERTY,/**< one or more missing properties */
