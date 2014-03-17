@@ -259,10 +259,7 @@ ucl_schema_validate_number (ucl_object_t *schema,
 				exclusive = ucl_object_toboolean (test);
 			}
 			val = ucl_object_todouble (obj);
-			if (exclusive) {
-				constraint --;
-			}
-			if (val > constraint) {
+			if (val > constraint || (exclusive && val >= constraint)) {
 				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
 						"number is too big: %.3f, maximum is: %.3f",
 						val, constraint);
@@ -278,10 +275,7 @@ ucl_schema_validate_number (ucl_object_t *schema,
 				exclusive = ucl_object_toboolean (test);
 			}
 			val = ucl_object_todouble (obj);
-			if (exclusive) {
-				constraint ++;
-			}
-			if (val < constraint) {
+			if (val < constraint || (exclusive && val <= constraint)) {
 				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
 						"number is too small: %.3f, minimum is: %.3f",
 						val, constraint);
