@@ -216,10 +216,10 @@ ucl_schema_validate_object (ucl_object_t *schema,
 		if (required != NULL) {
 			iter = NULL;
 			while ((elt = ucl_iterate_object (required, &iter, true)) != NULL) {
-				if (ucl_object_find_key (obj, ucl_object_key (elt)) == NULL) {
+				if (ucl_object_find_key (obj, ucl_object_tostring (elt)) == NULL) {
 					ucl_schema_create_error (err, UCL_SCHEMA_MISSING_PROPERTY, obj,
 							"object has missing property %s",
-							ucl_object_key (elt));
+							ucl_object_tostring (elt));
 					ret = false;
 					break;
 				}
