@@ -59,7 +59,7 @@ $(OBJDIR)/xxhash.o: $(SRCDIR)/xxhash.c $(HDEPS)
 	$(CC) -o $(OBJDIR)/xxhash.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/xxhash.c
 
 clean:
-	$(RM) $(OBJDIR)/*.o $(OBJDIR)/$(SONAME_FULL) $(OBJDIR)/$(SONAME) $(OBJDIR)/chargen $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/objdump $(OBJDIR)/test_generate
+	$(RM) $(OBJDIR)/*.o $(OBJDIR)/$(SONAME_FULL) $(OBJDIR)/$(SONAME) $(OBJDIR)/chargen $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/objdump $(OBJDIR)/test_generate $(OBJDIR)/test_schema || true
 	$(RMDIR) $(OBJDIR)
 	
 # Utils
@@ -71,13 +71,15 @@ objdump: utils/objdump.c $(OBJDIR)/$(SONAME)
 
 # Tests
 
-test: $(OBJDIR) $(OBJDIR)/$(SONAME) $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/test_generate
+test: $(OBJDIR) $(OBJDIR)/$(SONAME) $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/test_generate $(OBJDIR)/test_schema
 
 run-test: test
 	TEST_DIR=$(TESTDIR) $(TESTDIR)/run_tests.sh $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/test_generate
 	
 $(OBJDIR)/test_basic: $(TESTDIR)/test_basic.c $(OBJDIR)/$(SONAME)
 	$(CC) -o $(OBJDIR)/test_basic $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_basic.c $(LD_UCL_FLAGS)
+$(OBJDIR)/test_schema: $(TESTDIR)/test_schema.c $(OBJDIR)/$(SONAME)
+	$(CC) -o $(OBJDIR)/test_schema $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_schema.c $(LD_UCL_FLAGS)
 $(OBJDIR)/test_speed: $(TESTDIR)/test_speed.c $(OBJDIR)/$(SONAME)
 	$(CC) -o $(OBJDIR)/test_speed $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_speed.c $(LD_UCL_FLAGS) $(LD_ADD)
 $(OBJDIR)/test_generate: $(TESTDIR)/test_generate.c $(OBJDIR)/$(SONAME)
