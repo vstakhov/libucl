@@ -24,6 +24,8 @@
  */
 
 #include "ucl.h"
+#include "tree.h"
+#include "utlist.h"
 #include <stdarg.h>
 
 static bool
@@ -330,6 +332,232 @@ ucl_schema_validate_string (ucl_object_t *schema,
 	return ret;
 }
 
+struct ucl_compare_node {
+	ucl_object_t *obj;
+	TREE_ENTRY(ucl_compare_node) link;
+	struct ucl_compare_node *next;
+};
+
+typedef TREE_HEAD(_tree, ucl_compare_node) ucl_compare_tree_t;
+
+TREE_DEFINE(ucl_compare_node, link)
+
+static int
+ucl_schema_obj_compare (ucl_object_t *o1, ucl_object_t *o2)
+{
+	ucl_object_t *it1, *it2;
+	ucl_object_iter_t iter = NULL;
+	int ret = 0;
+
+	if (o1->type != o2->type) {
+		return (o1->type) - (o2->type);
+	}
+
+	switch (o1->type) {
+	case UCL_STRING:
+		if (o1->len == o2->len) {
+			ret = strcmp (ucl_object_tostring(o1), ucl_object_tostring(o2));
+		}
+		else {
+			ret = o1->len - o2->len;
+		}
+		break;
+	case UCL_FLOAT:
+	case UCL_INT:
+	case UCL_TIME:
+		ret = ucl_object_todouble (o1) - ucl_object_todouble (o2);
+		break;
+	case UCL_BOOLEAN:
+		ret = ucl_object_toboolean (o1) - ucl_object_toboolean (o2);
+		break;
+	case UCL_ARRAY:
+		if (o1->len == o2->len) {
+			it1 = o1->value.av;
+			it2 = o2->value.av;
+			/* Compare all elements in both arrays */
+			while (it1 != NULL && it2 != NULL) {
+				ret = ucl_schema_obj_compare (it1, it2);
+				if (ret != 0) {
+					break;
+				}
+				it1 = it1->next;
+				it2 = it2->next;
+			}
+		}
+		else {
+			ret = o1->len - o2->len;
+		}
+		break;
+	case UCL_OBJECT:
+		if (o1->len == o2->len) {
+			while ((it1 = ucl_iterate_object (o1, &iter, true)) != NULL) {
+				it2 = ucl_object_find_key (o2, ucl_object_key (it1));
+				if (it2 == NULL) {
+					ret = 1;
+					break;
+				}
+				ret = ucl_schema_obj_compare (it1, it2);
+				if (ret != 0) {
+					break;
+				}
+			}
+		}
+		else {
+			ret = o1->len - o2->len;
+		}
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+
+	return ret;
+}
+
+static int
+ucl_schema_elt_compare (struct ucl_compare_node *n1, struct ucl_compare_node *n2)
+{
+	ucl_object_t *o1 = n1->obj, *o2 = n2->obj;
+
+	return ucl_schema_obj_compare (o1, o2);
+}
+
+static bool
+ucl_schema_array_is_unique (ucl_object_t *obj, struct ucl_schema_error *err)
+{
+	ucl_compare_tree_t tree = TREE_INITIALIZER (ucl_schema_elt_compare);
+	ucl_object_iter_t iter = NULL;
+	ucl_object_t *elt;
+	struct ucl_compare_node *node, test, *nodes = NULL, *tmp;
+	bool ret = true;
+
+	while ((elt = ucl_iterate_object (obj, &iter, true)) != NULL) {
+		test.obj = elt;
+		node = TREE_FIND (&tree, ucl_compare_node, link, &test);
+		if (node != NULL) {
+			ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, elt,
+					"duplicate values detected while uniqueItems is true");
+			ret = false;
+			break;
+		}
+		node = malloc (sizeof (*node));
+		if (node == NULL) {
+			ucl_schema_create_error (err, UCL_SCHEMA_UNKNOWN, elt,
+					"cannot allocate tree node");
+			ret = false;
+			break;
+		}
+		TREE_INSERT (&tree, ucl_compare_node, link, node);
+		LL_PREPEND (nodes, node);
+	}
+
+	LL_FOREACH_SAFE (nodes, node, tmp) {
+		free (node);
+	}
+
+	return ret;
+}
+
+static bool
+ucl_schema_validate_array (ucl_object_t *schema,
+		ucl_object_t *obj, struct ucl_schema_error *err)
+{
+	ucl_object_t *elt, *it, *found, *additional_schema = NULL,
+			*first_unvalidated = NULL;
+	ucl_object_iter_t iter = NULL, piter = NULL;
+	bool ret = true, allow_additional = true, need_unique = false;
+	int64_t minmax;
+
+	while (ret && (elt = ucl_iterate_object (schema, &iter, true)) != NULL) {
+		if (elt->type == UCL_ARRAY &&
+				strcmp (ucl_object_key (elt), "items") == 0) {
+			found = obj->value.av;
+			while (ret && (it = ucl_iterate_object (elt, &piter, true)) != NULL) {
+				if (found) {
+					ret = ucl_object_validate (it, found, err);
+					found = found->next;
+				}
+			}
+			if (found != NULL) {
+				/* The first element that is not validated */
+				first_unvalidated = found;
+			}
+		}
+		else if (strcmp (ucl_object_key (elt), "additionalItems") == 0) {
+			if (elt->type == UCL_BOOLEAN) {
+				if (!ucl_object_toboolean (elt)) {
+					/* Deny additional fields completely */
+					allow_additional = false;
+				}
+			}
+			else if (elt->type == UCL_OBJECT) {
+				/* Define validator for additional fields */
+				additional_schema = elt;
+			}
+			else {
+				ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, elt,
+						"additionalItems attribute is invalid in schema");
+				ret = false;
+				break;
+			}
+		}
+		else if (elt->type == UCL_BOOLEAN &&
+				strcmp (ucl_object_key (elt), "uniqueItems") == 0) {
+			need_unique = ucl_object_toboolean (elt);
+		}
+		else if (strcmp (ucl_object_key (elt), "minItems") == 0
+				&& ucl_object_toint_safe (elt, &minmax)) {
+			if (obj->len < minmax) {
+				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
+						"array has not enough items: %u, minimum is: %u",
+						obj->len, (unsigned)minmax);
+				ret = false;
+				break;
+			}
+		}
+		else if (strcmp (ucl_object_key (elt), "maxItems") == 0
+				&& ucl_object_toint_safe (elt, &minmax)) {
+			if (obj->len > minmax) {
+				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
+						"array has too many items: %u, maximum is: %u",
+						obj->len, (unsigned)minmax);
+				ret = false;
+				break;
+			}
+		}
+	}
+
+	if (ret) {
+		/* Additional properties */
+		if (!allow_additional || additional_schema != NULL) {
+			if (first_unvalidated != NULL) {
+				if (!allow_additional) {
+					ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
+							"object has undefined property %s",
+							ucl_object_key (elt));
+					ret = false;
+				}
+				else if (additional_schema != NULL) {
+					elt = first_unvalidated;
+					while (elt) {
+						if (!ucl_object_validate (additional_schema, elt, err)) {
+							ret = false;
+							break;
+						}
+						elt = elt->next;
+					}
+				}
+			}
+		}
+		/* Required properties */
+		if (ret && need_unique) {
+			ret = ucl_schema_array_is_unique (obj, err);
+		}
+	}
+
+	return ret;
+}
+
 /*
  * Returns whether this object is allowed for this type
  */
@@ -403,6 +631,7 @@ ucl_object_validate (ucl_object_t *schema,
 		return ucl_schema_validate_object (schema, obj, err);
 		break;
 	case UCL_ARRAY:
+		return ucl_schema_validate_array (schema, obj, err);
 		break;
 	case UCL_INT:
 	case UCL_FLOAT:
