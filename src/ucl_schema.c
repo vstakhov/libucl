@@ -440,13 +440,14 @@ ucl_schema_array_is_unique (ucl_object_t *obj, struct ucl_schema_error *err)
 			ret = false;
 			break;
 		}
-		node = malloc (sizeof (*node));
+		node = calloc (1, sizeof (*node));
 		if (node == NULL) {
 			ucl_schema_create_error (err, UCL_SCHEMA_UNKNOWN, elt,
 					"cannot allocate tree node");
 			ret = false;
 			break;
 		}
+		node->obj = elt;
 		TREE_INSERT (&tree, ucl_compare_node, link, node);
 		LL_PREPEND (nodes, node);
 	}
