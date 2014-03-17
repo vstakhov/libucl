@@ -148,6 +148,7 @@ ucl_schema_validate_object (ucl_object_t *schema,
 				ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, elt,
 						"additionalProperties attribute is invalid in schema");
 				ret = false;
+				break;
 			}
 		}
 		else if (strcmp (ucl_object_key (elt), "required") == 0) {
@@ -158,6 +159,7 @@ ucl_schema_validate_object (ucl_object_t *schema,
 				ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, elt,
 						"required attribute is invalid in schema");
 				ret = false;
+				break;
 			}
 		}
 		else if (strcmp (ucl_object_key (elt), "minProperties") == 0
@@ -167,6 +169,7 @@ ucl_schema_validate_object (ucl_object_t *schema,
 						"object has not enough properties: %u, minimum is: %u",
 						obj->len, (unsigned)minmax);
 				ret = false;
+				break;
 			}
 		}
 		else if (strcmp (ucl_object_key (elt), "maxProperties") == 0
@@ -176,9 +179,10 @@ ucl_schema_validate_object (ucl_object_t *schema,
 						"object has too many properties: %u, maximum is: %u",
 						obj->len, (unsigned)minmax);
 				ret = false;
+				break;
 			}
 		}
-		/* Ignore unknown keywords in schema for now */
+		/* XXX: propertyPatterns */
 	}
 
 	if (ret) {
@@ -194,11 +198,13 @@ ucl_schema_validate_object (ucl_object_t *schema,
 						ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
 								"object has undefined property %s",
 								ucl_object_key (elt));
-						return false;
+						ret = false;
+						break;
 					}
 					else if (additional_schema != NULL) {
 						if (!ucl_object_validate (additional_schema, elt, err)) {
-							return false;
+							ret = false;
+							break;
 						}
 					}
 				}
@@ -212,12 +218,114 @@ ucl_schema_validate_object (ucl_object_t *schema,
 					ucl_schema_create_error (err, UCL_SCHEMA_MISSING_PROPERTY, obj,
 							"object has missing property %s",
 							ucl_object_key (elt));
-					return false;
+					ret = false;
+					break;
 				}
 			}
 		}
 	}
 
+
+	return ret;
+}
+
+static bool
+ucl_schema_validate_number (ucl_object_t *schema,
+		ucl_object_t *obj, struct ucl_schema_error *err)
+{
+	ucl_object_t *elt, *test;
+	ucl_object_iter_t iter = NULL;
+	bool ret = true, exclusive = false;
+	double constraint, val;
+
+	while (ret && (elt = ucl_iterate_object (schema, &iter, true)) != NULL) {
+		if (elt->type == UCL_INT &&
+			strcmp (ucl_object_key (elt), "multipleOf") == 0) {
+			val = ucl_object_toint (elt);
+			if (val <= 0) {
+				ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, elt,
+						"multipleOf must be greater than zero");
+				ret = false;
+				break;
+			}
+		}
+		else if ((elt->type == UCL_FLOAT || elt->type == UCL_INT) &&
+			strcmp (ucl_object_key (elt), "maximum") == 0) {
+			constraint = ucl_object_todouble (elt);
+			test = ucl_object_find_key (schema, "exclusiveMaximum");
+			if (test && test->type == UCL_BOOLEAN) {
+				exclusive = ucl_object_toboolean (test);
+			}
+			val = ucl_object_todouble (obj);
+			if (exclusive) {
+				constraint --;
+			}
+			if (val > constraint) {
+				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
+						"number is too big: %.3f, maximum is: %.3f",
+						val, constraint);
+				ret = false;
+				break;
+			}
+		}
+		else if ((elt->type == UCL_FLOAT || elt->type == UCL_INT) &&
+				strcmp (ucl_object_key (elt), "minimum") == 0) {
+			constraint = ucl_object_todouble (elt);
+			test = ucl_object_find_key (schema, "exclusiveMinimum");
+			if (test && test->type == UCL_BOOLEAN) {
+				exclusive = ucl_object_toboolean (test);
+			}
+			val = ucl_object_todouble (obj);
+			if (exclusive) {
+				constraint ++;
+			}
+			if (val < constraint) {
+				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
+						"number is too small: %.3f, minimum is: %.3f",
+						val, constraint);
+				ret = false;
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
+static bool
+ucl_schema_validate_string (ucl_object_t *schema,
+		ucl_object_t *obj, struct ucl_schema_error *err)
+{
+	ucl_object_t *elt;
+	ucl_object_iter_t iter = NULL;
+	bool ret = true;
+	int64_t constraint;
+
+	while (ret && (elt = ucl_iterate_object (schema, &iter, true)) != NULL) {
+		if (elt->type == UCL_INT &&
+			strcmp (ucl_object_key (elt), "maxLength") == 0) {
+			constraint = ucl_object_toint (elt);
+			if (obj->len > constraint) {
+				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
+						"string is too big: %.3f, maximum is: %.3f",
+						obj->len, constraint);
+				ret = false;
+				break;
+			}
+		}
+		else if (elt->type == UCL_INT &&
+				strcmp (ucl_object_key (elt), "minLength") == 0) {
+			constraint = ucl_object_toint (elt);
+			if (obj->len < constraint) {
+				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
+						"string is too short: %.3f, minimum is: %.3f",
+						obj->len, constraint);
+				ret = false;
+				break;
+			}
+		}
+		/* XXX: pattern */
+	}
 
 	return ret;
 }
@@ -290,7 +398,6 @@ ucl_object_validate (ucl_object_t *schema,
 		return false;
 	}
 
-	/* XXX: to implement */
 	switch (obj->type) {
 	case UCL_OBJECT:
 		return ucl_schema_validate_object (schema, obj, err);
@@ -298,14 +405,11 @@ ucl_object_validate (ucl_object_t *schema,
 	case UCL_ARRAY:
 		break;
 	case UCL_INT:
-		break;
 	case UCL_FLOAT:
+		return ucl_schema_validate_number (schema, obj, err);
 		break;
 	case UCL_STRING:
-		break;
-	case UCL_BOOLEAN:
-		break;
-	case UCL_NULL:
+		return ucl_schema_validate_string (schema, obj, err);
 		break;
 	default:
 		break;
