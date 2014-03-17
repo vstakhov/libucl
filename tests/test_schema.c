@@ -61,8 +61,7 @@ static bool
 perform_test (ucl_object_t *schema, ucl_object_t *obj,
 		struct ucl_schema_error *err)
 {
-	ucl_object_t *valid, *data, *description, *test;
-	ucl_object_iter_t iter = NULL;
+	ucl_object_t *valid, *data, *description;
 	bool match;
 
 	data = ucl_object_find_key (obj, "data");
@@ -74,14 +73,13 @@ perform_test (ucl_object_t *schema, ucl_object_t *obj,
 		return false;
 	}
 
-	while ((test = ucl_iterate_object (data, &iter, true)) != NULL) {
-		match = ucl_object_validate (schema, test, err);
-		if (match != ucl_object_toboolean (valid)) {
-			fprintf (stdout, "Test case '%s' failed: '%s'\n",
-					ucl_object_tostring (description),
-					err->msg);
-			return false;
-		}
+	match = ucl_object_validate (schema, data, err);
+	if (match != ucl_object_toboolean (valid)) {
+		fprintf (stdout, "Test case '%s' failed (expected %s): '%s'\n",
+				ucl_object_tostring (description),
+				ucl_object_toboolean (valid) ? "valid" : "invalid",
+						err->msg);
+		return false;
 	}
 
 	return true;
@@ -134,7 +132,7 @@ main (int argc, char **argv)
 		exit (EXIT_FAILURE);
 	}
 
-	parser = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
+	parser = ucl_parser_new (0);
 
 	ucl_parser_add_string (parser, buf, 0);
 
