@@ -676,6 +676,41 @@ ucl_schema_validate (ucl_object_t *schema,
 		}
 	}
 
+	elt = ucl_object_find_key (schema, "anyOf");
+	if (elt != NULL && elt->type == UCL_ARRAY) {
+		iter = NULL;
+		while ((cur = ucl_iterate_object (elt, &iter, true)) != NULL) {
+			ret = ucl_schema_validate (cur, obj, true, err);
+			if (ret) {
+				break;
+			}
+		}
+		if (!ret) {
+			return false;
+		}
+		else {
+			/* Reset error */
+			err->code = UCL_SCHEMA_OK;
+		}
+	}
+
+	elt = ucl_object_find_key (schema, "oneOf");
+	if (elt != NULL && elt->type == UCL_ARRAY) {
+		iter = NULL;
+		while ((cur = ucl_iterate_object (elt, &iter, true)) != NULL) {
+			if (!ret) {
+				ret = ucl_schema_validate (cur, obj, true, err);
+			}
+			else if (ucl_schema_validate (cur, obj, true, err)) {
+				ret = false;
+				break;
+			}
+		}
+		if (!ret) {
+			return false;
+		}
+	}
+
 	elt = ucl_object_find_key (schema, "type");
 
 	if (!ucl_schema_type_is_allowed (elt, obj, err)) {
