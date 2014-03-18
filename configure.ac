@@ -97,6 +97,8 @@ AS_IF([test "x$enable_urls" = "xyes"], [
 	AC_SUBST(CURL_CFLAGS)
 ])
 
+AC_SUBST(LIBS_EXTRA)
+
 AC_CONFIG_FILES(Makefile \
 	src/Makefile \
 	tests/Makefile \
