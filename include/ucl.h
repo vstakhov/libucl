@@ -562,14 +562,14 @@ UCL_EXTERN void ucl_object_unref (ucl_object_t *obj);
  * 2) Size of objects
  * 3) Content of objects
  */
-int ucl_object_compare (ucl_object_t *o1, ucl_object_t *o2);
+UCL_EXTERN int ucl_object_compare (ucl_object_t *o1, ucl_object_t *o2);
 
 /**
  * Sort UCL array using `cmp` compare function
  * @param ar
  * @param cmp
  */
-void ucl_object_array_sort (ucl_object_t *ar,
+UCL_EXTERN void ucl_object_array_sort (ucl_object_t *ar,
 		int (*cmp)(ucl_object_t *o1, ucl_object_t *o2));
 
 /**
