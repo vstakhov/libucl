@@ -6,7 +6,7 @@ m4_define([ucl_version], [maj_ver.med_ver.min_ver])
 
 AC_INIT([libucl],[ucl_version],[https://github.com/vstakhov/libucl],[libucl])
 AC_CONFIG_SRCDIR([configure.ac])
-AM_INIT_AUTOMAKE([1.11 foreign -Wno-portability no-dist-gzip dist-xz])
+AM_INIT_AUTOMAKE([1.11 foreign -Wportability no-dist-gzip dist-xz])
 
 UCL_VERSION=ucl_version
 SO_VERSION=so_version
@@ -15,6 +15,7 @@ AC_SUBST(UCL_VERSION)
 AC_SUBST(SO_VERSION)
 
 AC_PROG_CC_C99
+AM_PROG_CC_C_O
 LT_INIT
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])
@@ -57,6 +58,7 @@ AS_IF([test "x$enable_signatures" = "xyes"], [
 		LIBS_EXTRA="${LIBS_EXTRA} -lcrypto"
 		], [AC_MSG_ERROR([unable to find the EVP_MD_CTX_create() function])])
 ])
+AC_SEARCH_LIBS([clock_gettime], [rt], [], [AC_MSG_ERROR([unable to find clock_gettime() function])])
 	
 AS_IF([test "x$enable_urls" = "xyes"], [	
 	AC_CHECK_HEADER([fetch.h], [
@@ -89,6 +91,7 @@ AS_IF([test "x$enable_urls" = "xyes"], [
 
 AC_CONFIG_FILES(Makefile \
 	src/Makefile \
+	tests/Makefile \
 	libucl.pc)
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_OUTPUT
