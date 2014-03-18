@@ -40,6 +40,10 @@
 #include <math.h>
 #endif
 
+static bool ucl_schema_validate (ucl_object_t *schema,
+		ucl_object_t *obj, bool try_array,
+		struct ucl_schema_error *err);
+
 static bool
 ucl_string_to_type (const char *input, ucl_type_t *res)
 {
@@ -167,7 +171,7 @@ ucl_schema_validate_object (ucl_object_t *schema,
 			while (ret && (prop = ucl_iterate_object (elt, &piter, true)) != NULL) {
 				found = ucl_object_find_key (obj, ucl_object_key (prop));
 				if (found) {
-					ret = ucl_object_validate (prop, found, err);
+					ret = ucl_schema_validate (prop, found, true, err);
 				}
 			}
 		}
@@ -225,7 +229,7 @@ ucl_schema_validate_object (ucl_object_t *schema,
 			while (ret && (prop = ucl_iterate_object (elt, &piter, true)) != NULL) {
 				found = ucl_schema_test_pattern (obj, ucl_object_key (prop));
 				if (found) {
-					ret = ucl_object_validate (prop, found, err);
+					ret = ucl_schema_validate (prop, found, true, err);
 				}
 			}
 		}
@@ -259,7 +263,7 @@ ucl_schema_validate_object (ucl_object_t *schema,
 						break;
 					}
 					else if (additional_schema != NULL) {
-						if (!ucl_object_validate (additional_schema, elt, err)) {
+						if (!ucl_schema_validate (additional_schema, elt, true, err)) {
 							ret = false;
 							break;
 						}
@@ -461,7 +465,7 @@ ucl_schema_validate_array (ucl_object_t *schema,
 				found = obj->value.av;
 				while (ret && (it = ucl_iterate_object (elt, &piter, true)) != NULL) {
 					if (found) {
-						ret = ucl_object_validate (it, found, err);
+						ret = ucl_schema_validate (it, found, false, err);
 						found = found->next;
 					}
 				}
@@ -473,7 +477,7 @@ ucl_schema_validate_array (ucl_object_t *schema,
 			else if (elt->type == UCL_OBJECT) {
 				/* Validate all items using the specified schema */
 				while (ret && (it = ucl_iterate_object (obj, &piter, true)) != NULL) {
-					ret = ucl_object_validate (elt, it, err);
+					ret = ucl_schema_validate (elt, it, false, err);
 				}
 			}
 			else {
@@ -533,14 +537,13 @@ ucl_schema_validate_array (ucl_object_t *schema,
 			if (first_unvalidated != NULL) {
 				if (!allow_additional) {
 					ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
-							"object has undefined property %s",
-							ucl_object_key (elt));
+							"array has undefined item");
 					ret = false;
 				}
 				else if (additional_schema != NULL) {
 					elt = first_unvalidated;
 					while (elt) {
-						if (!ucl_object_validate (additional_schema, elt, err)) {
+						if (!ucl_schema_validate (additional_schema, elt, false, err)) {
 							ret = false;
 							break;
 						}
@@ -614,9 +617,36 @@ ucl_schema_type_is_allowed (ucl_object_t *type, ucl_object_t *obj,
 	return false;
 }
 
-bool
-ucl_object_validate (ucl_object_t *schema,
-		ucl_object_t *obj, struct ucl_schema_error *err)
+/*
+ * Check if object is equal to one of elements of enum
+ */
+static bool
+ucl_schema_validate_enum (ucl_object_t *en, ucl_object_t *obj,
+		struct ucl_schema_error *err)
+{
+	ucl_object_iter_t iter = NULL;
+	ucl_object_t *elt;
+	bool ret = false;
+
+	while ((elt = ucl_iterate_object (en, &iter, true)) != NULL) {
+		if (ucl_object_compare (elt, obj) == 0) {
+			ret = true;
+			break;
+		}
+	}
+
+	if (!ret) {
+		ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
+				"object is not one of enumerated patterns");
+	}
+
+	return ret;
+}
+
+static bool
+ucl_schema_validate (ucl_object_t *schema,
+		ucl_object_t *obj, bool try_array,
+		struct ucl_schema_error *err)
 {
 	ucl_object_t *elt;
 
@@ -625,6 +655,14 @@ ucl_object_validate (ucl_object_t *schema,
 				"schema is %s instead of object", ucl_object_type_to_string (schema->type));
 		return false;
 	}
+
+	elt = ucl_object_find_key (schema, "enum");
+	if (elt != NULL && elt->type == UCL_ARRAY) {
+		if (!ucl_schema_validate_enum (elt, obj, err)) {
+			return false;
+		}
+	}
+
 	elt = ucl_object_find_key (schema, "type");
 
 	if (!ucl_schema_type_is_allowed (elt, obj, err)) {
@@ -650,4 +688,11 @@ ucl_object_validate (ucl_object_t *schema,
 	}
 
 	return true;
+}
+
+bool
+ucl_object_validate (ucl_object_t *schema,
+		ucl_object_t *obj, struct ucl_schema_error *err)
+{
+	return ucl_schema_validate (schema, obj, true, err);
 }
