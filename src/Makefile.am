@@ -16,4 +16,8 @@ libucl_la_LIBADD=	@LIBFETCH_LIBS@ \
 					@CURL_LIBS@
 
 include_HEADERS=	$(top_srcdir)/include/ucl.h
-
+noinst_HEADERS=	ucl_internal.h \
+				xxhash.h \
+				ucl_hash.h \
+				ucl_chartable.h \
+				tree.h

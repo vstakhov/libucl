@@ -1,4 +1,4 @@
-EXTRA_DIST = $(TESTS) basic schema
+EXTRA_DIST = $(TESTS) basic schema generate.res rcl_test.json.xz
 
 TESTS = basic.test \
 		generate.test \
