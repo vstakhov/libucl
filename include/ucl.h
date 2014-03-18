@@ -551,6 +551,27 @@ UCL_EXTERN ucl_object_t* ucl_object_ref (ucl_object_t *obj);
  * @param obj object to unref
  */
 UCL_EXTERN void ucl_object_unref (ucl_object_t *obj);
+
+/**
+ * Compare objects `o1` and `o2`
+ * @param o1 the first object
+ * @param o2 the second object
+ * @return values >0, 0 and <0 if `o1` is more than, equal and less than `o2`.
+ * The order of comparison:
+ * 1) Type of objects
+ * 2) Size of objects
+ * 3) Content of objects
+ */
+int ucl_object_compare (ucl_object_t *o1, ucl_object_t *o2);
+
+/**
+ * Sort UCL array using `cmp` compare function
+ * @param ar
+ * @param cmp
+ */
+void ucl_object_array_sort (ucl_object_t *ar,
+		int (*cmp)(ucl_object_t *o1, ucl_object_t *o2));
+
 /**
  * Opaque iterator object
  */

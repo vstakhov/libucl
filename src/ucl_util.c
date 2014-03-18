@@ -1736,3 +1736,86 @@ ucl_object_unref (ucl_object_t *obj)
 		ucl_object_free (obj);
 	}
 }
+
+int
+ucl_object_compare (ucl_object_t *o1, ucl_object_t *o2)
+{
+	ucl_object_t *it1, *it2;
+	ucl_object_iter_t iter = NULL;
+	int ret = 0;
+
+	if (o1->type != o2->type) {
+		return (o1->type) - (o2->type);
+	}
+
+	switch (o1->type) {
+	case UCL_STRING:
+		if (o1->len == o2->len) {
+			ret = strcmp (ucl_object_tostring(o1), ucl_object_tostring(o2));
+		}
+		else {
+			ret = o1->len - o2->len;
+		}
+		break;
+	case UCL_FLOAT:
+	case UCL_INT:
+	case UCL_TIME:
+		ret = ucl_object_todouble (o1) - ucl_object_todouble (o2);
+		break;
+	case UCL_BOOLEAN:
+		ret = ucl_object_toboolean (o1) - ucl_object_toboolean (o2);
+		break;
+	case UCL_ARRAY:
+		if (o1->len == o2->len) {
+			it1 = o1->value.av;
+			it2 = o2->value.av;
+			/* Compare all elements in both arrays */
+			while (it1 != NULL && it2 != NULL) {
+				ret = ucl_object_compare (it1, it2);
+				if (ret != 0) {
+					break;
+				}
+				it1 = it1->next;
+				it2 = it2->next;
+			}
+		}
+		else {
+			ret = o1->len - o2->len;
+		}
+		break;
+	case UCL_OBJECT:
+		if (o1->len == o2->len) {
+			while ((it1 = ucl_iterate_object (o1, &iter, true)) != NULL) {
+				it2 = ucl_object_find_key (o2, ucl_object_key (it1));
+				if (it2 == NULL) {
+					ret = 1;
+					break;
+				}
+				ret = ucl_object_compare (it1, it2);
+				if (ret != 0) {
+					break;
+				}
+			}
+		}
+		else {
+			ret = o1->len - o2->len;
+		}
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+
+	return ret;
+}
+
+void
+ucl_object_array_sort (ucl_object_t *ar,
+		int (*cmp)(ucl_object_t *o1, ucl_object_t *o2))
+{
+	if (cmp == NULL || ar == NULL || ar->type != UCL_ARRAY) {
+		return;
+	}
+
+	DL_SORT (ar->value.av, cmp);
+}

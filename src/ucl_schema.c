@@ -339,83 +339,11 @@ typedef TREE_HEAD(_tree, ucl_compare_node) ucl_compare_tree_t;
 TREE_DEFINE(ucl_compare_node, link)
 
 static int
-ucl_schema_obj_compare (ucl_object_t *o1, ucl_object_t *o2)
-{
-	ucl_object_t *it1, *it2;
-	ucl_object_iter_t iter = NULL;
-	int ret = 0;
-
-	if (o1->type != o2->type) {
-		return (o1->type) - (o2->type);
-	}
-
-	switch (o1->type) {
-	case UCL_STRING:
-		if (o1->len == o2->len) {
-			ret = strcmp (ucl_object_tostring(o1), ucl_object_tostring(o2));
-		}
-		else {
-			ret = o1->len - o2->len;
-		}
-		break;
-	case UCL_FLOAT:
-	case UCL_INT:
-	case UCL_TIME:
-		ret = ucl_object_todouble (o1) - ucl_object_todouble (o2);
-		break;
-	case UCL_BOOLEAN:
-		ret = ucl_object_toboolean (o1) - ucl_object_toboolean (o2);
-		break;
-	case UCL_ARRAY:
-		if (o1->len == o2->len) {
-			it1 = o1->value.av;
-			it2 = o2->value.av;
-			/* Compare all elements in both arrays */
-			while (it1 != NULL && it2 != NULL) {
-				ret = ucl_schema_obj_compare (it1, it2);
-				if (ret != 0) {
-					break;
-				}
-				it1 = it1->next;
-				it2 = it2->next;
-			}
-		}
-		else {
-			ret = o1->len - o2->len;
-		}
-		break;
-	case UCL_OBJECT:
-		if (o1->len == o2->len) {
-			while ((it1 = ucl_iterate_object (o1, &iter, true)) != NULL) {
-				it2 = ucl_object_find_key (o2, ucl_object_key (it1));
-				if (it2 == NULL) {
-					ret = 1;
-					break;
-				}
-				ret = ucl_schema_obj_compare (it1, it2);
-				if (ret != 0) {
-					break;
-				}
-			}
-		}
-		else {
-			ret = o1->len - o2->len;
-		}
-		break;
-	default:
-		ret = 0;
-		break;
-	}
-
-	return ret;
-}
-
-static int
 ucl_schema_elt_compare (struct ucl_compare_node *n1, struct ucl_compare_node *n2)
 {
 	ucl_object_t *o1 = n1->obj, *o2 = n2->obj;
 
-	return ucl_schema_obj_compare (o1, o2);
+	return ucl_object_compare (o1, o2);
 }
 
 static bool
