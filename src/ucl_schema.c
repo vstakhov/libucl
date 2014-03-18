@@ -711,6 +711,17 @@ ucl_schema_validate (ucl_object_t *schema,
 		}
 	}
 
+	elt = ucl_object_find_key (schema, "not");
+	if (elt != NULL && elt->type == UCL_OBJECT) {
+		if (ucl_schema_validate (elt, obj, true, err)) {
+			return false;
+		}
+		else {
+			/* Reset error */
+			err->code = UCL_SCHEMA_OK;
+		}
+	}
+
 	elt = ucl_object_find_key (schema, "type");
 
 	if (!ucl_schema_type_is_allowed (elt, obj, err)) {
