@@ -21,10 +21,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <errno.h>
-#include <unistd.h>
 #include "ucl.h"
+#include "ucl_internal.h"
 
 int
 main (int argc, char **argv)

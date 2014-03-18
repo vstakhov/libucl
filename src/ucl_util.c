@@ -25,7 +25,9 @@
 #include "ucl_internal.h"
 #include "ucl_chartable.h"
 
+#ifdef HAVE_LIBGEN_H
 #include <libgen.h> /* For dirname */
+#endif
 
 #ifdef HAVE_OPENSSL
 #include <openssl/err.h>

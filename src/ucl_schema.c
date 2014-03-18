@@ -27,8 +27,12 @@
 #include "ucl_internal.h"
 #include "tree.h"
 #include "utlist.h"
+#ifdef HAVE_STDARG_H
 #include <stdarg.h>
+#endif
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
 
 static bool
 ucl_string_to_type (const char *input, ucl_type_t *res)

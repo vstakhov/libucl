@@ -1,12 +1,18 @@
 m4_define([maj_ver], [0])
 m4_define([med_ver], [3])
 m4_define([min_ver], [0])
-m4_define([UCL_VERSION], [maj_ver.med_ver.min_ver])
+m4_define([so_version], [maj_ver:med_ver])
+m4_define([ucl_version], [maj_ver.med_ver.min_ver])
 
-AC_SUBST([UCL_VERSION])
-AC_INIT([libucl],[UCL_VERSION],[https://github.com/vstakhov/libucl],[libucl])
+AC_INIT([libucl],[ucl_version],[https://github.com/vstakhov/libucl],[libucl])
 AC_CONFIG_SRCDIR([configure.ac])
 AM_INIT_AUTOMAKE([1.11 foreign -Wno-portability no-dist-gzip dist-xz])
+
+UCL_VERSION=ucl_version
+SO_VERSION=so_version
+
+AC_SUBST(UCL_VERSION)
+AC_SUBST(SO_VERSION)
 
 AC_PROG_CC_C99
 LT_INIT
@@ -19,58 +25,70 @@ AC_TYPE_SIZE_T
 AC_CHECK_HEADERS_ONCE([fcntl.h unistd.h])
 AC_TYPE_OFF_T
 AC_FUNC_MMAP
-
-if test "$ac_cv_func_mmap_fixed_mapped" = "yes"; then
-    FILEMAP=unixfilemap
-else
-    FILEMAP=readfilemap
-fi
-AC_SUBST(FILEMAP)
 AC_CHECK_HEADERS_ONCE([fcntl.h])
 AC_CHECK_HEADERS_ONCE([sys/types.h])
 AC_CHECK_HEADERS_ONCE([sys/stat.h])
 AC_CHECK_HEADERS_ONCE([sys/param.h])
+AC_CHECK_HEADERS_ONCE([sys/mman.h])
 AC_CHECK_HEADERS_ONCE([stdlib.h])
+AC_CHECK_HEADERS_ONCE([stddef.h])
+AC_CHECK_HEADERS_ONCE([stdarg.h])
+AC_CHECK_HEADERS_ONCE([stdbool.h])
+AC_CHECK_HEADERS_ONCE([stdint.h])
 AC_CHECK_HEADERS_ONCE([string.h])
 AC_CHECK_HEADERS_ONCE([unistd.h])
-AC_CHECK_HEADERS_ONCE([stdbool.h])
 AC_CHECK_HEADERS_ONCE([ctype.h])
 AC_CHECK_HEADERS_ONCE([errno.h])
 AC_CHECK_HEADERS_ONCE([limits.h])
+AC_CHECK_HEADERS_ONCE([libgen.h])
 AC_CHECK_HEADERS_ONCE([stdio.h])
+AC_CHECK_HEADERS_ONCE([float.h])
+AC_CHECK_HEADERS_ONCE([math.h])
 
-AC_SEARCH_LIBS([SSL_library_init], [ssl], [
-	AC_DEFINE(HAVE_OPENSSL, 1, [Define to 1 if you have the 'ssl' library (-lssl).])
-	LIBSSL_LIB="-lssl"
-	LIBS_EXTRA="${LIBS_EXTRA} -lssl"
-	], [-lcrypto])
-	
-AC_CHECK_HEADER([fetch.h], [
-	AC_DEFINE(HAVE_FETCH_H, 1, [Define to 1 if you have the <fetch.h> header file.])
-	AC_CHECK_LIB(fetch, fetchXGet, [
-		AC_DEFINE(HAVE_LIBFETCH, 1, [Define to 1 if you have the 'fetch' library (-fetch).])
-		LIBFETCH_LIBS="-lfetch"
-		have_libfetch="yes"
-		LIBS_EXTRA="${LIBS_EXTRA} -lfetch"
-	])
-], [],[
-#include <stdio.h>
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
+dnl Example of default-disabled feature
+AC_ARG_ENABLE([urls], AS_HELP_STRING([--enable-urls], [Enable URLs fetch (requires libfetch or libcurl)]))
+AC_ARG_ENABLE([signatures], AS_HELP_STRING([--enable-signatures], 
+	[Enable signatures check (requires openssl)]))
+
+AS_IF([test "x$enable_signatures" = "xyes"], [
+	AC_SEARCH_LIBS([EVP_MD_CTX_create], [crypto], [
+		AC_DEFINE(HAVE_OPENSSL, 1, [Define to 1 if you have the 'crypto' library (-lcrypto).])
+		LIBSSL_LIB="-lcrypto"
+		LIBS_EXTRA="${LIBS_EXTRA} -lcrypto"
+		], [AC_MSG_ERROR([unable to find the EVP_MD_CTX_create() function])])
 ])
-AC_SUBST([LIBFETCH_LIBS])
-
-AS_IF([ test "x$have_libfetch" != "xyes"], [
-dnl Fallback to libcurl
-PKG_CHECK_MODULES([CURL], [libcurl], [
-	AC_DEFINE(CURL_FOUND, 1, [Use libcurl])
-	LIBS_EXTRA="${LIBS_EXTRA} -lcurl"], 
-[])], [])
-AC_SUBST([CURL_FOUND])
-AC_SUBST([CURL_LIBS])
-AC_SUBST([CURL_CFLAGS])
+	
+AS_IF([test "x$enable_urls" = "xyes"], [	
+	AC_CHECK_HEADER([fetch.h], [
+		AC_DEFINE(HAVE_FETCH_H, 1, [Define to 1 if you have the <fetch.h> header file.])
+		AC_CHECK_LIB(fetch, fetchXGet, [
+			AC_DEFINE(HAVE_LIBFETCH, 1, [Define to 1 if you have the 'fetch' library (-fetch).])
+			LIBFETCH_LIBS="-lfetch"
+			have_libfetch="yes"
+			LIBS_EXTRA="${LIBS_EXTRA} -lfetch"
+		])
+	], [],[
+	#include <stdio.h>
+	#ifdef HAVE_SYS_PARAM_H
+	#include <sys/param.h>
+	#endif
+	])
+	AC_SUBST(LIBFETCH_LIBS)
+	
+	AS_IF([ test "x$have_libfetch" != "xyes"], [
+		dnl Fallback to libcurl
+		PKG_CHECK_MODULES([CURL], [libcurl], [
+			AC_DEFINE(CURL_FOUND, 1, [Use libcurl])
+			LIBS_EXTRA="${LIBS_EXTRA} -lcurl"], 
+		[AC_MSG_ERROR([unable to find neither libfetch nor libcurl])])
+	])
+	AC_SUBST(CURL_FOUND)
+	AC_SUBST(CURL_LIBS)
+	AC_SUBST(CURL_CFLAGS)
+])
 
 AC_CONFIG_FILES(Makefile \
+	src/Makefile \
 	libucl.pc)
+AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_OUTPUT
