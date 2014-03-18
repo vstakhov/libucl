@@ -33,6 +33,9 @@
 #ifdef HAVE_STDIO_H
 #include <stdio.h>
 #endif
+#ifdef HAVE_REGEX_H
+#include <regex.h>
+#endif
 
 static bool
 ucl_string_to_type (const char *input, ucl_type_t *res)

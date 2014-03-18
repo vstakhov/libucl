@@ -26,6 +26,25 @@
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
+#else
+/* Help embedded builds */
+#define HAVE_SYS_TYPES_H
+#define HAVE_SYS_MMAN_H
+#define HAVE_SYS_STAT_H
+#define HAVE_SYS_PARAM_H
+#define HAVE_LIMITS_H
+#define HAVE_FCNTL_H
+#define HAVE_ERRNO_H
+#define HAVE_UNISTD_H
+#define HAVE_CTYPE_H
+#define HAVE_STDIO_H
+#define HAVE_STRING_H
+#define HAVE_FLOAT_H
+#define HAVE_LIBGEN_H
+#define HAVE_MATH_H
+#define HAVE_STDBOOL_H
+#define HAVE_STDINT_H
+#define HAVE_REGEX_H
 #endif
 
 #ifdef HAVE_SYS_TYPES_H
