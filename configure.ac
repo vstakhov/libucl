@@ -50,6 +50,14 @@ dnl Example of default-disabled feature
 AC_ARG_ENABLE([urls], AS_HELP_STRING([--enable-urls], [Enable URLs fetch (requires libfetch or libcurl)]))
 AC_ARG_ENABLE([signatures], AS_HELP_STRING([--enable-signatures], 
 	[Enable signatures check (requires openssl)]))
+AC_ARG_ENABLE([utils],
+	[--enable-utils Build and install utils],
+	[case "${enableval}" in
+  		yes) utils=true ;;
+  		no)  utils=false ;;
+  		*) AC_MSG_ERROR([bad value ${enableval} for --enable-utils]) ;;
+	esac],[utils=false])
+AM_CONDITIONAL([UTILS], [test x$utils = xtrue])
 
 AS_IF([test "x$enable_signatures" = "xyes"], [
 	AC_SEARCH_LIBS([EVP_MD_CTX_create], [crypto], [
@@ -92,6 +100,7 @@ AS_IF([test "x$enable_urls" = "xyes"], [
 AC_CONFIG_FILES(Makefile \
 	src/Makefile \
 	tests/Makefile \
+	utils/Makefile \
 	libucl.pc)
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_OUTPUT

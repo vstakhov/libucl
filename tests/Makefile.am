@@ -1,3 +1,5 @@
+EXTRA_DIST = $(TESTS) basic schema
+
 TESTS = basic.test \
 		generate.test \
 		schema.test \
@@ -21,7 +23,7 @@ test_generate_SOURCES = test_generate.c
 test_generate_LDADD = $(common_test_ldadd)
 test_generate_CFLAGS = $(common_test_cflags)
 
-test_schema_SOURCES = test_generate.c
+test_schema_SOURCES = test_schema.c
 test_schema_LDADD = $(common_test_ldadd)
 test_schema_CFLAGS = $(common_test_cflags)
 

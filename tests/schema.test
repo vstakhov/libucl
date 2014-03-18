@@ -5,5 +5,5 @@ rm /tmp/_ucl_test_schema.out ||true
 for i in ${TEST_DIR}/schema/*.json ; do
 	_name=`basename $i`
 	printf "running schema test suite $_name... "
-	cat $i | $4 >> /tmp/_ucl_test_schema.out && ( echo "OK" ) || ( echo "Fail" )
+	$PROG >> /tmp/_ucl_test_schema.out < $i && ( echo "OK" ) || ( echo "Fail" )
 done
