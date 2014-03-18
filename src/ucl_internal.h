@@ -24,6 +24,10 @@
 #ifndef UCL_INTERNAL_H_
 #define UCL_INTERNAL_H_
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <sys/types.h>
 #ifndef _WIN32
 #include <sys/mman.h>
@@ -36,6 +40,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <stdio.h>
 
 #include "utlist.h"
 #include "utstring.h"

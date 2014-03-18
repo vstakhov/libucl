@@ -24,9 +24,11 @@
  */
 
 #include "ucl.h"
+#include "ucl_internal.h"
 #include "tree.h"
 #include "utlist.h"
 #include <stdarg.h>
+#include <stdio.h>
 
 static bool
 ucl_string_to_type (const char *input, ucl_type_t *res)
