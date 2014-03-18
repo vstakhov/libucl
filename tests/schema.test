@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PROG=test_schema
+PROG=${TEST_BINARY_DIR}/test_schema
 rm /tmp/_ucl_test_schema.out ||true
 for i in ${TEST_DIR}/schema/*.json ; do
 	_name=`basename $i`

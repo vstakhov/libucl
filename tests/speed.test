@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PROG=test_speed
+PROG=${TEST_BINARY_DIR}/test_speed
 
 sh -c "xz -c < /dev/null > /dev/null"
 echo 'Running speed tests'

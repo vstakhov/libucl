@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PROG=test_basic
+PROG=${TEST_BINARY_DIR}/test_basic
 
 for _tin in ${TEST_DIR}/basic/*.in ; do
 	_t=`echo $_tin | sed -e 's/.in$//'`

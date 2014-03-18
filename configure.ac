@@ -67,7 +67,11 @@ AS_IF([test "x$enable_signatures" = "xyes"], [
 		], [AC_MSG_ERROR([unable to find the EVP_MD_CTX_create() function])])
 ])
 
-AC_SEARCH_LIBS([clock_gettime], [rt], [], [AC_MSG_ERROR([unable to find clock_gettime() function])])
+AC_SEARCH_LIBS([clock_gettime], [rt], [], [
+	AC_CHECK_HEADER([mach/mach_time.h], [
+		AC_DEFINE(HAVE_MACH_MACH_TIME_H, 1, [Define to 1 on Darwin])
+	], [AC_MSG_ERROR([unable to find clock_gettime or mach_absolute_time])])
+])
 AC_SEARCH_LIBS([remainder], [m], [], [AC_MSG_ERROR([unable to find remainder() function])])
 
 AC_CHECK_HEADER([regex.h], [
