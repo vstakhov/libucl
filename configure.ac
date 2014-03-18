@@ -47,13 +47,18 @@ AC_SEARCH_LIBS([SSL_library_init], [ssl], [
 	
 AC_CHECK_HEADER([fetch.h], [
 	AC_DEFINE(HAVE_FETCH_H, 1, [Define to 1 if you have the <fetch.h> header file.])
-	AC_CHECK_LIB(sbuf, fetchXGet, [
+	AC_CHECK_LIB(fetch, fetchXGet, [
 		AC_DEFINE(HAVE_LIBFETCH, 1, [Define to 1 if you have the 'fetch' library (-fetch).])
 		LIBFETCH_LIBS="-lfetch"
 		have_libfetch="yes"
 		LIBS_EXTRA="${LIBS_EXTRA} -lfetch"
 	])
-], [])
+], [],[
+#include <stdio.h>
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+])
 AC_SUBST([LIBFETCH_LIBS])
 
 AS_IF([ test "x$have_libfetch" != "xyes"], [
