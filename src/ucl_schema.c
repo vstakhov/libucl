@@ -36,6 +36,9 @@
 #ifdef HAVE_REGEX_H
 #include <regex.h>
 #endif
+#ifdef HAVE_MATH_H
+#include <math.h>
+#endif
 
 static bool
 ucl_string_to_type (const char *input, ucl_type_t *res)
@@ -291,14 +294,23 @@ ucl_schema_validate_number (ucl_object_t *schema,
 	ucl_object_iter_t iter = NULL;
 	bool ret = true, exclusive = false;
 	double constraint, val;
+	const double alpha = 1e-16;
 
 	while (ret && (elt = ucl_iterate_object (schema, &iter, true)) != NULL) {
-		if (elt->type == UCL_INT &&
-			strcmp (ucl_object_key (elt), "multipleOf") == 0) {
-			val = ucl_object_toint (elt);
-			if (val <= 0) {
+		if ((elt->type == UCL_FLOAT || elt->type == UCL_INT) &&
+				strcmp (ucl_object_key (elt), "multipleOf") == 0) {
+			constraint = ucl_object_todouble (elt);
+			if (constraint <= 0) {
 				ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, elt,
 						"multipleOf must be greater than zero");
+				ret = false;
+				break;
+			}
+			val = ucl_object_todouble (obj);
+			if (fabs (remainder (val, constraint)) > alpha) {
+				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
+						"number %.4f is not multiple of %.4f, remainder is %.7f",
+						val, constraint);
 				ret = false;
 				break;
 			}

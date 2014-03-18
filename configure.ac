@@ -68,6 +68,7 @@ AS_IF([test "x$enable_signatures" = "xyes"], [
 ])
 
 AC_SEARCH_LIBS([clock_gettime], [rt], [], [AC_MSG_ERROR([unable to find clock_gettime() function])])
+AC_SEARCH_LIBS([remainder], [m], [], [AC_MSG_ERROR([unable to find remainder() function])])
 
 AC_CHECK_HEADER([regex.h], [
 	AC_DEFINE(HAVE_REGEX_H, 1, [Define to 1 if you have the <regex.h> header file.])
