@@ -1139,6 +1139,7 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 	if (!found) {
 		top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
 		DL_APPEND (found, elt);
+		top->len ++;
 	}
 	else {
 		if (replace) {
