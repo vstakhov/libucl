@@ -122,6 +122,29 @@ ucl_schema_create_error (struct ucl_schema_error *err,
 }
 
 /*
+ * Check whether we have a pattern specified
+ */
+static ucl_object_t *
+ucl_schema_test_pattern (ucl_object_t *obj, const char *pattern)
+{
+	regex_t reg;
+	ucl_object_t *res = NULL, *elt;
+	ucl_object_iter_t iter = NULL;
+
+	if (regcomp (&reg, pattern, REG_EXTENDED | REG_NOSUB) == 0) {
+		while ((elt = ucl_iterate_object (obj, &iter, true)) != NULL) {
+			if (regexec (&reg, ucl_object_key (elt), 0, NULL, 0) == 0) {
+				res = elt;
+				break;
+			}
+		}
+		regfree (&reg);
+	}
+
+	return res;
+}
+
+/*
  * Validate object
  */
 static bool
@@ -129,7 +152,7 @@ ucl_schema_validate_object (ucl_object_t *schema,
 		ucl_object_t *obj, struct ucl_schema_error *err)
 {
 	ucl_object_t *elt, *prop, *found, *additional_schema = NULL,
-			*required = NULL;
+			*required = NULL, *pat, *pelt;
 	ucl_object_iter_t iter = NULL, piter = NULL;
 	bool ret = true, allow_additional = true;
 	int64_t minmax;
@@ -137,6 +160,7 @@ ucl_schema_validate_object (ucl_object_t *schema,
 	while (ret && (elt = ucl_iterate_object (schema, &iter, true)) != NULL) {
 		if (elt->type == UCL_OBJECT &&
 				strcmp (ucl_object_key (elt), "properties") == 0) {
+			piter = NULL;
 			while (ret && (prop = ucl_iterate_object (elt, &piter, true)) != NULL) {
 				found = ucl_object_find_key (obj, ucl_object_key (prop));
 				if (found) {
@@ -193,7 +217,15 @@ ucl_schema_validate_object (ucl_object_t *schema,
 				break;
 			}
 		}
-		/* XXX: propertyPatterns */
+		else if (strcmp (ucl_object_key (elt), "patternProperties") == 0) {
+			piter = NULL;
+			while (ret && (prop = ucl_iterate_object (elt, &piter, true)) != NULL) {
+				found = ucl_schema_test_pattern (obj, ucl_object_key (prop));
+				if (found) {
+					ret = ucl_object_validate (prop, found, err);
+				}
+			}
+		}
 	}
 
 	if (ret) {
@@ -203,11 +235,22 @@ ucl_schema_validate_object (ucl_object_t *schema,
 			iter = NULL;
 			prop = ucl_object_find_key (schema, "properties");
 			while ((elt = ucl_iterate_object (obj, &iter, true)) != NULL) {
-				if (prop == NULL ||
-					(found = ucl_object_find_key (prop, ucl_object_key (elt))) == NULL) {
+				found = ucl_object_find_key (prop, ucl_object_key (elt));
+				if (found == NULL) {
+					/* Try patternProperties */
+					piter = NULL;
+					pat = ucl_object_find_key (schema, "patternProperties");
+					while ((pelt = ucl_iterate_object (pat, &piter, true)) != NULL) {
+						found = ucl_schema_test_pattern (obj, ucl_object_key (pelt));
+						if (found != NULL) {
+							break;
+						}
+					}
+				}
+				if (found == NULL) {
 					if (!allow_additional) {
 						ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
-								"object has undefined property %s",
+								"object has non-allowed property %s",
 								ucl_object_key (elt));
 						ret = false;
 						break;

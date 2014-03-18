@@ -44,6 +44,7 @@
 #define HAVE_MATH_H
 #define HAVE_STDBOOL_H
 #define HAVE_STDINT_H
+#define HAVE_STDARG_H
 #define HAVE_REGEX_H
 #endif
 

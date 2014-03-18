@@ -1294,6 +1294,10 @@ ucl_iterate_object (ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_valu
 {
 	ucl_object_t *elt;
 
+	if (obj == NULL || iter == NULL) {
+		return NULL;
+	}
+
 	if (expand_values) {
 		switch (obj->type) {
 		case UCL_OBJECT:
