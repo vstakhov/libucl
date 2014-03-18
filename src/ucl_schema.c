@@ -648,7 +648,9 @@ ucl_schema_validate (ucl_object_t *schema,
 		ucl_object_t *obj, bool try_array,
 		struct ucl_schema_error *err)
 {
-	ucl_object_t *elt;
+	ucl_object_t *elt, *cur;
+	ucl_object_iter_t iter = NULL;
+	bool ret;
 
 	if (schema->type != UCL_OBJECT) {
 		ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, schema,
@@ -660,6 +662,17 @@ ucl_schema_validate (ucl_object_t *schema,
 	if (elt != NULL && elt->type == UCL_ARRAY) {
 		if (!ucl_schema_validate_enum (elt, obj, err)) {
 			return false;
+		}
+	}
+
+	elt = ucl_object_find_key (schema, "allOf");
+	if (elt != NULL && elt->type == UCL_ARRAY) {
+		iter = NULL;
+		while ((cur = ucl_iterate_object (elt, &iter, true)) != NULL) {
+			ret = ucl_schema_validate (cur, obj, true, err);
+			if (!ret) {
+				return false;
+			}
 		}
 	}
 
