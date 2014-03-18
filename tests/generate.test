@@ -2,12 +2,12 @@
 
 PROG=test_generate
 
-$PROG ${TEST_DIR}/generate.out
-diff -s ${TEST_DIR}/generate.out ${TEST_DIR}/generate.res -u 2>/dev/null
+$PROG ${TEST_OUT_DIR}/generate.out
+diff -s ${TEST_OUT_DIR}/generate.out ${TEST_DIR}/generate.res -u 2>/dev/null
 if [ $? -ne 0 ] ; then
-	rm ${TEST_DIR}/generate.out
+	rm ${TEST_OUT_DIR}/generate.out
 	echo "Test: generate.res output missmatch"
 	exit 1
 fi
-rm ${TEST_DIR}/generate.out
+rm ${TEST_OUT_DIR}/generate.out
 

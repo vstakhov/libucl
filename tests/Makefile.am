@@ -4,7 +4,7 @@ TESTS = basic.test \
 		generate.test \
 		schema.test \
 		speed.test
-TESTS_ENVIRONMENT = $(SH) TEST_DIR=$(top_srcdir)/tests
+TESTS_ENVIRONMENT = $(SH) TEST_DIR=$(top_srcdir)/tests TEST_OUT_DIR=$(top_builddir)/tests
 
 common_test_cflags = -I$(top_srcdir)/include \
 					-I$(top_srcdir)/src \
