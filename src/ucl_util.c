@@ -35,6 +35,13 @@
 #include <openssl/evp.h>
 #endif
 
+#ifdef CURL_FOUND
+#include <curl/curl.h>
+#endif
+#ifdef HAVE_FETCH_H
+#include <fetch.h>
+#endif
+
 #ifdef _WIN32
 #include <windows.h>
 

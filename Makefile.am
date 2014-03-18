@@ -11,7 +11,8 @@ libucl_la_SOURCES=	src/ucl_emitter.c \
 					src/ucl_schema.c \
 					src/ucl_util.c \
 					src/xxhash.c
-libucl_la_CFLAGS=	$(libucl_common_cflags)
+libucl_la_CFLAGS=	$(libucl_common_cflags) \
+					@CURL_CFLAGS@
 libucl_la_LIBADD=	@LIBFETCH_LIBS@ \
 					@CURL_LIBS@
 

@@ -1,10 +1,9 @@
 m4_define([maj_ver], [0])
 m4_define([med_ver], [3])
 m4_define([min_ver], [0])
-m4_define([ucl_version], ["maj_ver.med_ver.min_ver"])
+m4_define([UCL_VERSION], [maj_ver.med_ver.min_ver])
 
-UCL_VERSION=ucl_version
-AC_SUBST(UCL_VERSION)
+AC_SUBST([UCL_VERSION])
 AC_INIT([libucl],[UCL_VERSION],[https://github.com/vstakhov/libucl],[libucl])
 AC_CONFIG_SRCDIR([configure.ac])
 AM_INIT_AUTOMAKE([1.11 foreign -Wno-portability no-dist-gzip dist-xz])
@@ -42,7 +41,8 @@ AC_CHECK_HEADERS_ONCE([stdio.h])
 
 AC_SEARCH_LIBS([SSL_library_init], [ssl], [
 	AC_DEFINE(HAVE_OPENSSL, 1, [Define to 1 if you have the 'ssl' library (-lssl).])
-	LIBJAIL_LIB="-ljail"
+	LIBSSL_LIB="-lssl"
+	LIBS_EXTRA="${LIBS_EXTRA} -lssl"
 	], [-lcrypto])
 	
 AC_CHECK_HEADER([fetch.h], [
@@ -59,11 +59,12 @@ AC_SUBST([LIBFETCH_LIBS])
 AS_IF([ test "x$have_libfetch" != "xyes"], [
 dnl Fallback to libcurl
 PKG_CHECK_MODULES([CURL], [libcurl], [
-	CURL_FOUND="yes"
+	AC_DEFINE(CURL_FOUND, 1, [Use libcurl])
 	LIBS_EXTRA="${LIBS_EXTRA} -lcurl"], 
 [])], [])
 AC_SUBST([CURL_FOUND])
 AC_SUBST([CURL_LIBS])
+AC_SUBST([CURL_CFLAGS])
 
 AC_CONFIG_FILES(Makefile \
 	libucl.pc)
