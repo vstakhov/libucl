@@ -765,6 +765,7 @@ enum ucl_schema_error_code {
 	UCL_SCHEMA_INVALID_SCHEMA,  /**< schema is invalid */
 	UCL_SCHEMA_MISSING_PROPERTY,/**< one or more missing properties */
 	UCL_SCHEMA_CONSTRAINT,      /**< constraint found */
+	UCL_SCHEMA_MISSING_DEPENDENCY, /**< missing dependency */
 	UCL_SCHEMA_UNKNOWN          /**< generic error */
 };
 

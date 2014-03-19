@@ -153,6 +153,43 @@ ucl_schema_test_pattern (ucl_object_t *obj, const char *pattern)
 }
 
 /*
+ * Check dependencies for an object
+ */
+static bool
+ucl_schema_validate_dependencies (ucl_object_t *deps,
+		ucl_object_t *obj, struct ucl_schema_error *err,
+		ucl_object_t *root)
+{
+	ucl_object_t *elt, *cur, *cur_dep;
+	ucl_object_iter_t iter = NULL, piter;
+	bool ret = true;
+
+	while (ret && (cur = ucl_iterate_object (deps, &iter, true)) != NULL) {
+		elt = ucl_object_find_key (obj, ucl_object_key (cur));
+		if (elt != NULL) {
+			/* Need to check dependencies */
+			if (cur->type == UCL_ARRAY) {
+				piter = NULL;
+				while (ret && (cur_dep = ucl_iterate_object (cur, &piter, true)) != NULL) {
+					if (ucl_object_find_key (obj, ucl_object_tostring (cur_dep)) == NULL) {
+						ucl_schema_create_error (err, UCL_SCHEMA_MISSING_DEPENDENCY, elt,
+								"dependency %s is missing for key %s",
+								ucl_object_tostring (cur_dep), ucl_object_key (cur));
+						ret = false;
+						break;
+					}
+				}
+			}
+			else if (cur->type == UCL_OBJECT) {
+				ret = ucl_schema_validate (cur, obj, true, err, root);
+			}
+		}
+	}
+
+	return ret;
+}
+
+/*
  * Validate object
  */
 static bool
@@ -234,6 +271,10 @@ ucl_schema_validate_object (ucl_object_t *schema,
 					ret = ucl_schema_validate (prop, found, true, err, root);
 				}
 			}
+		}
+		else if (elt->type == UCL_OBJECT &&
+				strcmp (ucl_object_key (elt), "dependencies") == 0) {
+			ret = ucl_schema_validate_dependencies (elt, obj, err, root);
 		}
 	}
 
@@ -665,6 +706,9 @@ ucl_schema_validate_enum (ucl_object_t *en, ucl_object_t *obj,
 }
 
 
+/*
+ * Check a single ref component
+ */
 static ucl_object_t *
 ucl_schema_resolve_ref_component (ucl_object_t *cur,
 		const char *refc, int len,
