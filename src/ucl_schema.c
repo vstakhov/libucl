@@ -364,6 +364,7 @@ ucl_schema_validate_string (ucl_object_t *schema,
 	ucl_object_iter_t iter = NULL;
 	bool ret = true;
 	int64_t constraint;
+	regex_t re;
 
 	while (ret && (elt = ucl_iterate_object (schema, &iter, true)) != NULL) {
 		if (elt->type == UCL_INT &&
@@ -388,7 +389,23 @@ ucl_schema_validate_string (ucl_object_t *schema,
 				break;
 			}
 		}
-		/* XXX: pattern */
+		else if (elt->type == UCL_STRING &&
+				strcmp (ucl_object_key (elt), "pattern") == 0) {
+			if (regcomp (&re, ucl_object_tostring (elt),
+					REG_EXTENDED | REG_NOSUB) != 0) {
+				ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, elt,
+						"cannot compile pattern %s", ucl_object_tostring (elt));
+				ret = false;
+				break;
+			}
+			if (regexec (&re, ucl_object_tostring (obj), 0, NULL, 0) != 0) {
+				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
+						"string doesn't match regexp %s",
+						ucl_object_tostring (elt));
+				ret = false;
+			}
+			regfree (&re);
+		}
 	}
 
 	return ret;
