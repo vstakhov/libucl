@@ -714,6 +714,7 @@ ucl_schema_validate (ucl_object_t *schema,
 	elt = ucl_object_find_key (schema, "oneOf");
 	if (elt != NULL && elt->type == UCL_ARRAY) {
 		iter = NULL;
+		ret = false;
 		while ((cur = ucl_iterate_object (elt, &iter, true)) != NULL) {
 			if (!ret) {
 				ret = ucl_schema_validate (cur, obj, true, err);
