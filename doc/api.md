@@ -36,13 +36,11 @@
 - [Validation functions](#validation-functions-1)
 	- [ucl_object_validate](#ucl_object_validate)
 
-Synopsis
-========
+# Synopsis
 
 `#include <ucl.h>`
 
-Description
-===========
+# Description
 
 Libucl is a parser and `C` API to parse and generate `ucl` objects. Libucl consist of several groups of functions:
 

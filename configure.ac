@@ -67,6 +67,8 @@ AS_IF([test "x$enable_signatures" = "xyes"], [
 		], [AC_MSG_ERROR([unable to find the EVP_MD_CTX_create() function])])
 ])
 
+AC_PATH_PROG(PANDOC, pandoc, [/non/existent])
+
 AC_SEARCH_LIBS([clock_gettime], [rt], [], [
 	AC_CHECK_HEADER([mach/mach_time.h], [
 		AC_DEFINE(HAVE_MACH_MACH_TIME_H, 1, [Define to 1 on Darwin])
@@ -115,6 +117,7 @@ AC_CONFIG_FILES(Makefile \
 	src/Makefile \
 	tests/Makefile \
 	utils/Makefile \
+	doc/Makefile \
 	libucl.pc)
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_OUTPUT
