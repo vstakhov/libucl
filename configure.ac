@@ -6,7 +6,7 @@ m4_define([ucl_version], [maj_ver.med_ver.min_ver])
 
 AC_INIT([libucl],[ucl_version],[https://github.com/vstakhov/libucl],[libucl])
 AC_CONFIG_SRCDIR([configure.ac])
-AM_INIT_AUTOMAKE([1.11 foreign -Wportability no-dist-gzip dist-xz])
+AM_INIT_AUTOMAKE([1.11 foreign silent-rules -Wall -Wportability no-dist-gzip dist-xz])
 
 UCL_VERSION=ucl_version
 SO_VERSION=so_version
