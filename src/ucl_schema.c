@@ -822,6 +822,52 @@ ucl_schema_resolve_ref (ucl_object_t *root, const char *ref,
 }
 
 static bool
+ucl_schema_validate_values (ucl_object_t *schema, ucl_object_t *obj,
+		struct ucl_schema_error *err)
+{
+	ucl_object_t *elt, *cur;
+	int64_t constraint, i;
+
+	elt = ucl_object_find_key (schema, "maxValues");
+	if (elt != NULL && elt->type == UCL_INT) {
+		constraint = ucl_object_toint (elt);
+		cur = obj;
+		i = 0;
+		while (cur) {
+			if (i > constraint) {
+				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
+					"object has more values than defined: %ld",
+					(long int)constraint);
+				return false;
+			}
+			i ++;
+			cur = cur->next;
+		}
+	}
+	elt = ucl_object_find_key (schema, "minValues");
+	if (elt != NULL && elt->type == UCL_INT) {
+		constraint = ucl_object_toint (elt);
+		cur = obj;
+		i = 0;
+		while (cur) {
+			if (i >= constraint) {
+				break;
+			}
+			i ++;
+			cur = cur->next;
+		}
+		if (i < constraint) {
+			ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
+					"object has less values than defined: %ld",
+					(long int)constraint);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool
 ucl_schema_validate (ucl_object_t *schema,
 		ucl_object_t *obj, bool try_array,
 		struct ucl_schema_error *err,
@@ -835,6 +881,21 @@ ucl_schema_validate (ucl_object_t *schema,
 		ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, schema,
 				"schema is %s instead of object", ucl_object_type_to_string (schema->type));
 		return false;
+	}
+
+	if (try_array) {
+		/*
+		 * Special case for multiple values
+		 */
+		if (!ucl_schema_validate_values (schema, obj, err)) {
+			return false;
+		}
+		LL_FOREACH (obj, cur) {
+			if (!ucl_schema_validate (schema, cur, false, err, root)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	elt = ucl_object_find_key (schema, "enum");
