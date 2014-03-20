@@ -17,6 +17,8 @@
 - [Performance](#performance)
 - [Conclusion](#conclusion)
 
+[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)
+
 ## Introduction
 
 This document describes the main features and principles of the configuration

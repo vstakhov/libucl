@@ -5,4 +5,4 @@ compiler:
   - gcc
 
 script:
-  - ./autogen.sh && ./configure && make
+  - ./autogen.sh && ./configure && make && make check
