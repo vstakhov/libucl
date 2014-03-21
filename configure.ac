@@ -6,7 +6,7 @@ m4_define([ucl_version], [maj_ver.med_ver.min_ver])
 
 AC_INIT([libucl],[ucl_version],[https://github.com/vstakhov/libucl],[libucl])
 AC_CONFIG_SRCDIR([configure.ac])
-AM_INIT_AUTOMAKE([1.11 foreign -Wportability no-dist-gzip dist-xz])
+AM_INIT_AUTOMAKE([1.11 foreign silent-rules -Wall -Wportability no-dist-gzip dist-xz])
 
 UCL_VERSION=ucl_version
 SO_VERSION=so_version
@@ -16,6 +16,7 @@ AC_SUBST(SO_VERSION)
 
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
+AM_PROG_AR
 LT_INIT
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])
@@ -48,7 +49,7 @@ AC_CHECK_HEADERS_ONCE([math.h])
 
 dnl Example of default-disabled feature
 AC_ARG_ENABLE([urls], AS_HELP_STRING([--enable-urls], [Enable URLs fetch (requires libfetch or libcurl)]))
-AC_ARG_ENABLE([signatures], AS_HELP_STRING([--enable-signatures], 
+AC_ARG_ENABLE([signatures], AS_HELP_STRING([--enable-signatures],
 	[Enable signatures check (requires openssl)]))
 AC_ARG_ENABLE([utils],
 	[--enable-utils Build and install utils],
@@ -78,11 +79,11 @@ AC_SEARCH_LIBS([remainder], [m], [], [AC_MSG_ERROR([unable to find remainder() f
 
 AC_CHECK_HEADER([regex.h], [
 	AC_DEFINE(HAVE_REGEX_H, 1, [Define to 1 if you have the <regex.h> header file.])
-	], 
+	],
 	[AC_MSG_ERROR([unable to find the regex.h header])],
 	[#include <sys/types.h>])
 
-AS_IF([test "x$enable_urls" = "xyes"], [	
+AS_IF([test "x$enable_urls" = "xyes"], [
 	AC_CHECK_HEADER([fetch.h], [
 		AC_DEFINE(HAVE_FETCH_H, 1, [Define to 1 if you have the <fetch.h> header file.])
 		AC_CHECK_LIB(fetch, fetchXGet, [
@@ -98,12 +99,12 @@ AS_IF([test "x$enable_urls" = "xyes"], [
 	#endif
 	])
 	AC_SUBST(LIBFETCH_LIBS)
-	
+
 	AS_IF([ test "x$have_libfetch" != "xyes"], [
 		dnl Fallback to libcurl
 		PKG_CHECK_MODULES([CURL], [libcurl], [
 			AC_DEFINE(CURL_FOUND, 1, [Use libcurl])
-			LIBS_EXTRA="${LIBS_EXTRA} -lcurl"], 
+			LIBS_EXTRA="${LIBS_EXTRA} -lcurl"],
 		[AC_MSG_ERROR([unable to find neither libfetch nor libcurl])])
 	])
 	AC_SUBST(CURL_FOUND)
