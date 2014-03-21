@@ -1,3 +1,7 @@
+# LIBUCL
+
+[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)
+
 **Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
 
 - [Introduction](#introduction)
@@ -16,8 +20,6 @@
 - [Validation](#validation)
 - [Performance](#performance)
 - [Conclusion](#conclusion)
-
-[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)
 
 ## Introduction
 
