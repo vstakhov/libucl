@@ -1738,7 +1738,11 @@ ucl_object_t *
 ucl_object_ref (ucl_object_t *obj)
 {
 	if (obj != NULL) {
+#ifdef HAVE_ATOMIC_BUILTINS
+		(void)__sync_add_and_fetch (&obj->ref, 1);
+#else
 		obj->ref ++;
+#endif
 	}
 	return obj;
 }
@@ -1746,8 +1750,15 @@ ucl_object_ref (ucl_object_t *obj)
 void
 ucl_object_unref (ucl_object_t *obj)
 {
-	if (obj != NULL && --obj->ref <= 0) {
-		ucl_object_free (obj);
+	if (obj != NULL) {
+#ifdef HAVE_ATOMIC_BUILTINS
+		unsigned int rc = __sync_sub_and_fetch (&obj->ref, 1);
+		if (rc == 0) {
+#else
+		if (--obj->ref == 0) {
+#endif
+			ucl_object_free (obj);
+		}
 	}
 }
 

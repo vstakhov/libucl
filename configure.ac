@@ -114,6 +114,29 @@ AS_IF([test "x$enable_urls" = "xyes"], [
 
 AC_SUBST(LIBS_EXTRA)
 
+AC_MSG_CHECKING(for GCC atomic builtins)
+AC_LINK_IFELSE([
+	AC_LANG_SOURCE([[
+		int main() {
+			volatile unsigned long val = 1;
+			__sync_synchronize();
+			__sync_val_compare_and_swap(&val, 1, 0);
+			__sync_add_and_fetch(&val, 1);
+			__sync_sub_and_fetch(&val, 1);
+			return 0;
+		}
+	]])
+],
+[
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([HAVE_ATOMIC_BUILTINS], [1], [Has gcc/MSVC atomic intrinsics])
+],
+[
+	AC_MSG_RESULT([no])
+	AC_DEFINE([HAVE_ATOMIC_BUILTINS], [0], [Has gcc/MSVC atomic intrinsics])
+	AC_MSG_WARN([Libucl references could be thread-unsafe because atomic builtins are missing])
+])
+
 AC_CONFIG_FILES(Makefile \
 	src/Makefile \
 	tests/Makefile \
