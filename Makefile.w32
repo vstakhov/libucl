@@ -20,7 +20,7 @@ LN ?= ln
 else
 LN ?= rem ln
 endif
-LD_SHARED_FLAGS ?= -Wl,-soname,$(SONAME) -shared -lm
+LD_SHARED_FLAGS ?= -Wl,-soname,$(SONAME) -shared -lm -lregex
 LD_UCL_FLAGS ?= -L$(OBJDIR) -Wl,-rpath,$(OBJDIR) -lucl
 LD_ADD ?= -lrt
 COPT_FLAGS ?= -O2
@@ -61,7 +61,7 @@ $(OBJDIR)/xxhash.o: $(SRCDIR)/xxhash.c $(HDEPS)
 clean:
 	$(RM) $(OBJDIR)/*.o $(OBJDIR)/$(SONAME) $(OBJDIR)/$(SONAME) $(OBJDIR)/chargen $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/objdump $(OBJDIR)/test_generate
 	$(RMDIR) $(OBJDIR)
-	
+
 # Utils
 
 chargen: utils/chargen.c $(OBJDIR)/$(SONAME)
@@ -75,7 +75,7 @@ test: $(OBJDIR) $(OBJDIR)/$(SONAME) $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(
 
 run-test: test
 	TEST_DIR=$(TESTDIR) $(TESTDIR)/run_tests.sh $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/test_generate
-	
+
 $(OBJDIR)/test_basic: $(TESTDIR)/test_basic.c $(OBJDIR)/$(SONAME)
 	$(CC) -o $(OBJDIR)/test_basic $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_basic.c $(LD_UCL_FLAGS)
 $(OBJDIR)/test_speed: $(TESTDIR)/test_speed.c $(OBJDIR)/$(SONAME)
