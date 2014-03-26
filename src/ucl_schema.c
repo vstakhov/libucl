@@ -135,8 +135,10 @@ ucl_schema_create_error (struct ucl_schema_error *err,
 static ucl_object_t *
 ucl_schema_test_pattern (ucl_object_t *obj, const char *pattern)
 {
+	ucl_object_t *res = NULL;
+#ifdef HAVE_REGEX_H
 	regex_t reg;
-	ucl_object_t *res = NULL, *elt;
+	ucl_object_t *elt;
 	ucl_object_iter_t iter = NULL;
 
 	if (regcomp (&reg, pattern, REG_EXTENDED | REG_NOSUB) == 0) {
@@ -148,7 +150,7 @@ ucl_schema_test_pattern (ucl_object_t *obj, const char *pattern)
 		}
 		regfree (&reg);
 	}
-
+#endif
 	return res;
 }
 
@@ -407,7 +409,9 @@ ucl_schema_validate_string (ucl_object_t *schema,
 	ucl_object_iter_t iter = NULL;
 	bool ret = true;
 	int64_t constraint;
+#ifdef HAVE_REGEX_H
 	regex_t re;
+#endif
 
 	while (ret && (elt = ucl_iterate_object (schema, &iter, true)) != NULL) {
 		if (elt->type == UCL_INT &&
@@ -432,6 +436,7 @@ ucl_schema_validate_string (ucl_object_t *schema,
 				break;
 			}
 		}
+#ifdef HAVE_REGEX_H
 		else if (elt->type == UCL_STRING &&
 				strcmp (ucl_object_key (elt), "pattern") == 0) {
 			if (regcomp (&re, ucl_object_tostring (elt),
@@ -449,6 +454,7 @@ ucl_schema_validate_string (ucl_object_t *schema,
 			}
 			regfree (&re);
 		}
+#endif
 	}
 
 	return ret;
