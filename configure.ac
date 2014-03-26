@@ -48,11 +48,17 @@ AC_CHECK_HEADERS_ONCE([float.h])
 AC_CHECK_HEADERS_ONCE([math.h])
 
 dnl Example of default-disabled feature
-AC_ARG_ENABLE([urls], AS_HELP_STRING([--enable-urls], [Enable URLs fetch (requires libfetch or libcurl)]))
+AC_ARG_ENABLE([urls], AS_HELP_STRING([--enable-urls], 
+	[Enable URLs fetch (requires libfetch or libcurl) @<:@default=no@:>@]), [],
+	[enable_urls=no])
+AC_ARG_ENABLE([regex], AS_HELP_STRING([--enable-regex], 
+	[Enable regex checking for schema @<:@default=yes@:>@]), [],
+	[enable_regex=yes])
 AC_ARG_ENABLE([signatures], AS_HELP_STRING([--enable-signatures],
-	[Enable signatures check (requires openssl)]))
+	[Enable signatures check (requires openssl) @<:@default=no@:>@]), [],
+	[enable_signatures=no])
 AC_ARG_ENABLE([utils],
-	[--enable-utils Build and install utils],
+	AS_HELP_STRING([--enable-utils], [Build and install utils @<:@default=no@:>@]),
 	[case "${enableval}" in
   		yes) utils=true ;;
   		no)  utils=false ;;
@@ -63,11 +69,11 @@ AM_CONDITIONAL([UTILS], [test x$utils = xtrue])
 AS_IF([test "x$enable_signatures" = "xyes"], [
 	AC_SEARCH_LIBS([EVP_MD_CTX_create], [crypto], [
 		AC_DEFINE(HAVE_OPENSSL, 1, [Define to 1 if you have the 'crypto' library (-lcrypto).])
-		LIBSSL_LIB="-lcrypto"
+		LIBCRYPTO_LIB="-lcrypto"
 		LIBS_EXTRA="${LIBS_EXTRA} -lcrypto"
 		], [AC_MSG_ERROR([unable to find the EVP_MD_CTX_create() function])])
 ])
-
+AC_SUBST(LIBCRYPTO_LIB)
 AC_PATH_PROG(PANDOC, pandoc, [/non/existent])
 
 AC_SEARCH_LIBS([clock_gettime], [rt], [], [
@@ -77,11 +83,21 @@ AC_SEARCH_LIBS([clock_gettime], [rt], [], [
 ])
 AC_SEARCH_LIBS([remainder], [m], [], [AC_MSG_ERROR([unable to find remainder() function])])
 
-AC_CHECK_HEADER([regex.h], [
-	AC_DEFINE(HAVE_REGEX_H, 1, [Define to 1 if you have the <regex.h> header file.])
-	],
-	[AC_MSG_ERROR([unable to find the regex.h header])],
-	[#include <sys/types.h>])
+AS_IF([test "x$enable_regex" = "xyes"], [
+	AC_CHECK_HEADER([regex.h], [
+		AC_DEFINE(HAVE_REGEX_H, 1, [Define to 1 if you have the <regex.h> header file.])
+		AC_SEARCH_LIBS([regexec], [regex], [
+			AS_IF([test "x$ac_cv_search_regexec" = "x-lregex"], [
+				LIBREGEX_LIB="-lregex"
+				LIBS_EXTRA="${LIBS_EXTRA} -lregex"
+				]
+			)], 
+			[AC_MSG_ERROR([unable to find the regexec() function])])],
+			[AC_MSG_ERROR([unable to find the regex.h header])
+		],
+		[#include <sys/types.h>])
+])
+AC_SUBST(LIBREGEX_LIB)
 
 AS_IF([test "x$enable_urls" = "xyes"], [
 	AC_CHECK_HEADER([fetch.h], [
