@@ -55,34 +55,6 @@ struct ucl_parser_saved_state {
     (chunk)->remain --;										\
     } while (0)
 
-/**
- * Save parser state
- * @param chunk
- * @param s
- */
-static inline void
-ucl_chunk_save_state (struct ucl_chunk *chunk, struct ucl_parser_saved_state *s)
-{
-	s->column = chunk->column;
-	s->pos = chunk->pos;
-	s->line = chunk->line;
-	s->remain = chunk->remain;
-}
-
-/**
- * Restore parser state
- * @param chunk
- * @param s
- */
-static inline void
-ucl_chunk_restore_state (struct ucl_chunk *chunk, struct ucl_parser_saved_state *s)
-{
-	chunk->column = s->column;
-	chunk->pos = s->pos;
-	chunk->line = s->line;
-	chunk->remain = s->remain;
-}
-
 static inline void
 ucl_set_err (struct ucl_chunk *chunk, int code, const char *str, UT_string **err)
 {
