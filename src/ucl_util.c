@@ -134,35 +134,76 @@ static char* ucl_realpath(const char *path, char *resolved_path) {
  * Utilities for rcl parsing
  */
 
+typedef void (*ucl_object_dtor) (ucl_object_t *obj);
+static void ucl_object_free_internal (ucl_object_t *obj, bool allow_rec,
+		ucl_object_dtor dtor);
+static void ucl_object_dtor_unref (ucl_object_t *obj);
 
 static void
-ucl_object_free_internal (ucl_object_t *obj, bool allow_rec)
+ucl_object_dtor_free (ucl_object_t *obj)
+{
+	if (obj->trash_stack[UCL_TRASH_KEY] != NULL) {
+		UCL_FREE (obj->hh.keylen, obj->trash_stack[UCL_TRASH_KEY]);
+	}
+	if (obj->trash_stack[UCL_TRASH_VALUE] != NULL) {
+		UCL_FREE (obj->len, obj->trash_stack[UCL_TRASH_VALUE]);
+	}
+	UCL_FREE (sizeof (ucl_object_t), obj);
+}
+
+/*
+ * This is a helper function that performs exactly the same as
+ * `ucl_object_unref` but it doesn't iterate over elements allowing
+ * to use it for individual elements of arrays and multiple values
+ */
+static void
+ucl_object_dtor_unref_single (ucl_object_t *obj)
+{
+	if (obj != NULL) {
+#ifdef HAVE_ATOMIC_BUILTINS
+		unsigned int rc = __sync_sub_and_fetch (&obj->ref, 1);
+		if (rc == 0) {
+#else
+		if (--obj->ref == 0) {
+#endif
+			ucl_object_free_internal (obj, false, ucl_object_dtor_unref);
+		}
+	}
+}
+
+static void
+ucl_object_dtor_unref (ucl_object_t *obj)
+{
+	if (obj->ref == 0) {
+		ucl_object_dtor_free (obj);
+	}
+	else {
+		/* This may cause dtor unref being called one more time */
+		ucl_object_dtor_unref_single (obj);
+	}
+}
+
+static void
+ucl_object_free_internal (ucl_object_t *obj, bool allow_rec, ucl_object_dtor dtor)
 {
 	ucl_object_t *sub, *tmp;
 
 	while (obj != NULL) {
-		if (obj->trash_stack[UCL_TRASH_KEY] != NULL) {
-			UCL_FREE (obj->hh.keylen, obj->trash_stack[UCL_TRASH_KEY]);
-		}
-		if (obj->trash_stack[UCL_TRASH_VALUE] != NULL) {
-			UCL_FREE (obj->len, obj->trash_stack[UCL_TRASH_VALUE]);
-		}
-
 		if (obj->type == UCL_ARRAY) {
 			sub = obj->value.av;
 			while (sub != NULL) {
 				tmp = sub->next;
-				ucl_object_free_internal (sub, false);
+				dtor (sub);
 				sub = tmp;
 			}
 		}
 		else if (obj->type == UCL_OBJECT) {
 			if (obj->value.ov != NULL) {
-				ucl_hash_destroy (obj->value.ov, (ucl_hash_free_func *)ucl_object_unref);
+				ucl_hash_destroy (obj->value.ov, (ucl_hash_free_func *)dtor);
 			}
 		}
 		tmp = obj->next;
-		UCL_FREE (sizeof (ucl_object_t), obj);
+		dtor (obj);
 		obj = tmp;
 
 		if (!allow_rec) {
@@ -174,7 +215,7 @@ ucl_object_free_internal (ucl_object_t *obj, bool allow_rec)
 void
 ucl_object_free (ucl_object_t *obj)
 {
-	ucl_object_free_internal (obj, true);
+	ucl_object_free_internal (obj, true, ucl_object_dtor_free);
 }
 
 size_t
@@ -1757,7 +1798,7 @@ ucl_object_unref (ucl_object_t *obj)
 #else
 		if (--obj->ref == 0) {
 #endif
-			ucl_object_free (obj);
+			ucl_object_free_internal (obj, true, ucl_object_dtor_unref);
 		}
 	}
 }
