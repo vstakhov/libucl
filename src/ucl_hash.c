@@ -40,11 +40,14 @@ ucl_hash_create (void)
 void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func)
 {
 	ucl_hash_node_t *elt, *tmp;
+	ucl_object_t *cur, *otmp;
 
 	HASH_ITER (hh, hashlin->buckets, elt, tmp) {
 		HASH_DELETE (hh, hashlin->buckets, elt);
 		if (func) {
-			func (elt->data);
+			DL_FOREACH_SAFE (elt->data, cur, otmp) {
+				func (cur);
+			}
 		}
 		UCL_FREE (sizeof (ucl_hash_node_t), elt);
 	}
