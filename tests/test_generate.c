@@ -29,7 +29,7 @@
 int
 main (int argc, char **argv)
 {
-	ucl_object_t *obj, *cur, *ar;
+	ucl_object_t *obj, *cur, *ar, *ref;
 	FILE *out;
 	unsigned char *emitted;
 	const char *fname_out = NULL;
@@ -87,6 +87,8 @@ main (int argc, char **argv)
 
 	obj = ucl_object_insert_key (obj, ar, "key4", 0, false);
 	cur = ucl_object_frombool (true);
+	/* Ref object to test refcounts */
+	ref = ucl_object_ref (cur);
 	obj = ucl_object_insert_key (obj, cur, "key4", 0, false);
 	/* Empty strings */
 	cur = ucl_object_fromstring_common ("      ", 0, UCL_STRING_TRIM);
@@ -111,7 +113,6 @@ main (int argc, char **argv)
 	cur = ucl_object_frombool (true);
 	obj = ucl_object_insert_key (obj, cur, "k=3", 0, false);
 
-
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
 
 	fprintf (out, "%s\n", emitted);
@@ -121,6 +122,10 @@ main (int argc, char **argv)
 		free (emitted);
 	}
 	fclose (out);
+
+	/* Ref should still be accessible */
+	ref->value.iv = 100500;
+	ucl_object_unref (ref);
 
 	return ret;
 }
