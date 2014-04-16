@@ -99,6 +99,10 @@
 #include <openssl/evp.h>
 #endif
 
+#ifndef __DECONST
+#define __DECONST(type, var)    ((type)(uintptr_t)(const void *)(var))
+#endif
+
 /**
  * @file rcl_internal.h
  * Internal structures and functions of UCL library
@@ -316,17 +320,17 @@ int ucl_maybe_parse_number (ucl_object_t *obj,
 		bool allow_double, bool number_bytes, bool allow_time);
 
 
-static inline ucl_object_t *
+static inline const ucl_object_t *
 ucl_hash_search_obj (ucl_hash_t* hashlin, ucl_object_t *obj)
 {
-	return (ucl_object_t *)ucl_hash_search (hashlin, obj->key, obj->keylen);
+	return (const ucl_object_t *)ucl_hash_search (hashlin, obj->key, obj->keylen);
 }
 
 static inline ucl_hash_t *
-ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj) UCL_WARN_UNUSED_RESULT;
+ucl_hash_insert_object (ucl_hash_t *hashlin, const ucl_object_t *obj) UCL_WARN_UNUSED_RESULT;
 
 static inline ucl_hash_t *
-ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj)
+ucl_hash_insert_object (ucl_hash_t *hashlin, const ucl_object_t *obj)
 {
 	if (hashlin == NULL) {
 		hashlin = ucl_hash_create ();
@@ -341,6 +345,6 @@ ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj)
  * @param obj
  * @return
  */
-unsigned char * ucl_object_emit_single_json (ucl_object_t *obj);
+unsigned char * ucl_object_emit_single_json (const ucl_object_t *obj);
 
 #endif /* UCL_INTERNAL_H_ */
