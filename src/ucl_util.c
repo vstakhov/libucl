@@ -1330,20 +1330,10 @@ ucl_object_find_keyl (const ucl_object_t *obj, const char *key, size_t klen)
 const ucl_object_t *
 ucl_object_find_key (const ucl_object_t *obj, const char *key)
 {
-	size_t klen;
-	const ucl_object_t *ret;
-	ucl_object_t srch;
-
-	if (obj == NULL || obj->type != UCL_OBJECT || key == NULL) {
+	if (key == NULL)
 		return NULL;
-	}
 
-	klen = strlen (key);
-	srch.key = key;
-	srch.keylen = klen;
-	ret = ucl_hash_search_obj (obj->value.ov, &srch);
-
-	return ret;
+	return ucl_object_find_keyl (obj, key, strlen(key));
 }
 
 const ucl_object_t*
