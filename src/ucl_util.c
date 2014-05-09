@@ -1388,38 +1388,46 @@ ucl_iterate_object (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expan
 
 const ucl_object_t *
 ucl_lookup_path (const ucl_object_t *top, const char *path_in) {
-	const ucl_object_t *o, *found;
-	char *path;
-	const char *key;
-	int index;
+	const ucl_object_t *o = NULL, *found;
+	const char *p, *c;
+	char *err_str;
+	unsigned index;
 
 	if (path_in == NULL || top == NULL) {
 		return NULL;
 	}
 
 	found = NULL;
-	path = strdup (path_in);
+	p = path_in;
+	c = path_in;
 
-	while ((key = strsep (&path, ".")) != '\0') {
-		switch (top->type) {
-		case UCL_ARRAY:
-			/* Key should be an int */
-			index = (int)strtol (key, (char **)NULL, 10);
-			o = ucl_array_find_index (top, index);
-			break;
-		default:
-			o = ucl_object_find_key (top, key);
-			break;
+	while (*p != '\0') {
+		if (*p == '.') {
+			if (p > c) {
+				switch (top->type) {
+				case UCL_ARRAY:
+					/* Key should be an int */
+					index = strtoul (c, &err_str, 10);
+					if (err_str != NULL && (*err_str != '.' && *err_str != '\0')) {
+						return NULL;
+					}
+					o = ucl_array_find_index (top, index);
+					break;
+				default:
+					o = ucl_object_find_keyl (top, c, p - c);
+					break;
+				}
+				if (o == NULL) {
+					return NULL;
+				}
+				top = o;
+			}
+			c = p + 1;
 		}
-		if (o == NULL) {
-			goto err;
-		}
-		top = o;
+		p ++;
 	}
 	found = o;
 
-err:
-	free(path);
 	return found;
 }
 
