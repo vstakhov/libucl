@@ -1401,7 +1401,7 @@ ucl_object_new (void)
 }
 
 ucl_object_t *
-ucl_object_typed_new (unsigned int type)
+ucl_object_typed_new (ucl_type_t type)
 {
 	ucl_object_t *new;
 	new = malloc (sizeof (ucl_object_t));
@@ -1411,6 +1411,12 @@ ucl_object_typed_new (unsigned int type)
 		new->type = (type <= UCL_NULL ? type : UCL_NULL);
 	}
 	return new;
+}
+
+ucl_type_t
+ucl_object_type (const ucl_object_t *obj)
+{
+	return obj->type;
 }
 
 ucl_object_t*
