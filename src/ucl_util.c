@@ -1423,6 +1423,12 @@ ucl_object_typed_new (unsigned int type)
 	return new;
 }
 
+ucl_type_t
+ucl_object_type (const ucl_object_t *obj)
+{
+	return obj->type;
+}
+
 ucl_object_t*
 ucl_object_fromstring (const char *str)
 {

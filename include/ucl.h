@@ -239,6 +239,12 @@ UCL_EXTERN ucl_object_t* ucl_object_new (void) UCL_WARN_UNUSED_RESULT;
 UCL_EXTERN ucl_object_t* ucl_object_typed_new (unsigned int type) UCL_WARN_UNUSED_RESULT;
 
 /**
+ * Return the type of an object
+ * @return the object type
+ */
+UCL_EXTERN ucl_type_t ucl_object_type (const ucl_object_t *obj);
+
+/**
  * Convert any string to an ucl object making the specified transformations
  * @param str fixed size or NULL terminated string
  * @param len length (if len is zero, than str is treated as NULL terminated)
