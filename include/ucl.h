@@ -543,6 +543,15 @@ UCL_EXTERN const ucl_object_t* ucl_object_find_keyl (const ucl_object_t *obj,
 		const char *key, size_t klen);
 
 /**
+ * Return object identified by dot notation string
+ * @param obj object to search in
+ * @param path dot.notation.path to the path to lookup. May use numeric .index on arrays
+ * @return object matched the specified path or NULL if path is not found
+ */
+UCL_EXTERN const ucl_object_t *ucl_lookup_path (const ucl_object_t *obj,
+		const char *path);
+
+/**
  * Returns a key of an object as a NULL terminated string
  * @param obj CL object
  * @return key or NULL if there is no key
