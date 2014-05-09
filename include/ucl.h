@@ -419,6 +419,15 @@ UCL_EXTERN const ucl_object_t* ucl_array_tail (const ucl_object_t *top);
 UCL_EXTERN ucl_object_t* ucl_array_pop_last (ucl_object_t *top);
 
 /**
+ * Return object identified by an index of the array `top`
+ * @param obj object to get a key from (must be of type UCL_ARRAY)
+ * @param index index to return
+ * @return object at the specified index or NULL if index is not found
+ */
+UCL_EXTERN const ucl_object_t* ucl_array_find_index (const ucl_object_t *top,
+		unsigned int index);
+
+/**
  * Removes the first element from the array `top`. Caller must unref the returned object when it is not
  * needed.
  * @param top array ucl object
@@ -538,6 +547,15 @@ UCL_EXTERN const ucl_object_t* ucl_object_find_key (const ucl_object_t *obj,
  */
 UCL_EXTERN const ucl_object_t* ucl_object_find_keyl (const ucl_object_t *obj,
 		const char *key, size_t klen);
+
+/**
+ * Return object identified by dot notation string
+ * @param obj object to search in
+ * @param path dot.notation.path to the path to lookup. May use numeric .index on arrays
+ * @return object matched the specified path or NULL if path is not found
+ */
+UCL_EXTERN const ucl_object_t *ucl_lookup_path (const ucl_object_t *obj,
+		const char *path);
 
 /**
  * Returns a key of an object as a NULL terminated string

@@ -1386,6 +1386,43 @@ ucl_iterate_object (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expan
 	return NULL;
 }
 
+const ucl_object_t *
+ucl_lookup_path (const ucl_object_t *top, const char *path_in) {
+	const ucl_object_t *o, *found;
+	char *path;
+	const char *key;
+	int index;
+
+	if (path_in == NULL || top == NULL) {
+		return NULL;
+	}
+
+	found = NULL;
+	path = strdup (path_in);
+
+	while ((key = strsep (&path, ".")) != '\0') {
+		switch (top->type) {
+		case UCL_ARRAY:
+			/* Key should be an int */
+			index = (int)strtol (key, (char **)NULL, 10);
+			o = ucl_array_find_index (top, index);
+			break;
+		default:
+			o = ucl_object_find_key (top, key);
+			break;
+		}
+		if (o == NULL) {
+			goto err;
+		}
+		top = o;
+	}
+	found = o;
+
+err:
+	free(path);
+	return found;
+}
+
 
 ucl_object_t *
 ucl_object_new (void)
@@ -1585,6 +1622,27 @@ ucl_object_t *
 ucl_array_pop_first (ucl_object_t *top)
 {
 	return ucl_array_delete (top, __DECONST(ucl_object_t *, ucl_array_head (top)));
+}
+
+const ucl_object_t *
+ucl_array_find_index (const ucl_object_t *top, unsigned int index)
+{
+	ucl_object_iter_t it;
+	const ucl_object_t *ret;
+
+	if (top == NULL || top->type != UCL_ARRAY || top->len == 0 ||
+	    (index + 1) > top->len) {
+		return NULL;
+	}
+
+	while ((ret = ucl_iterate_object (top, &it, true)) != NULL) {
+		if (index == 0) {
+			return ret;
+		}
+		--index;
+	}
+
+	return NULL;
 }
 
 ucl_object_t *
