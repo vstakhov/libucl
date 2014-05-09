@@ -1399,10 +1399,16 @@ ucl_lookup_path (const ucl_object_t *top, const char *path_in) {
 
 	found = NULL;
 	p = path_in;
-	c = path_in;
 
+	/* Skip leading dots */
+	while (*p == '.') {
+		p ++;
+	}
+
+	c = p;
 	while (*p != '\0') {
-		if (*p == '.') {
+		p ++;
+		if (*p == '.' || *p == '\0') {
 			if (p > c) {
 				switch (top->type) {
 				case UCL_ARRAY:
@@ -1422,9 +1428,10 @@ ucl_lookup_path (const ucl_object_t *top, const char *path_in) {
 				}
 				top = o;
 			}
-			c = p + 1;
+			if (*p != '\0') {
+				c = p + 1;
+			}
 		}
-		p ++;
 	}
 	found = o;
 
