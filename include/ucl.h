@@ -413,6 +413,15 @@ UCL_EXTERN const ucl_object_t* ucl_array_tail (const ucl_object_t *top);
 UCL_EXTERN ucl_object_t* ucl_array_pop_last (ucl_object_t *top);
 
 /**
+ * Return object identified by an index of the array `top`
+ * @param obj object to get a key from (must be of type UCL_ARRAY)
+ * @param index index to return
+ * @return object at the specified index or NULL if index is not found
+ */
+UCL_EXTERN const ucl_object_t* ucl_array_find_index (const ucl_object_t *top,
+		unsigned int index);
+
+/**
  * Removes the first element from the array `top`. Caller must unref the returned object when it is not
  * needed.
  * @param top array ucl object

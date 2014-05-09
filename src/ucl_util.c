@@ -1591,6 +1591,27 @@ ucl_array_pop_first (ucl_object_t *top)
 	return ucl_array_delete (top, __DECONST(ucl_object_t *, ucl_array_head (top)));
 }
 
+const ucl_object_t *
+ucl_array_find_index (const ucl_object_t *top, unsigned int index)
+{
+	ucl_object_iter_t it;
+	const ucl_object_t *ret;
+
+	if (top == NULL || top->type != UCL_ARRAY || top->len == 0 ||
+	    (index + 1) > top->len) {
+		return NULL;
+	}
+
+	while ((ret = ucl_iterate_object (top, &it, true)) != NULL) {
+		if (index == 0) {
+			return ret;
+		}
+		--index;
+	}
+
+	return NULL;
+}
+
 ucl_object_t *
 ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
 {
