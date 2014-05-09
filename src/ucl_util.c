@@ -1642,7 +1642,7 @@ ucl_array_pop_first (ucl_object_t *top)
 const ucl_object_t *
 ucl_array_find_index (const ucl_object_t *top, unsigned int index)
 {
-	ucl_object_iter_t it;
+	ucl_object_iter_t it = NULL;
 	const ucl_object_t *ret;
 
 	if (top == NULL || top->type != UCL_ARRAY || top->len == 0 ||
