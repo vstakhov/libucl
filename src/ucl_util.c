@@ -1411,7 +1411,7 @@ ucl_object_new (void)
 }
 
 ucl_object_t *
-ucl_object_typed_new (unsigned int type)
+ucl_object_typed_new (ucl_type_t type)
 {
 	ucl_object_t *new;
 	new = malloc (sizeof (ucl_object_t));
