@@ -667,6 +667,19 @@ UCL_EXTERN void ucl_parser_register_macro (struct ucl_parser *parser, const char
 		ucl_macro_handler handler, void* ud);
 
 /**
+ * Handler to detect unregistered variables
+ * @param data variable data
+ * @param len length of variable
+ * @param replace (out) replace value for variable
+ * @param replace_len (out) replace length for variable
+ * @param need_free (out) UCL will free `dest` after usage
+ * @param ud opaque userdata
+ * @return true if variable
+ */
+typedef bool (*ucl_variable_handler) (const unsigned char *data, size_t len,
+		unsigned char **replace, size_t *replace_len, bool *need_free, void* ud);
+
+/**
  * Register new parser variable
  * @param parser parser object
  * @param var variable name
@@ -674,6 +687,15 @@ UCL_EXTERN void ucl_parser_register_macro (struct ucl_parser *parser, const char
  */
 UCL_EXTERN void ucl_parser_register_variable (struct ucl_parser *parser, const char *var,
 		const char *value);
+
+/**
+ * Set handler for unknown variables
+ * @param parser parser structure
+ * @param handler desired handler
+ * @param ud opaque data for the handler
+ */
+UCL_EXTERN void ucl_parser_set_variables_handler (struct ucl_parser *parser,
+		ucl_variable_handler handler, void *ud);
 
 /**
  * Load new chunk to a parser
