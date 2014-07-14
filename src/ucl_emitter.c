@@ -106,6 +106,12 @@ static const struct ucl_emitter_context ucl_standard_emitters[] = {
 	}
 };
 
+/*
+ * Utility to check whether we need a top object
+ */
+#define UCL_EMIT_IDENT_TOP_OBJ(ctx, obj) ((ctx)->top != (obj) || \
+		((ctx)->id == UCL_EMIT_JSON_COMPACT || (ctx)->id == UCL_EMIT_JSON))
+
 /**
  * Add tabulation to the output buffer
  * @param buf target buffer
@@ -127,12 +133,16 @@ ucl_add_tabs (const struct ucl_emitter_functions *func, unsigned int tabs,
  */
 static void
 ucl_elt_string_write_json (const char *str, size_t size,
-		const struct ucl_emitter_functions *func)
+		struct ucl_emitter_context *ctx)
 {
 	const char *p = str, *c = str;
 	size_t len = 0;
+	const struct ucl_emitter_functions *func = ctx->func;
 
-	func->ucl_emitter_append_character ('"', 1, func->ud);
+	if (ctx->id != UCL_EMIT_YAML) {
+		func->ucl_emitter_append_character ('"', 1, func->ud);
+	}
+
 	while (size) {
 		if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE)) {
 			if (len > 0) {
@@ -173,7 +183,9 @@ ucl_elt_string_write_json (const char *str, size_t size,
 	if (len > 0) {
 		func->ucl_emitter_append_len (c, len, func->ud);
 	}
-	func->ucl_emitter_append_character ('"', 1, func->ud);
+	if (ctx->id != UCL_EMIT_YAML) {
+		func->ucl_emitter_append_character ('"', 1, func->ud);
+	}
 }
 
 /**
@@ -187,7 +199,7 @@ ucl_emitter_common_end_object (struct ucl_emitter_context *ctx,
 {
 	const struct ucl_emitter_functions *func = ctx->func;
 
-	if (! (ctx->id == UCL_EMIT_CONFIG && obj == ctx->top)) {
+	if (UCL_EMIT_IDENT_TOP_OBJ(ctx, obj)) {
 		ctx->ident --;
 		if (compact) {
 			func->ucl_emitter_append_character ('}', 1, func->ud);
@@ -277,7 +289,7 @@ ucl_emitter_common_start_object (struct ucl_emitter_context *ctx,
 	 * Print <ident_level>{
 	 * <ident_level + 1><object content>
 	 */
-	if (! (ctx->id == UCL_EMIT_CONFIG && ctx->top == obj)) {
+	if (UCL_EMIT_IDENT_TOP_OBJ(ctx, obj)) {
 		if (compact) {
 			func->ucl_emitter_append_character ('{', 1, func->ud);
 		}
@@ -307,7 +319,7 @@ ucl_emitter_common_start_object (struct ucl_emitter_context *ctx,
 				}
 				ucl_add_tabs (func, ctx->ident, compact);
 				if (cur->keylen > 0) {
-					ucl_elt_string_write_json (cur->key, cur->keylen, func);
+					ucl_elt_string_write_json (cur->key, cur->keylen, ctx);
 				}
 				else {
 					func->ucl_emitter_append_len ("null", 4, func->ud);
@@ -360,7 +372,7 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 	if (print_key) {
 		if (ctx->id == UCL_EMIT_CONFIG) {
 			if (obj->flags & UCL_OBJECT_NEED_KEY_ESCAPE) {
-				ucl_elt_string_write_json (obj->key, obj->keylen, func);
+				ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
 			}
 			else {
 				func->ucl_emitter_append_len (obj->key, obj->keylen, func->ud);
@@ -375,7 +387,7 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		}
 		else {
 			if (obj->keylen > 0) {
-				ucl_elt_string_write_json (obj->key, obj->keylen, func);
+				ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
 			}
 			else {
 				func->ucl_emitter_append_len ("null", 4, func->ud);
@@ -408,7 +420,7 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		}
 		break;
 	case UCL_STRING:
-		ucl_elt_string_write_json (obj->value.sv, obj->len, func);
+		ucl_elt_string_write_json (obj->value.sv, obj->len, ctx);
 		break;
 	case UCL_NULL:
 		func->ucl_emitter_append_len ("null", 4, func->ud);
