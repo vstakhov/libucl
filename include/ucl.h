@@ -786,6 +786,7 @@ UCL_EXTERN bool ucl_parser_set_filevars (struct ucl_parser *parser, const char *
  * @{
  */
 
+struct ucl_emitter_context;
 /**
  * Structure using for emitter callbacks
  */
@@ -800,6 +801,37 @@ struct ucl_emitter_functions {
 	int (*ucl_emitter_append_double) (double elt, void *ud);
 	/** Opaque userdata pointer */
 	void *ud;
+};
+
+struct ucl_emitter_operations {
+	/** Write a primitive element */
+	void (*ucl_emitter_write_elt) (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj, bool first);
+	/** Start ucl object */
+	void (*ucl_emitter_start_object) (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj, bool first);
+	/** End ucl object */
+	void (*ucl_emitter_end_object) (struct ucl_emitter_context *ctx);
+	/** Start ucl array */
+	void (*ucl_emitter_start_array) (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj, bool first);
+	void (*ucl_emitter_end_array) (struct ucl_emitter_context *ctx);
+};
+
+/**
+ * Structure that defines emitter functions
+ */
+struct ucl_emitter_context {
+	/** Name of emitter (e.g. json, compact_json) */
+	const char *name;
+	/** Unique id (e.g. UCL_EMIT_JSON for standard emitters */
+	int id;
+	/** A set of output functions */
+	struct ucl_emitter_functions *func;
+	/** A set of output operations */
+	struct ucl_emitter_operations *ops;
+	/** The rest of context */
+	unsigned char data[1];
 };
 
 /**
