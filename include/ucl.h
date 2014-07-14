@@ -811,11 +811,13 @@ struct ucl_emitter_operations {
 	void (*ucl_emitter_start_object) (struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj);
 	/** End ucl object */
-	void (*ucl_emitter_end_object) (struct ucl_emitter_context *ctx);
+	void (*ucl_emitter_end_object) (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj);
 	/** Start ucl array */
 	void (*ucl_emitter_start_array) (struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj);
-	void (*ucl_emitter_end_array) (struct ucl_emitter_context *ctx);
+	void (*ucl_emitter_end_array) (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj);
 };
 
 /**
@@ -832,6 +834,8 @@ struct ucl_emitter_context {
 	const struct ucl_emitter_operations *ops;
 	/** Current amount of indent tabs */
 	unsigned int ident;
+	/** Top level object */
+	const ucl_object_t *top;
 	/** The rest of context */
 	unsigned char data[1];
 };
