@@ -295,9 +295,36 @@ ucl_emitter_common_start_object (struct ucl_emitter_context *ctx,
 			}
 		}
 		else {
-			/* Expand to array */
-			ucl_emitter_common_start_array (ctx, elt, compact);
-			ucl_emitter_common_end_array (ctx, elt, compact);
+			/* Expand implicit arrays */
+			if (cur->next != NULL) {
+				if (!first) {
+					if (compact) {
+						func->ucl_emitter_append_character (',', 1, func->ud);
+					}
+					else {
+						func->ucl_emitter_append_len (",\n", 2, func->ud);
+					}
+				}
+				ucl_add_tabs (func, ctx->ident, compact);
+				if (cur->keylen > 0) {
+					ucl_elt_string_write_json (cur->key, cur->keylen, func);
+				}
+				else {
+					func->ucl_emitter_append_len ("null", 4, func->ud);
+				}
+
+				if (compact) {
+					func->ucl_emitter_append_character (':', 1, func->ud);
+				}
+				else {
+					func->ucl_emitter_append_len (": ", 2, func->ud);
+				}
+				ucl_emitter_common_start_array (ctx, cur, compact);
+				ucl_emitter_common_end_array (ctx, cur, compact);
+			}
+			else {
+				ucl_emitter_common_elt (ctx, cur, first, true, compact);
+			}
 		}
 
 		first = false;
