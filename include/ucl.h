@@ -806,7 +806,7 @@ struct ucl_emitter_functions {
 struct ucl_emitter_operations {
 	/** Write a primitive element */
 	void (*ucl_emitter_write_elt) (struct ucl_emitter_context *ctx,
-		const ucl_object_t *obj, bool first);
+		const ucl_object_t *obj, bool first, bool print_key);
 	/** Start ucl object */
 	void (*ucl_emitter_start_object) (struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj, bool first);

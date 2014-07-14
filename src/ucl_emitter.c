@@ -69,6 +69,67 @@ static void ucl_elt_array_write_yaml (const ucl_object_t *obj,
 		bool start_tabs,
 		bool is_top);
 
+#define UCL_EMIT_TYPE_OPS(type)		\
+	static void ucl_emit_ ## type ## _elt (struct ucl_emitter_context *ctx,	\
+		const ucl_object_t *obj, bool first, bool print_key);	\
+	static void ucl_emit_ ## type ## _start_obj (struct ucl_emitter_context *ctx,	\
+		const ucl_object_t *obj, bool first);	\
+	static void ucl_emit_ ## type## _start_array (struct ucl_emitter_context *ctx,	\
+		const ucl_object_t *obj, bool first);	\
+	static void ucl_emit_ ##type## _end_object (struct ucl_emitter_context *ctx);	\
+	static void ucl_emit_ ##type## _end_array (struct ucl_emitter_context *ctx)
+
+/*
+ * JSON format operations
+ */
+UCL_EMIT_TYPE_OPS(json);
+UCL_EMIT_TYPE_OPS(json_compact);
+UCL_EMIT_TYPE_OPS(config);
+UCL_EMIT_TYPE_OPS(yaml);
+
+#define UCL_EMIT_TYPE_CONTENT(type) {	\
+	.ucl_emitter_write_elt = ucl_emit_ ## type ## _elt,	\
+	.ucl_emitter_start_object = ucl_emit_ ## type ##_start_obj,	\
+	.ucl_emitter_start_array = ucl_emit_ ## type ##_start_array,	\
+	.ucl_emitter_end_object = ucl_emit_ ## type ##_end_object,	\
+	.ucl_emitter_end_array = ucl_emit_ ## type ##_end_array	\
+}
+
+
+static const struct ucl_emitter_operations ucl_standartd_emitter_ops[] = {
+	[UCL_EMIT_JSON] = UCL_EMIT_TYPE_CONTENT(json),
+	[UCL_EMIT_JSON_COMPACT] = UCL_EMIT_TYPE_CONTENT(json_compact),
+	[UCL_EMIT_CONFIG] = UCL_EMIT_TYPE_CONTENT(config),
+	[UCL_EMIT_YAML] = UCL_EMIT_TYPE_CONTENT(yaml)
+};
+
+static const struct ucl_emitter_context ucl_standard_emitters[] = {
+	[UCL_EMIT_JSON] = {
+		.name = "json",
+		.id = UCL_EMIT_JSON,
+		.func = NULL,
+		.ops = &ucl_standartd_emitter_ops[UCL_EMIT_JSON]
+	},
+	[UCL_EMIT_JSON_COMPACT] = {
+		.name = "json_compact",
+		.id = UCL_EMIT_JSON_COMPACT,
+		.func = NULL,
+		.ops = &ucl_standartd_emitter_ops[UCL_EMIT_JSON_COMPACT]
+	},
+	[UCL_EMIT_CONFIG] = {
+		.name = "config",
+		.id = UCL_EMIT_CONFIG,
+		.func = NULL,
+		.ops = &ucl_standartd_emitter_ops[UCL_EMIT_CONFIG]
+	},
+	[UCL_EMIT_YAML] = {
+		.name = "yaml",
+		.id = UCL_EMIT_YAML,
+		.func = NULL,
+		.ops = &ucl_standartd_emitter_ops[UCL_EMIT_YAML]
+	}
+};
+
 /**
  * Add tabulation to the output buffer
  * @param buf target buffer
