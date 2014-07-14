@@ -809,12 +809,12 @@ struct ucl_emitter_operations {
 		const ucl_object_t *obj, bool first, bool print_key);
 	/** Start ucl object */
 	void (*ucl_emitter_start_object) (struct ucl_emitter_context *ctx,
-		const ucl_object_t *obj, bool first);
+		const ucl_object_t *obj);
 	/** End ucl object */
 	void (*ucl_emitter_end_object) (struct ucl_emitter_context *ctx);
 	/** Start ucl array */
 	void (*ucl_emitter_start_array) (struct ucl_emitter_context *ctx,
-		const ucl_object_t *obj, bool first);
+		const ucl_object_t *obj);
 	void (*ucl_emitter_end_array) (struct ucl_emitter_context *ctx);
 };
 
@@ -827,9 +827,11 @@ struct ucl_emitter_context {
 	/** Unique id (e.g. UCL_EMIT_JSON for standard emitters */
 	int id;
 	/** A set of output functions */
-	struct ucl_emitter_functions *func;
+	const struct ucl_emitter_functions *func;
 	/** A set of output operations */
-	struct ucl_emitter_operations *ops;
+	const struct ucl_emitter_operations *ops;
+	/** Current amount of indent tabs */
+	unsigned int ident;
 	/** The rest of context */
 	unsigned char data[1];
 };
