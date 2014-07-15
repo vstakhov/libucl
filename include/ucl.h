@@ -855,11 +855,52 @@ UCL_EXTERN unsigned char *ucl_object_emit (const ucl_object_t *obj,
  * @param obj object
  * @param emit_type if type is #UCL_EMIT_JSON then emit json, if type is
  * #UCL_EMIT_CONFIG then emit config like object
+ * @param emitter a set of emitter functions
  * @return dump of an object (must be freed after using) or NULL in case of error
  */
 UCL_EXTERN bool ucl_object_emit_full (const ucl_object_t *obj,
 		enum ucl_emitter emit_type,
 		struct ucl_emitter_functions *emitter);
+
+/**
+ * Start streamlined UCL object emitter
+ * @param obj top UCL object
+ * @param emit_type emit type
+ * @param emitter a set of emitter functions
+ * @return new streamlined context that should be freed by
+ * `ucl_object_emit_streamline_finish`
+ */
+UCL_EXTERN struct ucl_emitter_context* ucl_object_emit_streamline_new (
+		const ucl_object_t *obj, enum ucl_emitter emit_type,
+		struct ucl_emitter_functions *emitter);
+
+/**
+ * Start object or array container for the streamlined output
+ * @param ctx streamlined context
+ * @param is_array if true then start array container
+ */
+UCL_EXTERN void ucl_object_emit_streamline_start_container (
+		struct ucl_emitter_context *ctx, bool is_array);
+/**
+ * Add a complete UCL object to streamlined output
+ * @param ctx streamlined context
+ * @param obj object to output
+ */
+UCL_EXTERN void ucl_object_emit_streamline_add_object (
+		struct ucl_emitter_context *ctx, const ucl_object_t *obj);
+/**
+ * End previously added container
+ * @param ctx streamlined context
+ */
+UCL_EXTERN void ucl_object_emit_streamline_end_container (
+		struct ucl_emitter_context *ctx);
+/**
+ * Terminate streamlined container finishing all containers in it
+ * @param ctx streamlined context
+ */
+UCL_EXTERN void ucl_object_emit_streamline_finish (
+		struct ucl_emitter_context *ctx);
+
 /** @} */
 
 /**
