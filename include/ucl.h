@@ -877,10 +877,10 @@ UCL_EXTERN struct ucl_emitter_context* ucl_object_emit_streamline_new (
 /**
  * Start object or array container for the streamlined output
  * @param ctx streamlined context
- * @param is_array if true then start array container
+ * @param obj container object
  */
 UCL_EXTERN void ucl_object_emit_streamline_start_container (
-		struct ucl_emitter_context *ctx, bool is_array);
+		struct ucl_emitter_context *ctx, const ucl_object_t *obj);
 /**
  * Add a complete UCL object to streamlined output
  * @param ctx streamlined context
