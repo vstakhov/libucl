@@ -901,6 +901,35 @@ UCL_EXTERN void ucl_object_emit_streamline_end_container (
 UCL_EXTERN void ucl_object_emit_streamline_finish (
 		struct ucl_emitter_context *ctx);
 
+/**
+ * Returns functions to emit object to memory
+ * @param pmem target pointer (should be freed by caller)
+ * @return emitter functions structure
+ */
+UCL_EXTERN struct ucl_emitter_functions* ucl_object_emit_memory_funcs (
+		void **pmem);
+
+/**
+ * Returns functions to emit object to FILE *
+ * @param fp FILE * object
+ * @return emitter functions structure
+ */
+UCL_EXTERN struct ucl_emitter_functions* ucl_object_emit_file_funcs (
+		FILE *fp);
+/**
+ * Returns functions to emit object to a file descriptor
+ * @param fd file descriptor
+ * @return emitter functions structure
+ */
+UCL_EXTERN struct ucl_emitter_functions* ucl_object_emit_fd_funcs (
+		int fd);
+
+/**
+ * Free emitter functions
+ * @param f pointer to functions
+ */
+UCL_EXTERN void ucl_object_emit_funcs_free (struct ucl_emitter_functions *f);
+
 /** @} */
 
 /**

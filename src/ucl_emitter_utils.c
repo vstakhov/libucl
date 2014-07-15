@@ -29,6 +29,13 @@
 #include "ucl_internal.h"
 #include "ucl_chartable.h"
 
+#ifdef HAVE_FLOAT_H
+#include <float.h>
+#endif
+#ifdef HAVE_MATH_H
+#include <math.h>
+#endif
+
 extern const struct ucl_emitter_operations ucl_standartd_emitter_ops[];
 
 static const struct ucl_emitter_context ucl_standard_emitters[] = {
@@ -135,3 +142,161 @@ ucl_elt_string_write_json (const char *str, size_t size,
 	}
 }
 
+/*
+ * Generic utstring output
+ */
+static int
+ucl_utstring_append_character (unsigned char c, size_t len, void *ud)
+{
+	UT_string *buf = ud;
+
+	if (len == 1) {
+		utstring_append_c (buf, c);
+	}
+	else {
+		utstring_reserve (buf, len);
+		memset (&buf->d[buf->i], c, len);
+		buf->i += len;
+		buf->d[buf->i] = '\0';
+	}
+
+	return 0;
+}
+
+static int
+ucl_utstring_append_len (const unsigned char *str, size_t len, void *ud)
+{
+	UT_string *buf = ud;
+
+	utstring_append_len (buf, str, len);
+
+	return 0;
+}
+
+static int
+ucl_utstring_append_int (int64_t val, void *ud)
+{
+	UT_string *buf = ud;
+
+	utstring_printf (buf, "%jd", (intmax_t)val);
+	return 0;
+}
+
+static int
+ucl_utstring_append_double (double val, void *ud)
+{
+	UT_string *buf = ud;
+	const double delta = 0.0000001;
+
+	if (val == (double)(int)val) {
+		utstring_printf (buf, "%.1lf", val);
+	}
+	else if (fabs (val - (double)(int)val) < delta) {
+		/* Write at maximum precision */
+		utstring_printf (buf, "%.*lg", DBL_DIG, val);
+	}
+	else {
+		utstring_printf (buf, "%lf", val);
+	}
+
+	return 0;
+}
+
+
+struct ucl_emitter_functions*
+ucl_object_emit_memory_funcs (void **pmem)
+{
+	struct ucl_emitter_functions *f;
+	UT_string *s;
+
+	f = calloc (1, sizeof (*f));
+
+	if (f != NULL) {
+		f->ucl_emitter_append_character = ucl_utstring_append_character;
+		f->ucl_emitter_append_double = ucl_utstring_append_double;
+		f->ucl_emitter_append_int = ucl_utstring_append_int;
+		f->ucl_emitter_append_len = ucl_utstring_append_len;
+		utstring_new (s);
+		f->ud = s;
+		*pmem = s->d;
+		s->pd = pmem;
+	}
+
+	return f;
+}
+
+struct ucl_emitter_functions*
+ucl_object_emit_file_funcs (FILE *fp)
+{
+
+}
+
+struct ucl_emitter_functions*
+ucl_object_emit_fd_funcs (int fd)
+{
+
+}
+
+void
+ucl_object_emit_funcs_free (struct ucl_emitter_functions *f)
+{
+	if (f != NULL) {
+		if (f->ud != NULL) {
+			free (f->ud);
+		}
+		free (f);
+	}
+}
+
+
+unsigned char *
+ucl_object_emit_single_json (const ucl_object_t *obj)
+{
+	UT_string *buf = NULL;
+	unsigned char *res = NULL;
+
+	if (obj == NULL) {
+		return NULL;
+	}
+
+	utstring_new (buf);
+
+	if (buf != NULL) {
+		switch (obj->type) {
+		case UCL_OBJECT:
+			ucl_utstring_append_len ("object", 6, buf);
+			break;
+		case UCL_ARRAY:
+			ucl_utstring_append_len ("array", 5, buf);
+			break;
+		case UCL_INT:
+			ucl_utstring_append_int (obj->value.iv, buf);
+			break;
+		case UCL_FLOAT:
+		case UCL_TIME:
+			ucl_utstring_append_double (obj->value.dv, buf);
+			break;
+		case UCL_NULL:
+			ucl_utstring_append_len ("null", 4, buf);
+			break;
+		case UCL_BOOLEAN:
+			if (obj->value.iv) {
+				ucl_utstring_append_len ("true", 4, buf);
+			}
+			else {
+				ucl_utstring_append_len ("false", 5, buf);
+			}
+			break;
+		case UCL_STRING:
+			ucl_utstring_append_len (obj->value.sv, obj->len, buf);
+			break;
+		case UCL_USERDATA:
+			ucl_utstring_append_len ("userdata", 8, buf);
+			break;
+		}
+		res = utstring_body (buf);
+		free (buf);
+	}
+
+	return res;
+}
