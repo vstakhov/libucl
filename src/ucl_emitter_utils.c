@@ -202,6 +202,135 @@ ucl_utstring_append_double (double val, void *ud)
 	return 0;
 }
 
+/*
+ * Generic file output
+ */
+static int
+ucl_file_append_character (unsigned char c, size_t len, void *ud)
+{
+	FILE *fp = ud;
+
+	while (len --) {
+		fputc (c, fp);
+	}
+
+	return 0;
+}
+
+static int
+ucl_file_append_len (const unsigned char *str, size_t len, void *ud)
+{
+	FILE *fp = ud;
+
+	fwrite (str, len, 1, fp);
+
+	return 0;
+}
+
+static int
+ucl_file_append_int (int64_t val, void *ud)
+{
+	FILE *fp = ud;
+
+	fprintf (fp, "%jd", (intmax_t)val);
+
+	return 0;
+}
+
+static int
+ucl_file_append_double (double val, void *ud)
+{
+	FILE *fp = ud;
+	const double delta = 0.0000001;
+
+	if (val == (double)(int)val) {
+		fprintf (fp, "%.1lf", val);
+	}
+	else if (fabs (val - (double)(int)val) < delta) {
+		/* Write at maximum precision */
+		fprintf (fp, "%.*lg", DBL_DIG, val);
+	}
+	else {
+		fprintf (fp, "%lf", val);
+	}
+
+	return 0;
+}
+
+/*
+ * Generic file descriptor writing functions
+ */
+static int
+ucl_fd_append_character (unsigned char c, size_t len, void *ud)
+{
+	int fd = *(int *)ud;
+	unsigned char *buf;
+
+	if (len == 1) {
+		write (fd, &c, 1);
+	}
+	else {
+		buf = malloc (len);
+		if (buf == NULL) {
+			/* Fallback */
+			while (len --) {
+				write (fd, &c, 1);
+			}
+		}
+		else {
+			memset (buf, c, len);
+			write (fd, buf, len);
+			free (buf);
+		}
+	}
+
+	return 0;
+}
+
+static int
+ucl_fd_append_len (const unsigned char *str, size_t len, void *ud)
+{
+	int fd = *(int *)ud;
+
+	write (fd, str, len);
+
+	return 0;
+}
+
+static int
+ucl_fd_append_int (int64_t val, void *ud)
+{
+	int fd = *(int *)ud;
+	char intbuf[64];
+
+	snprintf (intbuf, sizeof (intbuf), "%jd", (intmax_t)val);
+	write (fd, intbuf, strlen (intbuf));
+
+	return 0;
+}
+
+static int
+ucl_fd_append_double (double val, void *ud)
+{
+	int fd = *(int *)ud;
+	const double delta = 0.0000001;
+	char nbuf[64];
+
+	if (val == (double)(int)val) {
+		snprintf (nbuf, sizeof (nbuf), "%.1lf", val);
+	}
+	else if (fabs (val - (double)(int)val) < delta) {
+		/* Write at maximum precision */
+		snprintf (nbuf, sizeof (nbuf), "%.*lg", DBL_DIG, val);
+	}
+	else {
+		snprintf (nbuf, sizeof (nbuf), "%lf", val);
+	}
+
+	write (fd, nbuf, strlen (nbuf));
+
+	return 0;
+}
 
 struct ucl_emitter_functions*
 ucl_object_emit_memory_funcs (void **pmem)
@@ -216,6 +345,7 @@ ucl_object_emit_memory_funcs (void **pmem)
 		f->ucl_emitter_append_double = ucl_utstring_append_double;
 		f->ucl_emitter_append_int = ucl_utstring_append_int;
 		f->ucl_emitter_append_len = ucl_utstring_append_len;
+		f->ucl_emitter_free_func = free;
 		utstring_new (s);
 		f->ud = s;
 		*pmem = s->d;
@@ -228,21 +358,55 @@ ucl_object_emit_memory_funcs (void **pmem)
 struct ucl_emitter_functions*
 ucl_object_emit_file_funcs (FILE *fp)
 {
+	struct ucl_emitter_functions *f;
 
+	f = calloc (1, sizeof (*f));
+
+	if (f != NULL) {
+		f->ucl_emitter_append_character = ucl_file_append_character;
+		f->ucl_emitter_append_double = ucl_file_append_double;
+		f->ucl_emitter_append_int = ucl_file_append_int;
+		f->ucl_emitter_append_len = ucl_file_append_len;
+		f->ucl_emitter_free_func = NULL;
+		f->ud = fp;
+	}
+
+	return f;
 }
 
 struct ucl_emitter_functions*
 ucl_object_emit_fd_funcs (int fd)
 {
+	struct ucl_emitter_functions *f;
+	int *ip;
 
+	f = calloc (1, sizeof (*f));
+
+	if (f != NULL) {
+		ip = malloc (sizeof (fd));
+		if (ip == NULL) {
+			free (f);
+			return NULL;
+		}
+
+		memcpy (ip, &fd, sizeof (fd));
+		f->ucl_emitter_append_character = ucl_fd_append_character;
+		f->ucl_emitter_append_double = ucl_fd_append_double;
+		f->ucl_emitter_append_int = ucl_fd_append_int;
+		f->ucl_emitter_append_len = ucl_fd_append_len;
+		f->ucl_emitter_free_func = free;
+		f->ud = ip;
+	}
+
+	return f;
 }
 
 void
 ucl_object_emit_funcs_free (struct ucl_emitter_functions *f)
 {
 	if (f != NULL) {
-		if (f->ud != NULL) {
-			free (f->ud);
+		if (f->ucl_emitter_free_func != NULL) {
+			f->ucl_emitter_free_func (f->ud);
 		}
 		free (f);
 	}

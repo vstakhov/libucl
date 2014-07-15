@@ -799,6 +799,8 @@ struct ucl_emitter_functions {
 	int (*ucl_emitter_append_int) (int64_t elt, void *ud);
 	/** Append floating point element */
 	int (*ucl_emitter_append_double) (double elt, void *ud);
+	/** Free userdata */
+	void (*ucl_emitter_free_func)(void *ud);
 	/** Opaque userdata pointer */
 	void *ud;
 };
