@@ -343,6 +343,14 @@ ucl_hash_insert_object (ucl_hash_t *hashlin, const ucl_object_t *obj)
 }
 
 /**
+ * Get standard emitter context for a specified emit_type
+ * @param emit_type type of emitter
+ * @return context or NULL if input is invalid
+ */
+const struct ucl_emitter_context *
+ucl_emit_get_standard_context (enum ucl_emitter emit_type);
+
+/**
  * Emit a single object to string
  * @param obj
  * @return

@@ -112,6 +112,22 @@ static const struct ucl_emitter_context ucl_standard_emitters[] = {
 #define UCL_EMIT_IDENT_TOP_OBJ(ctx, obj) ((ctx)->top != (obj) || \
 		((ctx)->id == UCL_EMIT_JSON_COMPACT || (ctx)->id == UCL_EMIT_JSON))
 
+
+/**
+ * Get standard emitter context for a specified emit_type
+ * @param emit_type type of emitter
+ * @return context or NULL if input is invalid
+ */
+const struct ucl_emitter_context *
+ucl_emit_get_standard_context (enum ucl_emitter emit_type)
+{
+	if (emit_type >= UCL_EMIT_JSON && emit_type <= UCL_EMIT_YAML) {
+		return &ucl_standard_emitters[emit_type];
+	}
+
+	return NULL;
+}
+
 /**
  * Add tabulation to the output buffer
  * @param buf target buffer
@@ -581,16 +597,18 @@ bool
 ucl_object_emit_full (const ucl_object_t *obj, enum ucl_emitter emit_type,
 		struct ucl_emitter_functions *emitter)
 {
-	struct ucl_emitter_context ctx;
+	const struct ucl_emitter_context *ctx;
+	struct ucl_emitter_context my_ctx;
 	bool res = false;
 
-	if (emit_type >= UCL_EMIT_JSON && emit_type <= UCL_EMIT_YAML) {
-		memcpy (&ctx, &ucl_standard_emitters[emit_type], sizeof (ctx));
-		ctx.func = emitter;
-		ctx.ident = 0;
-		ctx.top = obj;
+	ctx = ucl_emit_get_standard_context (emit_type);
+	if (ctx != NULL) {
+		memcpy (&my_ctx, ctx, sizeof (my_ctx));
+		my_ctx.func = emitter;
+		my_ctx.ident = 0;
+		my_ctx.top = obj;
 
-		ctx.ops->ucl_emitter_write_elt (&ctx, obj, true, false);
+		my_ctx.ops->ucl_emitter_write_elt (&my_ctx, obj, true, false);
 		res = true;
 	}
 
