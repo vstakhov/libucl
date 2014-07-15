@@ -36,7 +36,7 @@
 #endif
 
 /**
- * @file rcl_emitter.c
+ * @file ucl_emitter.c
  * Serialise UCL object to various of output formats
  */
 
@@ -72,38 +72,11 @@ UCL_EMIT_TYPE_OPS(yaml);
 }
 
 
-static const struct ucl_emitter_operations ucl_standartd_emitter_ops[] = {
+const struct ucl_emitter_operations ucl_standartd_emitter_ops[] = {
 	[UCL_EMIT_JSON] = UCL_EMIT_TYPE_CONTENT(json),
 	[UCL_EMIT_JSON_COMPACT] = UCL_EMIT_TYPE_CONTENT(json_compact),
 	[UCL_EMIT_CONFIG] = UCL_EMIT_TYPE_CONTENT(config),
 	[UCL_EMIT_YAML] = UCL_EMIT_TYPE_CONTENT(yaml)
-};
-
-static const struct ucl_emitter_context ucl_standard_emitters[] = {
-	[UCL_EMIT_JSON] = {
-		.name = "json",
-		.id = UCL_EMIT_JSON,
-		.func = NULL,
-		.ops = &ucl_standartd_emitter_ops[UCL_EMIT_JSON]
-	},
-	[UCL_EMIT_JSON_COMPACT] = {
-		.name = "json_compact",
-		.id = UCL_EMIT_JSON_COMPACT,
-		.func = NULL,
-		.ops = &ucl_standartd_emitter_ops[UCL_EMIT_JSON_COMPACT]
-	},
-	[UCL_EMIT_CONFIG] = {
-		.name = "config",
-		.id = UCL_EMIT_CONFIG,
-		.func = NULL,
-		.ops = &ucl_standartd_emitter_ops[UCL_EMIT_CONFIG]
-	},
-	[UCL_EMIT_YAML] = {
-		.name = "yaml",
-		.id = UCL_EMIT_YAML,
-		.func = NULL,
-		.ops = &ucl_standartd_emitter_ops[UCL_EMIT_YAML]
-	}
 };
 
 /*
@@ -112,21 +85,6 @@ static const struct ucl_emitter_context ucl_standard_emitters[] = {
 #define UCL_EMIT_IDENT_TOP_OBJ(ctx, obj) ((ctx)->top != (obj) || \
 		((ctx)->id == UCL_EMIT_JSON_COMPACT || (ctx)->id == UCL_EMIT_JSON))
 
-
-/**
- * Get standard emitter context for a specified emit_type
- * @param emit_type type of emitter
- * @return context or NULL if input is invalid
- */
-const struct ucl_emitter_context *
-ucl_emit_get_standard_context (enum ucl_emitter emit_type)
-{
-	if (emit_type >= UCL_EMIT_JSON && emit_type <= UCL_EMIT_YAML) {
-		return &ucl_standard_emitters[emit_type];
-	}
-
-	return NULL;
-}
 
 /**
  * Add tabulation to the output buffer
@@ -139,68 +97,6 @@ ucl_add_tabs (const struct ucl_emitter_functions *func, unsigned int tabs,
 {
 	if (!compact && tabs > 0) {
 		func->ucl_emitter_append_character (' ', tabs * 4, func->ud);
-	}
-}
-
-/**
- * Serialise string
- * @param str string to emit
- * @param buf target buffer
- */
-static void
-ucl_elt_string_write_json (const char *str, size_t size,
-		struct ucl_emitter_context *ctx)
-{
-	const char *p = str, *c = str;
-	size_t len = 0;
-	const struct ucl_emitter_functions *func = ctx->func;
-
-	if (ctx->id != UCL_EMIT_YAML) {
-		func->ucl_emitter_append_character ('"', 1, func->ud);
-	}
-
-	while (size) {
-		if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE)) {
-			if (len > 0) {
-				func->ucl_emitter_append_len (c, len, func->ud);
-			}
-			switch (*p) {
-			case '\n':
-				func->ucl_emitter_append_len ("\\n", 2, func->ud);
-				break;
-			case '\r':
-				func->ucl_emitter_append_len ("\\r", 2, func->ud);
-				break;
-			case '\b':
-				func->ucl_emitter_append_len ("\\b", 2, func->ud);
-				break;
-			case '\t':
-				func->ucl_emitter_append_len ("\\t", 2, func->ud);
-				break;
-			case '\f':
-				func->ucl_emitter_append_len ("\\f", 2, func->ud);
-				break;
-			case '\\':
-				func->ucl_emitter_append_len ("\\\\", 2, func->ud);
-				break;
-			case '"':
-				func->ucl_emitter_append_len ("\\\"", 2, func->ud);
-				break;
-			}
-			len = 0;
-			c = ++p;
-		}
-		else {
-			p ++;
-			len ++;
-		}
-		size --;
-	}
-	if (len > 0) {
-		func->ucl_emitter_append_len (c, len, func->ud);
-	}
-	if (ctx->id != UCL_EMIT_YAML) {
-		func->ucl_emitter_append_character ('"', 1, func->ud);
 	}
 }
 

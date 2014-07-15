@@ -351,6 +351,14 @@ const struct ucl_emitter_context *
 ucl_emit_get_standard_context (enum ucl_emitter emit_type);
 
 /**
+ * Serialise string
+ * @param str string to emit
+ * @param buf target buffer
+ */
+void ucl_elt_string_write_json (const char *str, size_t size,
+		struct ucl_emitter_context *ctx);
+
+/**
  * Emit a single object to string
  * @param obj
  * @return
