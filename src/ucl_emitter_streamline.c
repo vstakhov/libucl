@@ -73,7 +73,10 @@ ucl_object_emit_streamline_new (const ucl_object_t *obj,
 	sctx->func = emitter;
 	sctx->top = obj;
 
-	return (struct ucl_emitter_context *)ctx;
+	ucl_object_emit_streamline_start_container ((struct ucl_emitter_context *)sctx,
+			obj);
+
+	return (struct ucl_emitter_context *)sctx;
 }
 
 void
