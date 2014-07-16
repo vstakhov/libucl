@@ -97,11 +97,11 @@ ucl_object_emit_streamline_start_container (struct ucl_emitter_context *ctx,
 		st->obj = obj;
 		if (obj != NULL && obj->type == UCL_ARRAY) {
 			st->is_array = true;
-			sctx->ops->ucl_emitter_start_array (ctx, obj);
+			sctx->ops->ucl_emitter_start_array (ctx, obj, false);
 		}
 		else {
 			st->is_array = false;
-			sctx->ops->ucl_emitter_start_object (ctx, obj);
+			sctx->ops->ucl_emitter_start_object (ctx, obj, true);
 		}
 	}
 

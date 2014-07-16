@@ -47,9 +47,9 @@ static void ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 	static void ucl_emit_ ## type ## _elt (struct ucl_emitter_context *ctx,	\
 		const ucl_object_t *obj, bool first, bool print_key);	\
 	static void ucl_emit_ ## type ## _start_obj (struct ucl_emitter_context *ctx,	\
-		const ucl_object_t *obj);	\
+		const ucl_object_t *obj, bool print_key);	\
 	static void ucl_emit_ ## type## _start_array (struct ucl_emitter_context *ctx,	\
-		const ucl_object_t *obj);	\
+		const ucl_object_t *obj, bool print_key);	\
 	static void ucl_emit_ ##type## _end_object (struct ucl_emitter_context *ctx,	\
 		const ucl_object_t *obj);	\
 	static void ucl_emit_ ##type## _end_array (struct ucl_emitter_context *ctx,	\
@@ -97,6 +97,53 @@ ucl_add_tabs (const struct ucl_emitter_functions *func, unsigned int tabs,
 {
 	if (!compact && tabs > 0) {
 		func->ucl_emitter_append_character (' ', tabs * 4, func->ud);
+	}
+}
+
+/**
+ * Print key for the element
+ * @param ctx
+ * @param obj
+ */
+static void
+ucl_emitter_print_key (bool print_key, struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj, bool compact)
+{
+	const struct ucl_emitter_functions *func = ctx->func;
+
+	if (!print_key) {
+		return;
+	}
+
+	if (ctx->id == UCL_EMIT_CONFIG) {
+		if (obj->flags & UCL_OBJECT_NEED_KEY_ESCAPE) {
+			ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
+		}
+		else {
+			func->ucl_emitter_append_len (obj->key, obj->keylen, func->ud);
+		}
+
+		if (obj->type != UCL_OBJECT && obj->type != UCL_ARRAY) {
+			func->ucl_emitter_append_len (" = ", 3, func->ud);
+		}
+		else {
+			func->ucl_emitter_append_character (' ', 1, func->ud);
+		}
+	}
+	else {
+		if (obj->keylen > 0) {
+			ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
+		}
+		else {
+			func->ucl_emitter_append_len ("null", 4, func->ud);
+		}
+
+		if (compact) {
+			func->ucl_emitter_append_character (':', 1, func->ud);
+		}
+		else {
+			func->ucl_emitter_append_len (": ", 2, func->ud);
+		}
 	}
 }
 
@@ -160,11 +207,13 @@ ucl_emitter_common_end_array (struct ucl_emitter_context *ctx,
  */
 static void
 ucl_emitter_common_start_array (struct ucl_emitter_context *ctx,
-		const ucl_object_t *obj, bool compact)
+		const ucl_object_t *obj, bool print_key, bool compact)
 {
 	const ucl_object_t *cur = obj;
 	const struct ucl_emitter_functions *func = ctx->func;
 	bool first = true;
+
+	ucl_emitter_print_key (print_key, ctx, obj, compact);
 
 	if (compact) {
 		func->ucl_emitter_append_character ('[', 1, func->ud);
@@ -190,13 +239,14 @@ ucl_emitter_common_start_array (struct ucl_emitter_context *ctx,
  */
 static void
 ucl_emitter_common_start_object (struct ucl_emitter_context *ctx,
-		const ucl_object_t *obj, bool compact)
+		const ucl_object_t *obj, bool print_key, bool compact)
 {
 	ucl_hash_iter_t it = NULL;
 	const ucl_object_t *cur, *elt;
 	const struct ucl_emitter_functions *func = ctx->func;
 	bool first = true;
 
+	ucl_emitter_print_key (print_key, ctx, obj, compact);
 	/*
 	 * Print <ident_level>{
 	 * <ident_level + 1><object content>
@@ -230,20 +280,7 @@ ucl_emitter_common_start_object (struct ucl_emitter_context *ctx,
 					}
 				}
 				ucl_add_tabs (func, ctx->ident, compact);
-				if (cur->keylen > 0) {
-					ucl_elt_string_write_json (cur->key, cur->keylen, ctx);
-				}
-				else {
-					func->ucl_emitter_append_len ("null", 4, func->ud);
-				}
-
-				if (compact) {
-					func->ucl_emitter_append_character (':', 1, func->ud);
-				}
-				else {
-					func->ucl_emitter_append_len (": ", 2, func->ud);
-				}
-				ucl_emitter_common_start_array (ctx, cur, compact);
+				ucl_emitter_common_start_array (ctx, cur, true, compact);
 				ucl_emitter_common_end_array (ctx, cur, compact);
 			}
 			else {
@@ -281,48 +318,18 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 
 	ucl_add_tabs (func, ctx->ident, compact);
 
-	if (print_key) {
-		if (ctx->id == UCL_EMIT_CONFIG) {
-			if (obj->flags & UCL_OBJECT_NEED_KEY_ESCAPE) {
-				ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
-			}
-			else {
-				func->ucl_emitter_append_len (obj->key, obj->keylen, func->ud);
-			}
-
-			if (obj->type != UCL_OBJECT && obj->type != UCL_ARRAY) {
-				func->ucl_emitter_append_len (" = ", 3, func->ud);
-			}
-			else {
-				func->ucl_emitter_append_character (' ', 1, func->ud);
-			}
-		}
-		else {
-			if (obj->keylen > 0) {
-				ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
-			}
-			else {
-				func->ucl_emitter_append_len ("null", 4, func->ud);
-			}
-
-			if (compact) {
-				func->ucl_emitter_append_character (':', 1, func->ud);
-			}
-			else {
-				func->ucl_emitter_append_len (": ", 2, func->ud);
-			}
-		}
-	}
-
 	switch (obj->type) {
 	case UCL_INT:
+		ucl_emitter_print_key (print_key, ctx, obj, compact);
 		func->ucl_emitter_append_int (ucl_object_toint (obj), func->ud);
 		break;
 	case UCL_FLOAT:
 	case UCL_TIME:
+		ucl_emitter_print_key (print_key, ctx, obj, compact);
 		func->ucl_emitter_append_double (ucl_object_todouble (obj), func->ud);
 		break;
 	case UCL_BOOLEAN:
+		ucl_emitter_print_key (print_key, ctx, obj, compact);
 		flag = ucl_object_toboolean (obj);
 		if (flag) {
 			func->ucl_emitter_append_len ("true", 4, func->ud);
@@ -332,17 +339,20 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		}
 		break;
 	case UCL_STRING:
+		ucl_emitter_print_key (print_key, ctx, obj, compact);
 		ucl_elt_string_write_json (obj->value.sv, obj->len, ctx);
 		break;
 	case UCL_NULL:
+		ucl_emitter_print_key (print_key, ctx, obj, compact);
 		func->ucl_emitter_append_len ("null", 4, func->ud);
 		break;
 	case UCL_OBJECT:
-		ucl_emitter_common_start_object (ctx, obj, compact);
+		ucl_emitter_common_start_object (ctx, obj, print_key, compact);
 		ucl_emitter_common_end_object (ctx, obj, compact);
 		break;
 	case UCL_ARRAY:
-		ucl_emitter_common_start_array (ctx, obj->value.av, compact);
+		ucl_emitter_print_key (print_key, ctx, obj, compact);
+		ucl_emitter_common_start_array (ctx, obj->value.av, false, compact);
 		ucl_emitter_common_end_array (ctx, obj->value.av, compact);
 		break;
 	case UCL_USERDATA:
@@ -375,12 +385,12 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		ucl_emitter_common_elt (ctx, obj, first, print_key, (compact));	\
 	}	\
 	static void ucl_emit_ ## type ## _start_obj (struct ucl_emitter_context *ctx,	\
-		const ucl_object_t *obj) {	\
-		ucl_emitter_common_start_object (ctx, obj, (compact));	\
+		const ucl_object_t *obj, bool print_key) {	\
+		ucl_emitter_common_start_object (ctx, obj, print_key, (compact));	\
 	}	\
 	static void ucl_emit_ ## type## _start_array (struct ucl_emitter_context *ctx,	\
-		const ucl_object_t *obj) {	\
-		ucl_emitter_common_start_array (ctx, obj, (compact));	\
+		const ucl_object_t *obj, bool print_key) {	\
+		ucl_emitter_common_start_array (ctx, obj, print_key, (compact));	\
 	}	\
 	static void ucl_emit_ ##type## _end_object (struct ucl_emitter_context *ctx,	\
 		const ucl_object_t *obj) {	\
