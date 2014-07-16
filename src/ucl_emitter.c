@@ -147,6 +147,29 @@ ucl_emitter_print_key (bool print_key, struct ucl_emitter_context *ctx,
 	}
 }
 
+static void
+ucl_emitter_finish_object (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj, bool compact, bool is_array)
+{
+	const struct ucl_emitter_functions *func = ctx->func;
+
+	if (ctx->id == UCL_EMIT_CONFIG && obj != ctx->top) {
+		if (obj->type != UCL_OBJECT && obj->type != UCL_ARRAY) {
+			if (!is_array) {
+				/* Objects are split by ';' */
+				func->ucl_emitter_append_len (";\n", 2, func->ud);
+			}
+			else {
+				/* Use commas for arrays */
+				func->ucl_emitter_append_len (",\n", 2, func->ud);
+			}
+		}
+		else {
+			func->ucl_emitter_append_character ('\n', 1, func->ud);
+		}
+	}
+}
+
 /**
  * End standard ucl object
  * @param ctx emitter context
@@ -172,6 +195,8 @@ ucl_emitter_common_end_object (struct ucl_emitter_context *ctx,
 			func->ucl_emitter_append_character ('}', 1, func->ud);
 		}
 	}
+
+	ucl_emitter_finish_object (ctx, obj, compact, false);
 }
 
 /**
@@ -197,6 +222,8 @@ ucl_emitter_common_end_array (struct ucl_emitter_context *ctx,
 		ucl_add_tabs (func, ctx->ident, compact);
 		func->ucl_emitter_append_character (']', 1, func->ud);
 	}
+
+	ucl_emitter_finish_object (ctx, obj, compact, true);
 }
 
 /**
@@ -209,7 +236,7 @@ static void
 ucl_emitter_common_start_array (struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj, bool print_key, bool compact)
 {
-	const ucl_object_t *cur = obj;
+	const ucl_object_t *cur;
 	const struct ucl_emitter_functions *func = ctx->func;
 	bool first = true;
 
@@ -223,6 +250,15 @@ ucl_emitter_common_start_array (struct ucl_emitter_context *ctx,
 	}
 
 	ctx->ident ++;
+
+	if (obj->type == UCL_ARRAY) {
+		/* explicit array */
+		cur = obj->value.av;
+	}
+	else {
+		/* implicit array */
+		cur = obj;
+	}
 
 	while (cur) {
 		ucl_emitter_common_elt (ctx, cur, first, false, compact);
@@ -322,11 +358,13 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 	case UCL_INT:
 		ucl_emitter_print_key (print_key, ctx, obj, compact);
 		func->ucl_emitter_append_int (ucl_object_toint (obj), func->ud);
+		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
 	case UCL_FLOAT:
 	case UCL_TIME:
 		ucl_emitter_print_key (print_key, ctx, obj, compact);
 		func->ucl_emitter_append_double (ucl_object_todouble (obj), func->ud);
+		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
 	case UCL_BOOLEAN:
 		ucl_emitter_print_key (print_key, ctx, obj, compact);
@@ -337,42 +375,28 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		else {
 			func->ucl_emitter_append_len ("false", 5, func->ud);
 		}
+		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
 	case UCL_STRING:
 		ucl_emitter_print_key (print_key, ctx, obj, compact);
 		ucl_elt_string_write_json (obj->value.sv, obj->len, ctx);
+		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
 	case UCL_NULL:
 		ucl_emitter_print_key (print_key, ctx, obj, compact);
 		func->ucl_emitter_append_len ("null", 4, func->ud);
+		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
 	case UCL_OBJECT:
 		ucl_emitter_common_start_object (ctx, obj, print_key, compact);
 		ucl_emitter_common_end_object (ctx, obj, compact);
 		break;
 	case UCL_ARRAY:
-		ucl_emitter_print_key (print_key, ctx, obj, compact);
-		ucl_emitter_common_start_array (ctx, obj->value.av, false, compact);
-		ucl_emitter_common_end_array (ctx, obj->value.av, compact);
+		ucl_emitter_common_start_array (ctx, obj, print_key, compact);
+		ucl_emitter_common_end_array (ctx, obj, compact);
 		break;
 	case UCL_USERDATA:
 		break;
-	}
-
-	if (ctx->id == UCL_EMIT_CONFIG && obj != ctx->top) {
-		if (obj->type != UCL_OBJECT && obj->type != UCL_ARRAY) {
-			if (print_key) {
-				/* Objects are split by ';' */
-				func->ucl_emitter_append_len (";\n", 2, func->ud);
-			}
-			else {
-				/* Use commas for arrays */
-				func->ucl_emitter_append_len (",\n", 2, func->ud);
-			}
-		}
-		else {
-			func->ucl_emitter_append_character ('\n', 1, func->ud);
-		}
 	}
 }
 

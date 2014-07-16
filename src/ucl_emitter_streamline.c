@@ -84,24 +84,29 @@ ucl_object_emit_streamline_start_container (struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj)
 {
 	struct ucl_emitter_context_streamline *sctx = TO_STREAMLINE(ctx);
-	struct ucl_emitter_streamline_stack *st;
+	struct ucl_emitter_streamline_stack *st, *top;
+	bool print_key = false;
 
 	/* Check top object presence */
 	if (sctx->top == NULL) {
 		sctx->top = obj;
 	}
 
+	top = sctx->containers;
 	st = malloc (sizeof (*st));
 	if (st != NULL) {
+		if (top != NULL && !top->is_array) {
+			print_key = true;
+		}
 		st->empty = true;
 		st->obj = obj;
 		if (obj != NULL && obj->type == UCL_ARRAY) {
 			st->is_array = true;
-			sctx->ops->ucl_emitter_start_array (ctx, obj, false);
+			sctx->ops->ucl_emitter_start_array (ctx, obj, print_key);
 		}
 		else {
 			st->is_array = false;
-			sctx->ops->ucl_emitter_start_object (ctx, obj, true);
+			sctx->ops->ucl_emitter_start_object (ctx, obj, print_key);
 		}
 	}
 
