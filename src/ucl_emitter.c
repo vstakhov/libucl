@@ -425,10 +425,10 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		ucl_emitter_common_end_array (ctx, obj, (compact));	\
 	}
 
-UCL_EMIT_TYPE_IMPL(json, false);
-UCL_EMIT_TYPE_IMPL(json_compact, true);
-UCL_EMIT_TYPE_IMPL(config, false);
-UCL_EMIT_TYPE_IMPL(yaml, false);
+UCL_EMIT_TYPE_IMPL(json, false)
+UCL_EMIT_TYPE_IMPL(json_compact, true)
+UCL_EMIT_TYPE_IMPL(config, false)
+UCL_EMIT_TYPE_IMPL(yaml, false)
 
 unsigned char *
 ucl_object_emit (const ucl_object_t *obj, enum ucl_emitter emit_type)
