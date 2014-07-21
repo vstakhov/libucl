@@ -107,13 +107,15 @@ AS_IF([test "x$enable_lua" = "xyes"], [
 		AX_LUA_HEADERS([
 			AX_LUA_LIBS([
 				AC_DEFINE(HAVE_LUA, 1, [Define to 1 for lua support.])
-				AC_SUBST(LUA_FOUND)
+				with_lua="yes"
 			], [AC_MSG_ERROR([unable to find the lua libraries])
 			])
 		], [AC_MSG_ERROR([unable to find the lua header files])
 		])
 	], [AC_MSG_ERROR([unable to find the lua interpreter])])
-])
+], [with_lua="no"])
+
+AM_CONDITIONAL([LUA_SUB], [test "$with_lua" = "yes"])
 
 AS_IF([test "x$enable_urls" = "xyes"], [
 	AC_CHECK_HEADER([fetch.h], [
@@ -171,6 +173,7 @@ AC_LINK_IFELSE([
 
 AC_CONFIG_FILES(Makefile \
 	src/Makefile \
+	lua/Makefile
 	tests/Makefile \
 	utils/Makefile \
 	doc/Makefile \
