@@ -15,7 +15,15 @@ function test_simple()
 
   -- Input to to_value matches the output of to_string:
   local parser = ucl.parser()
-  local got = ucl.to_string(parser:parse_string(expect))
+  local res,err = parser:parse_string(expect)
+  if not res then
+    print('parser error: ' .. err)
+    return 1
+  end
+  
+  local obj = parser:get_object()
+  for k, v in pairs(obj) do print('k = ' .. k .. ' v = ' .. tostring(v)) end
+  local got = ucl.to_json(obj, true)
   if expect == got then
     return 0
   else

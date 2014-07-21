@@ -30,6 +30,7 @@
 #include "lua_ucl.h"
 
 #define PARSER_META "ucl.parser.meta"
+#define EMITTER_META "ucl.emitter.meta"
 
 static int ucl_object_lua_push_array (lua_State *L, const ucl_object_t *obj);
 static int ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj, bool allow_array);
@@ -184,15 +185,12 @@ ucl_object_lua_fromtable (lua_State *L, int idx)
 	bool is_array = true;
 	int max = INT_MIN;
 
-	lua_pushvalue (L, idx);
-
 	/* Check for array */
 	lua_pushnil (L);
-	while (lua_next (L, 2) != 0) {
+	while (lua_next (L, idx) != 0) {
 		if (lua_type (L, -2) == LUA_TNUMBER) {
 			double num = lua_tonumber (L, -2);
 			if (num == (int)num) {
-				/* Keys are not in order, not an array */
 				if (num > max) {
 					max = num;
 				}
@@ -212,6 +210,7 @@ ucl_object_lua_fromtable (lua_State *L, int idx)
 		}
 		lua_pop (L, 1);
 	}
+
 	/* Table iterate */
 	if (is_array) {
 		int i;
@@ -219,8 +218,8 @@ ucl_object_lua_fromtable (lua_State *L, int idx)
 		top = ucl_object_typed_new (UCL_ARRAY);
 		for (i = 1; i <= max; i ++) {
 			lua_pushinteger (L, i);
-			lua_gettable (L, 2);
-			obj = ucl_object_lua_fromelt (L, -1);
+			lua_gettable (L, idx);
+			obj = ucl_object_lua_fromelt (L, lua_gettop (L));
 			if (obj != NULL) {
 				ucl_array_append (top, obj);
 			}
@@ -229,22 +228,17 @@ ucl_object_lua_fromtable (lua_State *L, int idx)
 	else {
 		lua_pushnil (L);
 		top = ucl_object_typed_new (UCL_OBJECT);
-		while (lua_next (L, -2) != 0) {
+		while (lua_next (L, idx) != 0) {
 			/* copy key to avoid modifications */
-			lua_pushvalue (L, -2);
-			k = lua_tolstring (L, -1, &keylen);
-			obj = ucl_object_lua_fromelt (L, -2);
+			k = lua_tolstring (L, -2, &keylen);
+			obj = ucl_object_lua_fromelt (L, lua_gettop (L));
 
 			if (obj != NULL) {
 				ucl_object_insert_key (top, obj, k, keylen, true);
 			}
-			lua_pop (L, 2);
+			lua_pop (L, 1);
 		}
-		lua_pop (L, 1);
 	}
-
-	/* pushvalue */
-	lua_pop (L, 1);
 
 	return top;
 }
@@ -316,7 +310,6 @@ ucl_object_lua_import (lua_State *L, int idx)
 	t = lua_type (L, idx);
 	switch (t) {
 	case LUA_TTABLE:
-		/* We assume all tables as objects, not arrays */
 		obj = ucl_object_lua_fromtable (L, idx);
 		break;
 	default:
@@ -469,6 +462,90 @@ lua_ucl_parser_mt (lua_State *L)
 	lua_pop (L, 1);
 }
 
+static int
+lua_ucl_to_string (lua_State *L, const ucl_object_t *obj, enum ucl_emitter type)
+{
+	unsigned char *result;
+
+	result = ucl_object_emit (obj, type);
+
+	if (result != NULL) {
+		lua_pushstring (L, (const char *)result);
+		free (result);
+	}
+	else {
+		lua_pushnil (L);
+	}
+
+	return 1;
+}
+
+static int
+lua_ucl_to_json (lua_State *L)
+{
+	ucl_object_t *obj;
+	int format = UCL_EMIT_JSON;
+
+	if (lua_gettop (L) > 1) {
+		if (lua_toboolean (L, 2)) {
+			format = UCL_EMIT_JSON_COMPACT;
+		}
+	}
+
+	obj = ucl_object_lua_import (L, 1);
+	if (obj != NULL) {
+		lua_ucl_to_string (L, obj, format);
+		ucl_object_unref (obj);
+	}
+	else {
+		lua_pushnil (L);
+	}
+
+	return 1;
+}
+
+static int
+lua_ucl_to_config (lua_State *L)
+{
+	ucl_object_t *obj;
+
+	obj = ucl_object_lua_import (L, 1);
+	if (obj != NULL) {
+		lua_ucl_to_string (L, obj, UCL_EMIT_CONFIG);
+		ucl_object_unref (obj);
+	}
+	else {
+		lua_pushnil (L);
+	}
+
+	return 1;
+}
+
+static int
+lua_ucl_to_format (lua_State *L)
+{
+	ucl_object_t *obj;
+	int format = UCL_EMIT_JSON;
+
+	if (lua_gettop (L) > 1) {
+		format = lua_tonumber (L, 2);
+		if (format < 0 || format >= UCL_EMIT_YAML) {
+			lua_pushnil (L);
+			return 1;
+		}
+	}
+
+	obj = ucl_object_lua_import (L, 1);
+	if (obj != NULL) {
+		lua_ucl_to_string (L, obj, format);
+		ucl_object_unref (obj);
+	}
+	else {
+		lua_pushnil (L);
+	}
+
+	return 1;
+}
 
 int
 luaopen_ucl (lua_State *L)
@@ -487,6 +564,15 @@ luaopen_ucl (lua_State *L)
 
 	lua_pushcfunction (L, lua_ucl_parser_init);
 	lua_setfield (L, -2, "parser");
+
+	lua_pushcfunction (L, lua_ucl_to_json);
+	lua_setfield (L, -2, "to_json");
+
+	lua_pushcfunction (L, lua_ucl_to_config);
+	lua_setfield (L, -2, "to_config");
+
+	lua_pushcfunction (L, lua_ucl_to_format);
+	lua_setfield (L, -2, "to_format");
 
 	return 1;
 }
