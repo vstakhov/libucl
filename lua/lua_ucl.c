@@ -467,7 +467,7 @@ lua_ucl_parser_mt (lua_State *L)
 
 
 int
-luaopen_ucl (lua_State *L)
+luaopen_ucl_c (lua_State *L)
 {
 	lua_ucl_parser_mt (L);
 

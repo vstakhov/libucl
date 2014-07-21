@@ -35,7 +35,7 @@
 /**
  * Initialize lua UCL API
  */
-UCL_EXTERN int luaopen_ucl (lua_State *L);
+UCL_EXTERN int luaopen_ucl_c (lua_State *L);
 
 /**
  * Import UCL object from lua state

@@ -1,13 +1,14 @@
-libucl_lua_common_cflags=	-I$(top_srcdir)/src \
+ucl_common_cflags=	-I$(top_srcdir)/src \
 			-I$(top_srcdir)/include \
 			-I$(top_srcdir)/uthash \
 			-Wall -W -Wno-unused-parameter -Wno-pointer-sign
-lib_LTLIBRARIES=	libucl_lua.la
-libucl_lua_la_SOURCES=	lua_ucl.c
-libucl_lua_la_CFLAGS=	$(libucl_lua_common_cflags) \
+luaexec_LTLIBRARIES=	ucl_c.la
+ucl_c_la_SOURCES=	lua_ucl.c
+ucl_c_la_CFLAGS=	$(ucl_common_cflags) \
 					@LUA_INCLUDE@
-libucl_lua_la_LDFLAGS = -module -avoid-version -rpath '$(libdir)'
-libucl_lua_la_LIBADD=	@LIBFETCH_LIBS@ \
+ucl_c_la_LDFLAGS = -module -export-dynamic -avoid-version
+ucl_c_la_LIBADD=	$(top_srcdir)/src/libucl.la \
+					@LIBFETCH_LIBS@ \
 					@LIBCRYPTO_LIB@ \
 					@LIBREGEX_LIB@ \
 					@CURL_LIBS@ \
@@ -15,8 +16,11 @@ libucl_lua_la_LIBADD=	@LIBFETCH_LIBS@ \
 
 include_HEADERS=	$(top_srcdir)/include/lua_ucl.h
 
+lua_SCRIPTS =	ucl.lua
+
 ROCKSPEC = $(PACKAGE)-$(VERSION)-1.rockspec
-EXTRA_DIST = $(PACKAGE).rockspec.in
+EXTRA_DIST = $(PACKAGE).rockspec.in \
+			test.lua
 DISTCLEANFILES = $(PACKAGE).rockspec
 
 $(ROCKSPEC): $(PACKAGE).rockspec dist
