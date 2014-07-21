@@ -31,11 +31,14 @@
 
 #define PARSER_META "ucl.parser.meta"
 #define EMITTER_META "ucl.emitter.meta"
+#define NULL_META "null.emitter.meta"
 
 static int ucl_object_lua_push_array (lua_State *L, const ucl_object_t *obj);
 static int ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj, bool allow_array);
 static ucl_object_t* ucl_object_lua_fromtable (lua_State *L, int idx);
 static ucl_object_t* ucl_object_lua_fromelt (lua_State *L, int idx);
+
+static void *ucl_null;
 
 /**
  * Push a single element of an object to lua
@@ -143,6 +146,9 @@ ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj,
 	case UCL_FLOAT:
 	case UCL_TIME:
 		lua_pushnumber (L, ucl_obj_todouble (obj));
+		break;
+	case UCL_NULL:
+		lua_getfield (L, LUA_REGISTRYINDEX, "ucl.null");
 		break;
 	default:
 		lua_pushnil (L);
@@ -267,7 +273,11 @@ ucl_object_lua_fromelt (lua_State *L, int idx)
 	case LUA_TBOOLEAN:
 		obj = ucl_object_frombool (lua_toboolean (L, idx));
 		break;
-	case LUA_TLIGHTUSERDATA:
+	case LUA_TUSERDATA:
+		if (lua_topointer (L, idx) == ucl_null) {
+			obj = ucl_object_typed_new (UCL_NULL);
+		}
+		break;
 	case LUA_TTABLE:
 	case LUA_TFUNCTION:
 	case LUA_TTHREAD:
@@ -547,10 +557,29 @@ lua_ucl_to_format (lua_State *L)
 	return 1;
 }
 
+static int
+lua_ucl_null_tostring (lua_State* L)
+{
+	lua_pushstring (L, "null");
+	return 1;
+}
+
+static void
+lua_ucl_null_mt (lua_State *L)
+{
+	luaL_newmetatable (L, NULL_META);
+
+	lua_pushcfunction (L, lua_ucl_null_tostring);
+	lua_setfield (L, -2, "__tostring");
+
+	lua_pop (L, 1);
+}
+
 int
 luaopen_ucl (lua_State *L)
 {
 	lua_ucl_parser_mt (L);
+	lua_ucl_null_mt (L);
 
 	/* Create the refs weak table: */
 	lua_createtable (L, 0, 2);
@@ -573,6 +602,15 @@ luaopen_ucl (lua_State *L)
 
 	lua_pushcfunction (L, lua_ucl_to_format);
 	lua_setfield (L, -2, "to_format");
+
+	ucl_null = lua_newuserdata (L, 0);
+	luaL_getmetatable (L, NULL_META);
+	lua_setmetatable (L, -2);
+
+	lua_pushvalue (L, -1);
+	lua_setfield (L, LUA_REGISTRYINDEX, "ucl.null");
+
+	lua_setfield (L, -2, "null");
 
 	return 1;
 }
