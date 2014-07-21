@@ -45,7 +45,7 @@ ucl_object_lua_push_element (lua_State *L, const char *key,
 		const ucl_object_t *obj)
 {
 	lua_pushstring (L, key);
-	ucl_object_lua_push (L, obj, true);
+	ucl_object_push_lua (L, obj, true);
 	lua_settable (L, -3);
 }
 
@@ -103,7 +103,7 @@ ucl_object_lua_push_array (lua_State *L, const ucl_object_t *obj)
 	lua_createtable (L, nelt, 0);
 
 	LL_FOREACH (obj, cur) {
-		ucl_object_lua_push (L, cur, false);
+		ucl_object_push_lua (L, cur, false);
 		lua_rawseti (L, -2, i);
 		i ++;
 	}
@@ -155,7 +155,7 @@ ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj,
  * @param obj object to push
  */
 int
-ucl_object_lua_push (lua_State *L, const ucl_object_t *obj, bool allow_array)
+ucl_object_push_lua (lua_State *L, const ucl_object_t *obj, bool allow_array)
 {
 	switch (obj->type) {
 	case UCL_OBJECT:
@@ -180,7 +180,7 @@ ucl_object_lua_fromtable (lua_State *L, int idx)
 	size_t keylen;
 	const char *k;
 	bool is_array = true;
-	int max;
+	int max = INT_MIN;
 
 	lua_pushvalue (L, idx);
 
@@ -422,7 +422,7 @@ lua_ucl_parser_get_object (lua_State *L)
 	obj = ucl_parser_get_object (parser);
 
 	if (obj != NULL) {
-		ret = ucl_object_lua_push (L, obj, false);
+		ret = ucl_object_push_lua (L, obj, false);
 		/* no need to keep reference */
 		ucl_object_unref (obj);
 	}

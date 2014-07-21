@@ -45,4 +45,13 @@ UCL_EXTERN int luaopen_ucl (lua_State *L);
  */
 UCL_EXTERN ucl_object_t* ucl_object_lua_import (lua_State *L, int idx);
 
+/**
+ * Push an object to lua
+ * @param L lua state
+ * @param obj object to push
+ * @param allow_array traverse over implicit arrays
+ */
+UCL_EXTERN int ucl_object_push_lua (lua_State *L,
+		const ucl_object_t *obj, bool allow_array);
+
 #endif /* LUA_UCL_H_ */
