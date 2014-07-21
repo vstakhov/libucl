@@ -57,6 +57,9 @@ AC_ARG_ENABLE([regex], AS_HELP_STRING([--enable-regex],
 AC_ARG_ENABLE([signatures], AS_HELP_STRING([--enable-signatures],
 	[Enable signatures check (requires openssl) @<:@default=no@:>@]), [],
 	[enable_signatures=no])
+AC_ARG_ENABLE([lua], AS_HELP_STRING([--enable-lua],
+	[Enable lua API build (requires lua libraries and headers) @<:@default=no@:>@]), [],
+	[enable_lua=no])
 AC_ARG_ENABLE([utils],
 	AS_HELP_STRING([--enable-utils], [Build and install utils @<:@default=no@:>@]),
 	[case "${enableval}" in
@@ -98,6 +101,19 @@ AS_IF([test "x$enable_regex" = "xyes"], [
 		[#include <sys/types.h>])
 ])
 AC_SUBST(LIBREGEX_LIB)
+
+AS_IF([test "x$enable_lua" = "xyes"], [
+	AX_PROG_LUA([5.1], [], [
+		AX_LUA_HEADERS([
+			AX_LUA_LIBS([
+				AC_DEFINE(HAVE_LUA, 1, [Define to 1 for lua support.])
+				AC_SUBST(LUA_FOUND)
+			], [AC_MSG_ERROR([unable to find the lua libraries])
+			])
+		], [AC_MSG_ERROR([unable to find the lua header files])
+		])
+	], [AC_MSG_ERROR([unable to find the lua interpreter])])
+])
 
 AS_IF([test "x$enable_urls" = "xyes"], [
 	AC_CHECK_HEADER([fetch.h], [
