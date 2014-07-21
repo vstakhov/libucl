@@ -178,7 +178,7 @@ AC_CONFIG_FILES(Makefile \
 	tests/Makefile \
 	utils/Makefile \
 	doc/Makefile \
-	lua/ucl.rockspec \
+	lua/libucl.rockspec \
 	libucl.pc)
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_OUTPUT
