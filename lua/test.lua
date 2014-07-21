@@ -22,7 +22,6 @@ function test_simple()
   end
   
   local obj = parser:get_object()
-  for k, v in pairs(obj) do print('k = ' .. k .. ' v = ' .. tostring(v)) end
   local got = ucl.to_json(obj, true)
   if expect == got then
     return 0

@@ -259,6 +259,7 @@ static ucl_object_t *
 ucl_object_lua_fromelt (lua_State *L, int idx)
 {
 	int type;
+	double num;
 	ucl_object_t *obj = NULL;
 
 	type = lua_type (L, idx);
@@ -268,7 +269,13 @@ ucl_object_lua_fromelt (lua_State *L, int idx)
 		obj = ucl_object_fromstring_common (lua_tostring (L, idx), 0, 0);
 		break;
 	case LUA_TNUMBER:
-		obj = ucl_object_fromdouble (lua_tonumber (L, idx));
+		num = lua_tonumber (L, idx);
+		if (num == (int64_t)num) {
+			obj = ucl_object_fromint (num);
+		}
+		else {
+			obj = ucl_object_fromdouble (num);
+		}
 		break;
 	case LUA_TBOOLEAN:
 		obj = ucl_object_frombool (lua_toboolean (L, idx));
