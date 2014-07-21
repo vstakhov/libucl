@@ -191,6 +191,10 @@ ucl_object_lua_fromtable (lua_State *L, int idx)
 	bool is_array = true;
 	int max = INT_MIN;
 
+	if (idx < 0) {
+		/* For negative indicies we want to invert them */
+		idx = lua_gettop (L) + idx + 1;
+	}
 	/* Check for array */
 	lua_pushnil (L);
 	while (lua_next (L, idx) != 0) {
