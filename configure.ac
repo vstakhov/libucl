@@ -6,7 +6,8 @@ m4_define([ucl_version], [maj_ver.med_ver.min_ver])
 
 AC_INIT([libucl],[ucl_version],[https://github.com/vstakhov/libucl],[libucl])
 AC_CONFIG_SRCDIR([configure.ac])
-AM_INIT_AUTOMAKE([1.11 foreign silent-rules -Wall -Wportability no-dist-gzip dist-xz])
+AM_INIT_AUTOMAKE([1.11 foreign -Wall -Wportability no-dist-gzip dist-xz])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 UCL_VERSION=ucl_version
 SO_VERSION=so_version
@@ -177,6 +178,7 @@ AC_CONFIG_FILES(Makefile \
 	tests/Makefile \
 	utils/Makefile \
 	doc/Makefile \
+	lua/ucl.rockspec \
 	libucl.pc)
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_OUTPUT

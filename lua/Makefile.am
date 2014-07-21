@@ -6,7 +6,7 @@ lib_LTLIBRARIES=	libucl_lua.la
 libucl_lua_la_SOURCES=	lua_ucl.c
 libucl_lua_la_CFLAGS=	$(libucl_lua_common_cflags) \
 					@LUA_INCLUDE@
-libucl_lua_la_LDFLAGS = -version-info @SO_VERSION@
+libucl_lua_la_LDFLAGS = -module -avoid-version -rpath '$(libdir)'
 libucl_lua_la_LIBADD=	@LIBFETCH_LIBS@ \
 					@LIBCRYPTO_LIB@ \
 					@LIBREGEX_LIB@ \
@@ -14,3 +14,11 @@ libucl_lua_la_LIBADD=	@LIBFETCH_LIBS@ \
 					@LUA_LIB@
 
 include_HEADERS=	$(top_srcdir)/include/lua_ucl.h
+
+ROCKSPEC = $(PACKAGE)-$(VERSION)-1.rockspec
+EXTRA_DIST = $(PACKAGE).rockspec.in
+DISTCLEANFILES = $(PACKAGE).rockspec
+
+$(ROCKSPEC): $(PACKAGE).rockspec dist
+	sed -e 's/@MD5@/'`$(MD5SUM) $(distdir).tar.gz | \
+	cut -d " " -f 1`'/g' < $(PACKAGE).rockspec > $@
