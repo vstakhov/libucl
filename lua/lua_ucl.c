@@ -29,6 +29,8 @@
 #include "ucl_internal.h"
 #include "lua_ucl.h"
 
+#define PARSER_META "ucl.parser.meta"
+
 static int ucl_object_lua_push_array (lua_State *L, const ucl_object_t *obj);
 static int ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj, bool allow_array);
 static ucl_object_t* ucl_object_lua_fromtable (lua_State *L, int idx);
@@ -342,10 +344,16 @@ lua_ucl_parser_init (lua_State *L)
 
 	pparser = lua_newuserdata (L, sizeof (parser));
 	*pparser = parser;
-	luaL_getmetatable (L, "ucl.parser.meta");
+	luaL_getmetatable (L, PARSER_META);
 	lua_setmetatable (L, -2);
 
 	return 1;
+}
+
+static struct ucl_parser *
+lua_ucl_parser_get (lua_State *L, int index)
+{
+	return *((struct ucl_parser **) luaL_checkudata(L, index, PARSER_META));
 }
 
 static int
@@ -355,9 +363,7 @@ lua_ucl_parser_parse_file (lua_State *L)
 	const char *file;
 	int ret = 2;
 
-	luaL_checktype (L, 1, LUA_TUSERDATA);
-	parser = *(struct ucl_parser **)lua_touserdata (L, 1);
-
+	parser = lua_ucl_parser_get (L, 1);
 	file = luaL_checkstring (L, 2);
 
 	if (parser != NULL && file != NULL) {
@@ -386,9 +392,7 @@ lua_ucl_parser_parse_string (lua_State *L)
 	size_t llen;
 	int ret = 2;
 
-	luaL_checktype (L, 1, LUA_TUSERDATA);
-	parser = *(struct ucl_parser **)lua_touserdata (L, 1);
-
+	parser = lua_ucl_parser_get (L, 1);
 	string = luaL_checklstring (L, 2, &llen);
 
 	if (parser != NULL && string != NULL) {
@@ -416,9 +420,7 @@ lua_ucl_parser_get_object (lua_State *L)
 	ucl_object_t *obj;
 	int ret = 1;
 
-	luaL_checktype (L, 1, LUA_TUSERDATA);
-	parser = *(struct ucl_parser **)lua_touserdata (L, 1);
-
+	parser = lua_ucl_parser_get (L, 1);
 	obj = ucl_parser_get_object (parser);
 
 	if (obj != NULL) {
@@ -438,17 +440,19 @@ lua_ucl_parser_gc (lua_State *L)
 {
 	struct ucl_parser *parser;
 
-	luaL_checktype (L, 1, LUA_TUSERDATA);
-	parser = (struct ucl_parser *)lua_touserdata (L, 1);
-
+	parser = lua_ucl_parser_get (L, 1);
 	ucl_parser_free (parser);
+
 	return 0;
 }
 
 static void
 lua_ucl_parser_mt (lua_State *L)
 {
-	luaL_newmetatable (L, "ucl.parser.meta");
+	luaL_newmetatable (L, PARSER_META);
+
+	lua_pushvalue(L, -1);
+	lua_setfield(L, -2, "__index");
 
 	lua_pushcfunction (L, lua_ucl_parser_gc);
 	lua_setfield (L, -2, "__gc");
@@ -462,12 +466,12 @@ lua_ucl_parser_mt (lua_State *L)
 	lua_pushcfunction (L, lua_ucl_parser_get_object);
 	lua_setfield (L, -2, "get_object");
 
-	lua_pop(L, 1);
+	lua_pop (L, 1);
 }
 
 
 int
-luaopen_ucl_c (lua_State *L)
+luaopen_ucl (lua_State *L)
 {
 	lua_ucl_parser_mt (L);
 
@@ -481,8 +485,8 @@ luaopen_ucl_c (lua_State *L)
 
 	lua_newtable (L);
 
-	lua_pushcfunction(L, lua_ucl_parser_init);
-	lua_setfield(L, -2, "parser");
+	lua_pushcfunction (L, lua_ucl_parser_init);
+	lua_setfield (L, -2, "parser");
 
 	return 1;
 }
