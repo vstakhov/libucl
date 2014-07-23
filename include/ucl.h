@@ -195,12 +195,12 @@ typedef struct ucl_object_s {
 	const char *key;						/**< Key of an object		*/
 	struct ucl_object_s *next;				/**< Array handle			*/
 	struct ucl_object_s *prev;				/**< Array handle			*/
-	unsigned char* trash_stack[2];			/**< Pointer to allocated chunks */
-	unsigned keylen;						/**< Lenght of a key		*/
-	unsigned len;							/**< Size of an object		*/
-	enum ucl_type type;						/**< Real type				*/
-	uint16_t ref;							/**< Reference count		*/
+	uint32_t keylen;						/**< Lenght of a key		*/
+	uint32_t len;							/**< Size of an object		*/
+	uint32_t ref;							/**< Reference count		*/
 	uint16_t flags;							/**< Object flags			*/
+	uint16_t type;							/**< Real type				*/
+	unsigned char* trash_stack[2];			/**< Pointer to allocated chunks */
 } ucl_object_t;
 
 /** @} */
