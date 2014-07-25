@@ -1878,15 +1878,23 @@ ucl_object_copy_internal (const ucl_object_t *other, bool allow_array)
 	if (new != NULL) {
 		memcpy (new, other, sizeof (*new));
 		new->ref = 1;
+		/* Unlink from others */
+		new->prev = new->next = NULL;
 
 		/* deep copy of values stored */
 		if (other->trash_stack[UCL_TRASH_KEY] != NULL) {
 			new->trash_stack[UCL_TRASH_KEY] =
 					strdup (other->trash_stack[UCL_TRASH_KEY]);
+			if (other->key == (const char *)other->trash_stack[UCL_TRASH_KEY]) {
+				new->key = new->trash_stack[UCL_TRASH_KEY];
+			}
 		}
 		if (other->trash_stack[UCL_TRASH_VALUE] != NULL) {
 			new->trash_stack[UCL_TRASH_VALUE] =
 					strdup (other->trash_stack[UCL_TRASH_VALUE]);
+			if (new->type == UCL_STRING) {
+				new->value.sv = new->trash_stack[UCL_TRASH_VALUE];
+			}
 		}
 
 		if (other->type == UCL_ARRAY || other->type == UCL_OBJECT) {
