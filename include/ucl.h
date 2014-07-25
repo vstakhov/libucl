@@ -843,7 +843,7 @@ struct ucl_emitter_context {
 	/** A set of output operations */
 	const struct ucl_emitter_operations *ops;
 	/** Current amount of indent tabs */
-	unsigned int ident;
+	unsigned int indent;
 	/** Top level object */
 	const ucl_object_t *top;
 	/** The rest of context */
