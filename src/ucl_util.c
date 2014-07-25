@@ -1176,15 +1176,18 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 		}
 	}
 
-	elt->key = key;
-	elt->keylen = keylen;
-
-	if (elt->trash_stack[UCL_TRASH_KEY] != NULL) {
+	/* workaround for some use cases */
+	if (elt->trash_stack[UCL_TRASH_KEY] != NULL &&
+			key != (const char *)elt->trash_stack[UCL_TRASH_KEY]) {
 		/* Remove copied key */
 		free (elt->trash_stack[UCL_TRASH_KEY]);
 		elt->trash_stack[UCL_TRASH_KEY] = NULL;
 		elt->flags &= ~UCL_OBJECT_ALLOCATED_KEY;
 	}
+
+	elt->key = key;
+	elt->keylen = keylen;
+
 	if (copy_key) {
 		ucl_copy_key_trash (elt);
 	}
