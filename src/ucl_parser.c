@@ -1941,9 +1941,12 @@ ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
 {
 	struct ucl_chunk *chunk;
 
-	if (data == NULL || len == 0) {
+	if (data == NULL) {
 		ucl_create_err (&parser->err, "invalid chunk added");
 		return false;
+	}
+	if (len == 0) {
+		return true;
 	}
 	if (parser->state != UCL_STATE_ERROR) {
 		chunk = UCL_ALLOC (sizeof (struct ucl_chunk));
