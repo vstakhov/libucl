@@ -1,1 +1,3 @@
-key = "12 value";
+key1 = 12;
+key2 = "12 value";
+

@@ -676,8 +676,7 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 	}
 
 	/* Now check endptr */
-	if (endptr == NULL || ucl_lex_is_atom_end (*endptr) || *endptr == '\0' ||
-			ucl_test_character (*endptr, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
+	if (endptr == NULL || ucl_lex_is_atom_end (*endptr) || *endptr == '\0') {
 		p = endptr;
 		goto set_obj;
 	}
@@ -787,6 +786,14 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 				p ++;
 				goto set_obj;
 			}
+			break;
+		case '\t':
+		case ' ':
+			while (p < end && ucl_test_character(*p, UCL_CHARACTER_WHITESPACE)) {
+				p++;
+			}
+			if (ucl_lex_is_atom_end(*p))
+				goto set_obj;
 			break;
 		}
 	}
