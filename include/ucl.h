@@ -239,6 +239,14 @@ UCL_EXTERN ucl_object_t* ucl_object_new (void) UCL_WARN_UNUSED_RESULT;
 UCL_EXTERN ucl_object_t* ucl_object_typed_new (ucl_type_t type) UCL_WARN_UNUSED_RESULT;
 
 /**
+ * Perform deep copy of an object copying everything
+ * @param other object to copy
+ * @return new object with refcount equal to 1
+ */
+UCL_EXTERN ucl_object_t * ucl_object_copy (const ucl_object_t *other)
+	UCL_WARN_UNUSED_RESULT;
+
+/**
  * Return the type of an object
  * @return the object type
  */

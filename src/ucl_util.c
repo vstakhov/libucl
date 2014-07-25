@@ -1859,6 +1859,64 @@ ucl_object_ref (const ucl_object_t *obj)
 	return res;
 }
 
+static ucl_object_t *
+ucl_object_copy_internal (const ucl_object_t *other, bool allow_array)
+{
+
+	ucl_object_t *new;
+	ucl_object_iter_t it = NULL;
+	const ucl_object_t *cur;
+
+	new = malloc (sizeof (*new));
+
+	if (new != NULL) {
+		memcpy (new, other, sizeof (*new));
+		new->ref = 1;
+
+		/* deep copy of values stored */
+		if (other->trash_stack[UCL_TRASH_KEY] != NULL) {
+			new->trash_stack[UCL_TRASH_KEY] =
+					strdup (other->trash_stack[UCL_TRASH_KEY]);
+		}
+		if (other->trash_stack[UCL_TRASH_VALUE] != NULL) {
+			new->trash_stack[UCL_TRASH_VALUE] =
+					strdup (other->trash_stack[UCL_TRASH_VALUE]);
+		}
+
+		if (other->type == UCL_ARRAY || other->type == UCL_OBJECT) {
+			/* reset old value */
+			memset (&new->value, 0, sizeof (new->value));
+
+			while ((cur = ucl_iterate_object (other, &it, true)) != NULL) {
+				if (other->type == UCL_ARRAY) {
+					ucl_array_append (new, ucl_object_copy_internal (cur, false));
+				}
+				else {
+					ucl_object_t *cp = ucl_object_copy_internal (cur, true);
+					if (cp != NULL) {
+						ucl_object_insert_key (new, cp, cp->key, cp->keylen,
+								false);
+					}
+				}
+			}
+		}
+		else if (allow_array && other->next != NULL) {
+			LL_FOREACH (other->next, cur) {
+				ucl_object_t *cp = ucl_object_copy_internal (cur, true);
+				DL_APPEND (new, cp);
+			}
+		}
+	}
+
+	return new;
+}
+
+ucl_object_t *
+ucl_object_copy (const ucl_object_t *other)
+{
+	return ucl_object_copy_internal (other, true);
+}
+
 void
 ucl_object_unref (ucl_object_t *obj)
 {
