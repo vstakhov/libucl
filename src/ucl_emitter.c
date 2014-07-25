@@ -348,8 +348,11 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 			func->ucl_emitter_append_character (',', 1, func->ud);
 		}
 		else {
-			if (ctx->id != UCL_EMIT_YAML)
+			if (ctx->id == UCL_EMIT_YAML && ctx->indent == 0) {
+				func->ucl_emitter_append_len ("\n", 1, func->ud);
+			} else {
 				func->ucl_emitter_append_len (",\n", 2, func->ud);
+			}
 		}
 	}
 
