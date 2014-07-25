@@ -93,9 +93,7 @@ ucl_elt_string_write_json (const char *str, size_t size,
 	size_t len = 0;
 	const struct ucl_emitter_functions *func = ctx->func;
 
-	if (ctx->id != UCL_EMIT_YAML) {
-		func->ucl_emitter_append_character ('"', 1, func->ud);
-	}
+	func->ucl_emitter_append_character ('"', 1, func->ud);
 
 	while (size) {
 		if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE)) {
@@ -137,9 +135,7 @@ ucl_elt_string_write_json (const char *str, size_t size,
 	if (len > 0) {
 		func->ucl_emitter_append_len (c, len, func->ud);
 	}
-	if (ctx->id != UCL_EMIT_YAML) {
-		func->ucl_emitter_append_character ('"', 1, func->ud);
-	}
+	func->ucl_emitter_append_character ('"', 1, func->ud);
 }
 
 /*

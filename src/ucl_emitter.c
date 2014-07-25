@@ -130,6 +130,19 @@ ucl_emitter_print_key (bool print_key, struct ucl_emitter_context *ctx,
 			func->ucl_emitter_append_character (' ', 1, func->ud);
 		}
 	}
+	else if (ctx->id == UCL_EMIT_YAML) {
+		if (obj->keylen > 0 && obj->flags & UCL_OBJECT_NEED_KEY_ESCAPE) {
+			ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
+		}
+		else if (obj->keylen > 0) {
+			func->ucl_emitter_append_len (obj->key, obj->keylen, func->ud);
+		}
+		else {
+			func->ucl_emitter_append_len ("null", 4, func->ud);
+		}
+
+		func->ucl_emitter_append_len (": ", 2, func->ud);
+	}
 	else {
 		if (obj->keylen > 0) {
 			ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
