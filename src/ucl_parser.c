@@ -1946,6 +1946,7 @@ ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
 		return false;
 	}
 	if (len == 0) {
+		parser->top_obj = ucl_object_typed_new(UCL_OBJECT);
 		return true;
 	}
 	if (parser->state != UCL_STATE_ERROR) {
