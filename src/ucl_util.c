@@ -1882,7 +1882,8 @@ ucl_object_copy_internal (const ucl_object_t *other, bool allow_array)
 		memcpy (new, other, sizeof (*new));
 		new->ref = 1;
 		/* Unlink from others */
-		new->prev = new->next = NULL;
+		new->next = NULL;
+		new->prev = new;
 
 		/* deep copy of values stored */
 		if (other->trash_stack[UCL_TRASH_KEY] != NULL) {
@@ -1919,8 +1920,10 @@ ucl_object_copy_internal (const ucl_object_t *other, bool allow_array)
 		}
 		else if (allow_array && other->next != NULL) {
 			LL_FOREACH (other->next, cur) {
-				ucl_object_t *cp = ucl_object_copy_internal (cur, true);
-				DL_APPEND (new, cp);
+				ucl_object_t *cp = ucl_object_copy_internal (cur, false);
+				if (cp != NULL) {
+					DL_APPEND (new, cp);
+				}
 			}
 		}
 	}
