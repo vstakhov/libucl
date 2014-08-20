@@ -84,6 +84,7 @@ ucl_skip_comments (struct ucl_parser *parser)
 	struct ucl_chunk *chunk = parser->chunks;
 	const unsigned char *p;
 	int comments_nested = 0;
+	bool quoted = false;
 
 	p = chunk->pos;
 
@@ -107,22 +108,28 @@ start:
 			ucl_chunk_skipc (chunk, p);
 
 			while (p < chunk->end) {
-				if (*p == '*') {
-					ucl_chunk_skipc (chunk, p);
-					if (*p == '/') {
-						comments_nested --;
-						if (comments_nested == 0) {
-							ucl_chunk_skipc (chunk, p);
-							goto start;
-						}
-					}
-					ucl_chunk_skipc (chunk, p);
+				if (*p == '"' && *(p - 1) != '\\') {
+					quoted = !quoted;
 				}
-				else if (p[0] == '/' && chunk->remain >= 2 && p[1] == '*') {
-					comments_nested ++;
-					ucl_chunk_skipc (chunk, p);
-					ucl_chunk_skipc (chunk, p);
-					continue;
+
+				if (!quoted) {
+					if (*p == '*') {
+						ucl_chunk_skipc (chunk, p);
+						if (*p == '/') {
+							comments_nested --;
+							if (comments_nested == 0) {
+								ucl_chunk_skipc (chunk, p);
+								goto start;
+							}
+						}
+						ucl_chunk_skipc (chunk, p);
+					}
+					else if (p[0] == '/' && chunk->remain >= 2 && p[1] == '*') {
+						comments_nested ++;
+						ucl_chunk_skipc (chunk, p);
+						ucl_chunk_skipc (chunk, p);
+						continue;
+					}
 				}
 				ucl_chunk_skipc (chunk, p);
 			}
