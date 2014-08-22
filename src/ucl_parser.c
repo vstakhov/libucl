@@ -89,7 +89,7 @@ ucl_skip_comments (struct ucl_parser *parser)
 	p = chunk->pos;
 
 start:
-	if (*p == '#') {
+	if (chunk->remain > 0 && *p == '#') {
 		if (parser->state != UCL_STATE_SCOMMENT &&
 				parser->state != UCL_STATE_MCOMMENT) {
 			while (p < chunk->end) {
@@ -101,7 +101,7 @@ start:
 			}
 		}
 	}
-	else if (*p == '/' && chunk->remain >= 2) {
+	else if (chunk->remain >= 2 && *p == '/') {
 		if (p[1] == '*') {
 			ucl_chunk_skipc (chunk, p);
 			comments_nested ++;
