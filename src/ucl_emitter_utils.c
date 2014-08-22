@@ -150,7 +150,7 @@ ucl_utstring_append_character (unsigned char c, size_t len, void *ud)
 		utstring_append_c (buf, c);
 	}
 	else {
-		utstring_reserve (buf, len);
+		utstring_reserve (buf, len + 1);
 		memset (&buf->d[buf->i], c, len);
 		buf->i += len;
 		buf->d[buf->i] = '\0';
