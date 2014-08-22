@@ -521,6 +521,10 @@ ucl_copy_or_store_ptr (struct ucl_parser *parser,
 				*dst = tmp;
 				ret = tret;
 			}
+			else {
+				/* Free unexpanded value */
+				UCL_FREE (in_len + 1, tmp);
+			}
 		}
 		*dst_const = *dst;
 	}
