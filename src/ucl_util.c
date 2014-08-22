@@ -1204,9 +1204,8 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 	}
 	else {
 		if (replace) {
-			ucl_hash_delete (top->value.ov, found);
+			ucl_hash_replace (top->value.ov, found, elt);
 			ucl_object_unref (found);
-			top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
 			found = NULL;
 			DL_APPEND (found, elt);
 		}
