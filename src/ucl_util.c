@@ -1194,9 +1194,8 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 
 	found = __DECONST (ucl_object_t *, ucl_hash_search_obj (top->value.ov, elt));
 
-	if (!found) {
+	if (found == NULL) {
 		top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
-		DL_APPEND (found, elt);
 		top->len ++;
 		if (replace) {
 			ret = false;
@@ -1206,8 +1205,6 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 		if (replace) {
 			ucl_hash_replace (top->value.ov, found, elt);
 			ucl_object_unref (found);
-			found = NULL;
-			DL_APPEND (found, elt);
 		}
 		else if (merge) {
 			if (found->type != UCL_OBJECT && elt->type == UCL_OBJECT) {
@@ -1456,6 +1453,8 @@ ucl_object_new (void)
 		memset (new, 0, sizeof (ucl_object_t));
 		new->ref = 1;
 		new->type = UCL_NULL;
+		new->next = NULL;
+		new->prev = new;
 	}
 	return new;
 }
@@ -1469,6 +1468,8 @@ ucl_object_typed_new (ucl_type_t type)
 		memset (new, 0, sizeof (ucl_object_t));
 		new->ref = 1;
 		new->type = (type <= UCL_NULL ? type : UCL_NULL);
+		new->next = NULL;
+		new->prev = new;
 	}
 	return new;
 }
