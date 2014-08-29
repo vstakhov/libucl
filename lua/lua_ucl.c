@@ -41,6 +41,11 @@ static ucl_object_t* ucl_object_lua_fromelt (lua_State *L, int idx);
 
 static void *ucl_null;
 
+struct ucl_lua_funcdata {
+	lua_State *L;
+	int idx;
+};
+
 /**
  * Push a single element of an object to lua
  * @param L
@@ -54,6 +59,15 @@ ucl_object_lua_push_element (lua_State *L, const char *key,
 	lua_pushstring (L, key);
 	ucl_object_push_lua (L, obj, true);
 	lua_settable (L, -3);
+}
+
+static void
+lua_ucl_userdata_dtor (void *ud)
+{
+	struct ucl_lua_funcdata *fd = (struct ucl_lua_funcdata *)ud;
+
+	luaL_unref (fd->L, LUA_REGISTRYINDEX, fd->idx);
+	free (fd);
 }
 
 /**
@@ -125,6 +139,8 @@ static int
 ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj,
 		bool allow_array)
 {
+	struct ucl_lua_funcdata *fd;
+
 	if (allow_array && obj->next != NULL) {
 		/* Actually we need to push this as an array */
 		return ucl_object_lua_push_array (L, obj);
@@ -150,6 +166,10 @@ ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj,
 		break;
 	case UCL_NULL:
 		lua_getfield (L, LUA_REGISTRYINDEX, "ucl.null");
+		break;
+	case UCL_USERDATA:
+		fd = (struct ucl_lua_funcdata *)obj->value.ud;
+		lua_rawgeti (L, LUA_REGISTRYINDEX, fd->idx);
 		break;
 	default:
 		lua_pushnil (L);
@@ -266,6 +286,7 @@ ucl_object_lua_fromelt (lua_State *L, int idx)
 	int type;
 	double num;
 	ucl_object_t *obj = NULL;
+	struct ucl_lua_funcdata *fd;
 
 	type = lua_type (L, idx);
 
@@ -303,14 +324,22 @@ ucl_object_lua_fromelt (lua_State *L, int idx)
 			}
 			lua_pop (L, 2);
 		}
-		if (type == LUA_TTABLE) {
-			obj = ucl_object_lua_fromtable (L, idx);
-		}
-		else if (type == LUA_TFUNCTION) {
-			lua_pushvalue (L, idx);
-			obj = ucl_object_new ();
-			obj->type = UCL_USERDATA;
-			obj->value.ud = (void *)(uintptr_t)(int)(luaL_ref (L, LUA_REGISTRYINDEX));
+		else {
+			if (type == LUA_TTABLE) {
+				obj = ucl_object_lua_fromtable (L, idx);
+			}
+			else if (type == LUA_TFUNCTION) {
+				fd = malloc (sizeof (*fd));
+				if (fd != NULL) {
+					lua_pushvalue (L, idx);
+					fd->L = L;
+					fd->idx = luaL_ref (L, LUA_REGISTRYINDEX);
+
+					obj = ucl_object_new_userdata (lua_ucl_userdata_dtor);
+					obj->type = UCL_USERDATA;
+					obj->value.ud = (void *)fd;
+				}
+			}
 		}
 		break;
 	}

@@ -32,3 +32,14 @@ function test_simple()
 end
 
 test_simple()
+
+local table = {
+  str = 'value',
+  num = 100500,
+  null = ucl.null,
+  func = function ()
+    print('huh')
+  end
+}
+
+print(ucl.to_format(table, 'ucl'))
