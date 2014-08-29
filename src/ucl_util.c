@@ -129,11 +129,6 @@ static char* ucl_realpath(const char *path, char *resolved_path) {
 #define ucl_realpath realpath
 #endif
 
-struct ucl_object_userdata {
-	ucl_object_t obj;
-	ucl_userdata_dtor dtor;
-};
-
 typedef void (*ucl_object_dtor) (ucl_object_t *obj);
 static void ucl_object_free_internal (ucl_object_t *obj, bool allow_rec,
 		ucl_object_dtor dtor);
@@ -1475,14 +1470,14 @@ ucl_object_typed_new (ucl_type_t type)
 		}
 	}
 	else {
-		new = ucl_object_new_userdata (NULL);
+		new = ucl_object_new_userdata (NULL, NULL);
 	}
 
 	return new;
 }
 
 ucl_object_t*
-ucl_object_new_userdata (ucl_userdata_dtor dtor)
+ucl_object_new_userdata (ucl_userdata_dtor dtor, ucl_userdata_emitter emitter)
 {
 	struct ucl_object_userdata *new;
 	size_t nsize = sizeof (*new);
@@ -1495,6 +1490,7 @@ ucl_object_new_userdata (ucl_userdata_dtor dtor)
 		new->obj.next = NULL;
 		new->obj.prev = (ucl_object_t *)new;
 		new->dtor = dtor;
+		new->emitter = emitter;
 	}
 
 	return (ucl_object_t *)new;

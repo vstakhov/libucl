@@ -202,6 +202,12 @@ struct ucl_parser {
 	UT_string *err;
 };
 
+struct ucl_object_userdata {
+	ucl_object_t obj;
+	ucl_userdata_dtor dtor;
+	ucl_userdata_emitter emitter;
+};
+
 /**
  * Unescape json string inplace
  * @param str

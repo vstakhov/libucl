@@ -208,6 +208,7 @@ typedef struct ucl_object_s {
  * @param ud user specified data pointer
  */
 typedef void (*ucl_userdata_dtor)(void *ud);
+typedef const char* (*ucl_userdata_emitter)(void *ud);
 
 /** @} */
 
@@ -249,7 +250,8 @@ UCL_EXTERN ucl_object_t* ucl_object_typed_new (ucl_type_t type) UCL_WARN_UNUSED_
  * @param dtor destructor function
  * @return new object
  */
-UCL_EXTERN ucl_object_t* ucl_object_new_userdata (ucl_userdata_dtor dtor) UCL_WARN_UNUSED_RESULT;
+UCL_EXTERN ucl_object_t* ucl_object_new_userdata (ucl_userdata_dtor dtor,
+		ucl_userdata_emitter emitter) UCL_WARN_UNUSED_RESULT;
 
 /**
  * Perform deep copy of an object copying everything
