@@ -203,6 +203,12 @@ typedef struct ucl_object_s {
 	unsigned char* trash_stack[2];			/**< Pointer to allocated chunks */
 } ucl_object_t;
 
+/**
+ * Destructor type for userdata objects
+ * @param ud user specified data pointer
+ */
+typedef void (*ucl_userdata_dtor)(void *ud);
+
 /** @} */
 
 /**
@@ -237,6 +243,13 @@ UCL_EXTERN ucl_object_t* ucl_object_new (void) UCL_WARN_UNUSED_RESULT;
  * @return new object
  */
 UCL_EXTERN ucl_object_t* ucl_object_typed_new (ucl_type_t type) UCL_WARN_UNUSED_RESULT;
+
+/**
+ * Create new object with userdata dtor
+ * @param dtor destructor function
+ * @return new object
+ */
+UCL_EXTERN ucl_object_t* ucl_object_new_userdata (ucl_userdata_dtor dtor) UCL_WARN_UNUSED_RESULT;
 
 /**
  * Perform deep copy of an object copying everything

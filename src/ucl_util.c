@@ -129,10 +129,10 @@ static char* ucl_realpath(const char *path, char *resolved_path) {
 #define ucl_realpath realpath
 #endif
 
-/**
- * @file rcl_util.c
- * Utilities for rcl parsing
- */
+struct ucl_object_userdata {
+	ucl_object_t obj;
+	ucl_userdata_dtor dtor;
+};
 
 typedef void (*ucl_object_dtor) (ucl_object_t *obj);
 static void ucl_object_free_internal (ucl_object_t *obj, bool allow_rec,
@@ -148,7 +148,16 @@ ucl_object_dtor_free (ucl_object_t *obj)
 	if (obj->trash_stack[UCL_TRASH_VALUE] != NULL) {
 		UCL_FREE (obj->len, obj->trash_stack[UCL_TRASH_VALUE]);
 	}
-	UCL_FREE (sizeof (ucl_object_t), obj);
+	if (obj->type != UCL_USERDATA) {
+		UCL_FREE (sizeof (ucl_object_t), obj);
+	}
+	else {
+		struct ucl_object_userdata *ud = (struct ucl_object_userdata *)obj;
+		if (ud->dtor) {
+			ud->dtor (obj->value.ud);
+		}
+		UCL_FREE (sizeof (*ud), obj);
+	}
 }
 
 /*
@@ -1447,31 +1456,48 @@ ucl_lookup_path (const ucl_object_t *top, const char *path_in) {
 ucl_object_t *
 ucl_object_new (void)
 {
-	ucl_object_t *new;
-	new = malloc (sizeof (ucl_object_t));
-	if (new != NULL) {
-		memset (new, 0, sizeof (ucl_object_t));
-		new->ref = 1;
-		new->type = UCL_NULL;
-		new->next = NULL;
-		new->prev = new;
-	}
-	return new;
+	return ucl_object_typed_new (UCL_NULL);
 }
 
 ucl_object_t *
 ucl_object_typed_new (ucl_type_t type)
 {
 	ucl_object_t *new;
-	new = malloc (sizeof (ucl_object_t));
-	if (new != NULL) {
-		memset (new, 0, sizeof (ucl_object_t));
-		new->ref = 1;
-		new->type = (type <= UCL_NULL ? type : UCL_NULL);
-		new->next = NULL;
-		new->prev = new;
+
+	if (type != UCL_USERDATA) {
+		new = UCL_ALLOC (sizeof (ucl_object_t));
+		if (new != NULL) {
+			memset (new, 0, sizeof (ucl_object_t));
+			new->ref = 1;
+			new->type = (type <= UCL_NULL ? type : UCL_NULL);
+			new->next = NULL;
+			new->prev = new;
+		}
 	}
+	else {
+		new = ucl_object_new_userdata (NULL);
+	}
+
 	return new;
+}
+
+ucl_object_t*
+ucl_object_new_userdata (ucl_userdata_dtor dtor)
+{
+	struct ucl_object_userdata *new;
+	size_t nsize = sizeof (*new);
+
+	new = UCL_ALLOC (nsize);
+	if (new != NULL) {
+		memset (new, 0, nsize);
+		new->obj.ref = 1;
+		new->obj.type = UCL_USERDATA;
+		new->obj.next = NULL;
+		new->obj.prev = (ucl_object_t *)new;
+		new->dtor = dtor;
+	}
+
+	return (ucl_object_t *)new;
 }
 
 ucl_type_t
