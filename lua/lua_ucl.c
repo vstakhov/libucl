@@ -28,6 +28,7 @@
 #include "ucl.h"
 #include "ucl_internal.h"
 #include "lua_ucl.h"
+#include <strings.h>
 
 #define PARSER_META "ucl.parser.meta"
 #define EMITTER_META "ucl.emitter.meta"
@@ -549,10 +550,29 @@ lua_ucl_to_format (lua_State *L)
 	int format = UCL_EMIT_JSON;
 
 	if (lua_gettop (L) > 1) {
-		format = lua_tonumber (L, 2);
-		if (format < 0 || format >= UCL_EMIT_YAML) {
-			lua_pushnil (L);
-			return 1;
+		if (lua_type (L, 2) == LUA_TNUMBER) {
+			format = lua_tonumber (L, 2);
+			if (format < 0 || format >= UCL_EMIT_YAML) {
+				lua_pushnil (L);
+				return 1;
+			}
+		}
+		else if (lua_type (L, 2) == LUA_TSTRING) {
+			const char *strtype = lua_tostring (L, 2);
+
+			if (strcasecmp (strtype, "json") == 0) {
+				format = UCL_EMIT_JSON;
+			}
+			else if (strcasecmp (strtype, "json-compact") == 0) {
+				format = UCL_EMIT_JSON_COMPACT;
+			}
+			else if (strcasecmp (strtype, "yaml") == 0) {
+				format = UCL_EMIT_YAML;
+			}
+			else if (strcasecmp (strtype, "config") == 0 ||
+				strcasecmp (strtype, "ucl") == 0) {
+				format = UCL_EMIT_CONFIG;
+			}
 		}
 	}
 
