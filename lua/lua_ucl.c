@@ -44,6 +44,7 @@ static void *ucl_null;
 struct ucl_lua_funcdata {
 	lua_State *L;
 	int idx;
+	char *ret;
 };
 
 /**
@@ -67,7 +68,34 @@ lua_ucl_userdata_dtor (void *ud)
 	struct ucl_lua_funcdata *fd = (struct ucl_lua_funcdata *)ud;
 
 	luaL_unref (fd->L, LUA_REGISTRYINDEX, fd->idx);
+	if (fd->ret != NULL) {
+		free (fd->ret);
+	}
 	free (fd);
+}
+
+static const char *
+lua_ucl_userdata_emitter (void *ud)
+{
+	struct ucl_lua_funcdata *fd = (struct ucl_lua_funcdata *)ud;
+	const char *out = "";
+
+	lua_rawgeti (fd->L, LUA_REGISTRYINDEX, fd->idx);
+
+	lua_pcall (fd->L, 0, 1, 0);
+	out = lua_tostring (fd->L, -1);
+
+	if (out != NULL) {
+		/* We need to store temporary string in a more appropriate place */
+		if (fd->ret) {
+			free (fd->ret);
+		}
+		fd->ret = strdup (out);
+	}
+
+	lua_settop (fd->L, 0);
+
+	return fd->ret;
 }
 
 /**
@@ -333,9 +361,11 @@ ucl_object_lua_fromelt (lua_State *L, int idx)
 				if (fd != NULL) {
 					lua_pushvalue (L, idx);
 					fd->L = L;
+					fd->ret = NULL;
 					fd->idx = luaL_ref (L, LUA_REGISTRYINDEX);
 
-					obj = ucl_object_new_userdata (lua_ucl_userdata_dtor);
+					obj = ucl_object_new_userdata (lua_ucl_userdata_dtor,
+							lua_ucl_userdata_emitter);
 					obj->type = UCL_USERDATA;
 					obj->value.ud = (void *)fd;
 				}

@@ -419,6 +419,9 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		ucl_emitter_print_key (print_key, ctx, obj, compact);
 		if (ud->emitter) {
 			ud_out = ud->emitter (obj->value.ud);
+			if (ud_out == NULL) {
+				ud_out = "null";
+			}
 		}
 		func->ucl_emitter_append_len (ud_out, strlen (ud_out), func->ud);
 		ucl_emitter_finish_object (ctx, obj, compact, !print_key);

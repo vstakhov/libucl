@@ -38,7 +38,10 @@ local table = {
   num = 100500,
   null = ucl.null,
   func = function ()
-    print('huh')
+    return 'huh'
+  end,
+  badfunc = function()
+    print("I'm bad")
   end
 }
 
