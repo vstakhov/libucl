@@ -423,7 +423,7 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 				ud_out = "null";
 			}
 		}
-		func->ucl_emitter_append_len (ud_out, strlen (ud_out), func->ud);
+		ucl_elt_string_write_json (ud_out, strlen (ud_out), ctx);
 		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
 	}
