@@ -30,6 +30,42 @@
 #include "lua_ucl.h"
 #include <strings.h>
 
+/***
+ * @module ucl
+ * This lua module allows to parse objects from strings and to store data into
+ * ucl objects. It uses `libucl` C library to parse and manipulate with ucl objects.
+ * @example
+local ucl = require("ucl")
+
+local parser = ucl.parser()
+local res,err = parser:parse_string('{key=value}')
+
+if not res then
+	print('parser error: ' .. err)
+else
+	local obj = parser:get_object()
+	local got = ucl.to_format(obj, 'json')
+endif
+
+local table = {
+  str = 'value',
+  num = 100500,
+  null = ucl.null,
+  func = function ()
+    return 'huh'
+  end
+}
+
+print(ucl.to_format(table, 'ucl'))
+-- Output:
+--[[
+num = 100500;
+str = "value";
+null = null;
+func = huh;
+--]]
+ */
+
 #define PARSER_META "ucl.parser.meta"
 #define EMITTER_META "ucl.emitter.meta"
 #define NULL_META "null.emitter.meta"
@@ -207,10 +243,20 @@ ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj,
 	return 1;
 }
 
-/**
- * Push an object to lua
- * @param L lua state
- * @param obj object to push
+/***
+ * @function ucl_object_push_lua(L, obj, allow_array)
+ * This is a `C` function to push `UCL` object as lua variable. This function
+ * converts `obj` to lua representation using the following conversions:
+ *
+ * - *scalar* values are directly presented by lua objects
+ * - *userdata* values are converted to lua function objects using `LUA_REGISTRYINDEX`,
+ * this can be used to pass functions from lua to c and vice-versa
+ * - *arrays* are converted to lua tables with numeric indicies suitable for `ipairs` iterations
+ * - *objects* are converted to lua tables with string indicies
+ * @param {lua_State} L lua state pointer
+ * @param {ucl_object_t} obj object to push
+ * @param {bool} allow_array expand implicit arrays (should be true for all but partial arrays)
+ * @return {int} `1` if an object is pushed to lua
  */
 int
 ucl_object_push_lua (lua_State *L, const ucl_object_t *obj, bool allow_array)
@@ -378,9 +424,13 @@ ucl_object_lua_fromelt (lua_State *L, int idx)
 }
 
 /**
- * Extract rcl object from lua object
- * @param L
- * @return
+ * @function ucl_object_lua_import(L, idx)
+ * Extracts ucl object from lua variable at `idx` position,
+ * @see ucl_object_push_lua for conversion definitions
+ * @param {lua_state} L lua state machine pointer
+ * @param {int} idx index where the source variable is placed
+ * @return {ucl_object_t} new ucl object extracted from lua variable. Reference count of this object is 1,
+ * this object thus needs to be unref'ed after usage.
  */
 ucl_object_t *
 ucl_object_lua_import (lua_State *L, int idx)
@@ -430,6 +480,21 @@ lua_ucl_parser_get (lua_State *L, int index)
 	return *((struct ucl_parser **) luaL_checkudata(L, index, PARSER_META));
 }
 
+/***
+ * @method parser:parse_file(name)
+ * Parse UCL object from file.
+ * @param {string} name filename to parse
+ * @return {bool[, string]} if res is `true` then file has been parsed successfully, otherwise an error string is also returned
+@example
+local parser = ucl.parser()
+local res,err = parser:parse_file('/some/file.conf')
+
+if not res then
+	print('parser error: ' .. err)
+else
+	-- Do something with object
+endif
+ */
 static int
 lua_ucl_parser_parse_file (lua_State *L)
 {
@@ -458,6 +523,12 @@ lua_ucl_parser_parse_file (lua_State *L)
 	return ret;
 }
 
+/***
+ * @method parser:parse_string(input)
+ * Parse UCL object from file.
+ * @param {string} input string to parse
+ * @return {bool[, string]} if res is `true` then file has been parsed successfully, otherwise an error string is also returned
+ */
 static int
 lua_ucl_parser_parse_string (lua_State *L)
 {
@@ -487,6 +558,11 @@ lua_ucl_parser_parse_string (lua_State *L)
 	return ret;
 }
 
+/***
+ * @method parser:get_object()
+ * Get top object from parser and export it to lua representation.
+ * @return {variant or nil} ucl object as lua native variable
+ */
 static int
 lua_ucl_parser_get_object (lua_State *L)
 {
@@ -602,6 +678,40 @@ lua_ucl_to_config (lua_State *L)
 	return 1;
 }
 
+/***
+ * @function ucl.to_format(var, format)
+ * Converts lua variable `var` to the specified `format`. Formats supported are:
+ *
+ * - `json` - fine printed json
+ * - `json-compact` - compacted json
+ * - `config` - fine printed configuration
+ * - `ucl` - same as `config`
+ * - `yaml` - embedded yaml
+ *
+ * If `var` contains function, they are called during output formatting and if
+ * they return string value, then this value is used for ouptut.
+ * @param {variant} var any sort of lua variable (if userdata then metafield `__to_ucl` is searched for output)
+ * @param {string} format any available format
+ * @return {string} string representation of `var` in the specific `format`.
+ * @example
+local table = {
+  str = 'value',
+  num = 100500,
+  null = ucl.null,
+  func = function ()
+    return 'huh'
+  end
+}
+
+print(ucl.to_format(table, 'ucl'))
+-- Output:
+--[[
+num = 100500;
+str = "value";
+null = null;
+func = huh;
+--]]
+ */
 static int
 lua_ucl_to_format (lua_State *L)
 {
