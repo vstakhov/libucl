@@ -33,7 +33,7 @@ print(ucl.to_format(table, 'ucl'))
 num = 100500;
 str = "value";
 null = null;
-func = huh;
+func = "huh";
 --]]
 ~~~
 
@@ -123,7 +123,7 @@ print(ucl.to_format(table, 'ucl'))
 num = 100500;
 str = "value";
 null = null;
-func = huh;
+func = "huh";
 --]]
 ~~~
 
@@ -156,7 +156,7 @@ if not res then
 	print('parser error: ' .. err)
 else
 	-- Do something with object
-endif
+end
 ~~~
 
 Back to [module description](#ma3689).

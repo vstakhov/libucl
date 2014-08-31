@@ -62,7 +62,7 @@ print(ucl.to_format(table, 'ucl'))
 num = 100500;
 str = "value";
 null = null;
-func = huh;
+func = "huh";
 --]]
  */
 
@@ -493,7 +493,7 @@ if not res then
 	print('parser error: ' .. err)
 else
 	-- Do something with object
-endif
+end
  */
 static int
 lua_ucl_parser_parse_file (lua_State *L)
@@ -709,7 +709,7 @@ print(ucl.to_format(table, 'ucl'))
 num = 100500;
 str = "value";
 null = null;
-func = huh;
+func = "huh";
 --]]
  */
 static int
