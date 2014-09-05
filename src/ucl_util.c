@@ -822,6 +822,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 #endif
 	}
 
+	parser->cur_file = realbuf;
 	ucl_parser_set_filevars (parser, realbuf, false);
 
 	prev_state = parser->state;
@@ -836,6 +837,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 			UCL_FREE (sizeof (struct ucl_chunk), chunk);
 		}
 	}
+	parser->cur_file = NULL;
 
 	parser->state = prev_state;
 
@@ -951,12 +953,14 @@ ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 		return false;
 	}
 
+	parser->cur_file = realbuf;
 	ucl_parser_set_filevars (parser, realbuf, false);
 	ret = ucl_parser_add_chunk (parser, buf, len);
 
 	if (len > 0) {
 		ucl_munmap (buf, len);
 	}
+	parser->cur_file = NULL;
 
 	return ret;
 }
