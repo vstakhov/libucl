@@ -587,6 +587,7 @@ ucl_add_parser_stack (ucl_object_t *obj, struct ucl_parser *parser, bool is_arra
 	if (st == NULL) {
 		ucl_set_err (parser, 0, "cannot allocate memory for an object",
 				&parser->err);
+		ucl_object_unref (obj);
 		return NULL;
 	}
 	st->obj = obj;
