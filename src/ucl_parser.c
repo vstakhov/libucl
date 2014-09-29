@@ -1706,7 +1706,6 @@ ucl_state_machine (struct ucl_parser *parser)
 			 * if we got [ or { correspondingly or can just treat new data as
 			 * a key of newly created object
 			 */
-			obj = parser->cur_obj;
 			if (!ucl_skip_comments (parser)) {
 				parser->prev_state = parser->state;
 				parser->state = UCL_STATE_ERROR;
