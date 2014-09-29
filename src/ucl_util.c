@@ -1385,9 +1385,6 @@ ucl_iterate_object (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expan
 	elt = *iter;
 	if (elt == NULL) {
 		elt = obj;
-		if (elt == NULL) {
-			return NULL;
-		}
 	}
 	else if (elt == obj) {
 		return NULL;
