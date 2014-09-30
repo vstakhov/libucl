@@ -263,19 +263,23 @@ ucl_fd_append_character (unsigned char c, size_t len, void *ud)
 	unsigned char *buf;
 
 	if (len == 1) {
-		write (fd, &c, 1);
+		return write (fd, &c, 1);
 	}
 	else {
 		buf = malloc (len);
 		if (buf == NULL) {
 			/* Fallback */
 			while (len --) {
-				write (fd, &c, 1);
+				if (write (fd, &c, 1) == -1) {
+					return -1;
+				}
 			}
 		}
 		else {
 			memset (buf, c, len);
-			write (fd, buf, len);
+			if (write (fd, buf, len) == -1) {
+				return -1;
+			}
 			free (buf);
 		}
 	}
@@ -288,9 +292,7 @@ ucl_fd_append_len (const unsigned char *str, size_t len, void *ud)
 {
 	int fd = *(int *)ud;
 
-	write (fd, str, len);
-
-	return 0;
+	return write (fd, str, len);
 }
 
 static int
@@ -300,9 +302,7 @@ ucl_fd_append_int (int64_t val, void *ud)
 	char intbuf[64];
 
 	snprintf (intbuf, sizeof (intbuf), "%jd", (intmax_t)val);
-	write (fd, intbuf, strlen (intbuf));
-
-	return 0;
+	return write (fd, intbuf, strlen (intbuf));
 }
 
 static int
@@ -323,9 +323,7 @@ ucl_fd_append_double (double val, void *ud)
 		snprintf (nbuf, sizeof (nbuf), "%lf", val);
 	}
 
-	write (fd, nbuf, strlen (nbuf));
-
-	return 0;
+	return write (fd, nbuf, strlen (nbuf));
 }
 
 struct ucl_emitter_functions*
