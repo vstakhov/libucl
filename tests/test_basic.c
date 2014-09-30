@@ -126,7 +126,7 @@ main (int argc, char **argv)
 	ucl_parser_free (parser);
 	ucl_object_unref (obj);
 	parser2 = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
-	ucl_parser_add_string (parser2, emitted, 0);
+	ucl_parser_add_string (parser2, (const char *)emitted, 0);
 
 	if (ucl_parser_get_error(parser2) != NULL) {
 		fprintf (out, "Error occurred: %s\n", ucl_parser_get_error(parser2));

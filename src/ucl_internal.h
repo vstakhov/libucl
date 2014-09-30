@@ -271,7 +271,7 @@ ucl_create_err (UT_string **err, const char *fmt, ...)
 static inline bool
 ucl_maybe_parse_boolean (ucl_object_t *obj, const unsigned char *start, size_t len)
 {
-	const unsigned char *p = start;
+	const char *p = (const char *)start;
 	bool ret = false, val = false;
 
 	if (len == 5) {
