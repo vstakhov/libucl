@@ -90,7 +90,7 @@ main (int argc, char **argv)
 		inlen = strlen (inbuf);
 		test_in = malloc (inlen);
 		memcpy (test_in, inbuf, inlen);
-		ucl_parser_add_chunk (parser, test_in, inlen);
+		ucl_parser_add_chunk (parser, (const unsigned char *)test_in, inlen);
 	}
 	fclose (in);
 
