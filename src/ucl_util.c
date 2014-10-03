@@ -984,6 +984,7 @@ ucl_parser_add_fd (struct ucl_parser *parser, int fd)
 	}
 
 	parser->cur_file = NULL;
+	len = st.st_size;
 	ret = ucl_parser_add_chunk (parser, buf, len);
 
 	if (len > 0) {
