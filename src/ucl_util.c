@@ -976,6 +976,7 @@ ucl_parser_add_fd (struct ucl_parser *parser, int fd)
 	if (fstat (fd, &st) == -1) {
 		ucl_create_err (&parser->err, "cannot stat fd %d: %s",
 			fd, strerror (errno));
+		return false;
 	}
 	if ((buf = ucl_mmap (NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {
 		ucl_create_err (&parser->err, "cannot mmap fd %d: %s",
