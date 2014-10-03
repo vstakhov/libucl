@@ -965,6 +965,34 @@ ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 	return ret;
 }
 
+UCL_EXTERN bool
+ucl_parser_add_fd (struct ucl_parser *parser, int fd)
+{
+	unsigned char *buf;
+	size_t len;
+	bool ret;
+	struct stat st;
+
+	if (fstat (fd, &st) == -1) {
+		ucl_create_err (&parser->err, "cannot stat fd %d: %s",
+			fd, strerror (errno));
+	}
+	if ((buf = ucl_mmap (NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {
+		ucl_create_err (&parser->err, "cannot mmap fd %d: %s",
+			fd, strerror (errno));
+		return false;
+	}
+
+	parser->cur_file = NULL;
+	ret = ucl_parser_add_chunk (parser, buf, len);
+
+	if (len > 0) {
+		ucl_munmap (buf, len);
+	}
+
+	return ret;
+}
+
 size_t
 ucl_strlcpy (char *dst, const char *src, size_t siz)
 {
