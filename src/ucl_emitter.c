@@ -398,7 +398,12 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		break;
 	case UCL_STRING:
 		ucl_emitter_print_key (print_key, ctx, obj, compact);
-		ucl_elt_string_write_json (obj->value.sv, obj->len, ctx);
+		if (ctx->id == UCL_EMIT_CONFIG && ucl_maybe_long_string (obj)) {
+			ucl_elt_string_write_multiline (obj->value.sv, obj->len, ctx);
+		}
+		else {
+			ucl_elt_string_write_json (obj->value.sv, obj->len, ctx);
+		}
 		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
 	case UCL_NULL:

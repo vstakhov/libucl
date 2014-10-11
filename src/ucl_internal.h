@@ -372,4 +372,12 @@ void ucl_elt_string_write_json (const char *str, size_t size,
  */
 unsigned char * ucl_object_emit_single_json (const ucl_object_t *obj);
 
+/**
+ * Check whether a specified string is long and should be likely printed in
+ * multiline mode
+ * @param obj
+ * @return
+ */
+bool ucl_maybe_long_string (const ucl_object_t *obj);
+
 #endif /* UCL_INTERNAL_H_ */

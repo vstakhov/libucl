@@ -458,3 +458,18 @@ ucl_object_emit_single_json (const ucl_object_t *obj)
 
 	return res;
 }
+
+#define LONG_STRING_LIMIT 80
+
+bool
+ucl_maybe_long_string (const ucl_object_t *obj)
+{
+	if (obj->len > LONG_STRING_LIMIT || (obj->flags & UCL_OBJECT_MULTILINE)) {
+		/* String is long enough, so search for newline characters in it */
+		if (memchr (obj->value.sv, '\n', obj->len) != NULL) {
+			return true;
+		}
+	}
+
+	return false;
+}
