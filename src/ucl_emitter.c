@@ -131,7 +131,7 @@ ucl_emitter_print_key (bool print_key, struct ucl_emitter_context *ctx,
 		}
 	}
 	else if (ctx->id == UCL_EMIT_YAML) {
-		if (obj->keylen > 0 && obj->flags & UCL_OBJECT_NEED_KEY_ESCAPE) {
+		if (obj->keylen > 0 && (obj->flags & UCL_OBJECT_NEED_KEY_ESCAPE)) {
 			ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
 		}
 		else if (obj->keylen > 0) {

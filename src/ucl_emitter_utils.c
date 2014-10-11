@@ -138,6 +138,17 @@ ucl_elt_string_write_json (const char *str, size_t size,
 	func->ucl_emitter_append_character ('"', 1, func->ud);
 }
 
+void
+ucl_elt_string_write_multiline (const char *str, size_t size,
+		struct ucl_emitter_context *ctx)
+{
+	const struct ucl_emitter_functions *func = ctx->func;
+
+	func->ucl_emitter_append_len ("<<EOD\n", sizeof ("<<EOD\n") - 1, func->ud);
+	func->ucl_emitter_append_len (str, size, func->ud);
+	func->ucl_emitter_append_len ("\nEOD", sizeof ("\nEOD") - 1, func->ud);
+}
+
 /*
  * Generic utstring output
  */

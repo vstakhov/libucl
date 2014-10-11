@@ -358,11 +358,20 @@ const struct ucl_emitter_context *
 ucl_emit_get_standard_context (enum ucl_emitter emit_type);
 
 /**
- * Serialise string
+ * Serialize string as JSON string
  * @param str string to emit
  * @param buf target buffer
  */
 void ucl_elt_string_write_json (const char *str, size_t size,
+		struct ucl_emitter_context *ctx);
+
+/**
+ * Write multiline string using `EOD` as string terminator
+ * @param str
+ * @param size
+ * @param ctx
+ */
+void ucl_elt_string_write_multiline (const char *str, size_t size,
 		struct ucl_emitter_context *ctx);
 
 /**
