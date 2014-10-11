@@ -1264,7 +1264,7 @@ ucl_parse_multiline_string (struct ucl_parser *parser,
 		int term_len, unsigned char const **beg,
 		bool *var_expand)
 {
-	const unsigned char *p, *c;
+	const unsigned char *p, *c, *tend;
 	bool newline = false;
 	int len = 0;
 
@@ -1277,7 +1277,13 @@ ucl_parse_multiline_string (struct ucl_parser *parser,
 			if (chunk->end - p < term_len) {
 				return 0;
 			}
-			else if (memcmp (p, term, term_len) == 0 && (p[term_len] == '\n' || p[term_len] == '\r')) {
+			else if (memcmp (p, term, term_len) == 0) {
+				tend = p + term_len;
+				if (*tend != '\n' && *tend != ';' && *tend != ',') {
+					/* Incomplete terminator */
+					ucl_chunk_skipc (chunk, p);
+					continue;
+				}
 				len = p - c;
 				chunk->remain -= term_len;
 				chunk->pos = p + term_len;
