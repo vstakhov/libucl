@@ -26,8 +26,8 @@
 #include "ucl_chartable.h"
 
 /**
- * @file rcl_parser.c
- * The implementation of rcl parser
+ * @file ucl_parser.c
+ * The implementation of ucl parser
  */
 
 struct ucl_parser_saved_state {
@@ -1671,6 +1671,116 @@ ucl_parse_macro_value (struct ucl_parser *parser,
 }
 
 /**
+ * Parse macro arguments as UCL object
+ * @param parser parser structure
+ * @param chunk the current data chunk
+ * @return
+ */
+static ucl_object_t *
+ucl_parse_macro_arguments (struct ucl_parser *parser,
+		struct ucl_chunk *chunk)
+{
+	ucl_object_t *res = NULL;
+	struct ucl_parser *params_parser;
+	int obraces = 1, ebraces = 0, state = 0;
+	const unsigned char *p, *c;
+	size_t args_len = 0;
+	struct ucl_parser_saved_state saved;
+
+	saved.column = chunk->column;
+	saved.line = chunk->line;
+	saved.pos = chunk->pos;
+	saved.remain = chunk->remain;
+	p = chunk->pos;
+
+	if (*p != '(' || chunk->remain < 2) {
+		return NULL;
+	}
+
+	/* Set begin and start */
+	ucl_chunk_skipc (chunk, p);
+	c = p;
+
+	switch (state) {
+	case 0:
+		/* Parse symbols and check for '(', ')' and '"' */
+		if (*p == '(') {
+			obraces ++;
+		}
+		else if (*p == ')') {
+			ebraces ++;
+		}
+		else if (*p == '"') {
+			state = 1;
+		}
+		/* Check pairing */
+		if (obraces == ebraces) {
+			state = 99;
+		}
+		else {
+			args_len ++;
+		}
+		/* Check overflow */
+		if (chunk->remain == 0) {
+			goto restore_chunk;
+		}
+		ucl_chunk_skipc (chunk, p);
+		break;
+	case 1:
+		/* We have quote character, so skip all but quotes */
+		if (*p == '"' && *(p - 1) != '\\') {
+			state = 0;
+		}
+		if (chunk->remain == 0) {
+			goto restore_chunk;
+		}
+		ucl_chunk_skipc (chunk, p);
+		break;
+	case 99:
+		/*
+		 * We have read the full body of arguments, so we need to parse and set
+		 * object from that
+		 */
+		params_parser = ucl_parser_new (parser->flags);
+		if (!ucl_parser_add_chunk (params_parser, c, args_len)) {
+			ucl_set_err (parser, UCL_ESYNTAX, "macro arguments parsing error",
+					&parser->err);
+		}
+		else {
+			res = ucl_parser_get_object (params_parser);
+		}
+		ucl_parser_free (params_parser);
+
+		break;
+	}
+
+	return res;
+
+restore_chunk:
+	chunk->column = saved.column;
+	chunk->line = saved.line;
+	chunk->pos = saved.pos;
+	chunk->remain = saved.remain;
+
+	return NULL;
+}
+
+#define SKIP_SPACES_COMMENTS(parser, chunk, p) do {								\
+	while ((p) < (chunk)->end) {												\
+		if (!ucl_test_character (*(p), UCL_CHARACTER_WHITESPACE_UNSAFE)) {		\
+			if ((chunk)->remain >= 2 && ucl_lex_is_comment ((p)[0], (p)[1])) {	\
+				if (!ucl_skip_comments (parser)) {								\
+					return false;												\
+				}																\
+				p = (chunk)->pos;												\
+			}																	\
+			break;																\
+		}																		\
+		ucl_chunk_skipc (chunk, p);												\
+	}																			\
+} while(0)
+
+/**
  * Handle the main states of rcl parser
  * @param parser parser structure
  * @param data the pointer to the beginning of a chunk
@@ -1680,7 +1790,7 @@ ucl_parse_macro_value (struct ucl_parser *parser,
 static bool
 ucl_state_machine (struct ucl_parser *parser)
 {
-	ucl_object_t *obj;
+	ucl_object_t *obj, *macro_args;
 	struct ucl_chunk *chunk = parser->chunks;
 	const unsigned char *p, *c = NULL, *macro_start = NULL;
 	unsigned char *macro_escaped;
@@ -1829,23 +1939,20 @@ ucl_state_machine (struct ucl_parser *parser)
 					return false;
 				}
 				/* Now we need to skip all spaces */
-				while (p < chunk->end) {
-					if (!ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
-						if (chunk->remain >= 2 && ucl_lex_is_comment (p[0], p[1])) {
-							/* Skip comment */
-							if (!ucl_skip_comments (parser)) {
-								return false;
-							}
-							p = chunk->pos;
-						}
-						break;
-					}
-					ucl_chunk_skipc (chunk, p);
-				}
+				SKIP_SPACES_COMMENTS(parser, chunk, p);
 				parser->state = UCL_STATE_MACRO;
 			}
 			break;
 		case UCL_STATE_MACRO:
+			if (*chunk->pos == '(') {
+				macro_args = ucl_parse_macro_arguments (parser, chunk);
+				if (macro_args) {
+					SKIP_SPACES_COMMENTS(parser, chunk, p);
+				}
+			}
+			else {
+				macro_args = NULL;
+			}
 			if (!ucl_parse_macro_value (parser, chunk, macro,
 					&macro_start, &macro_len)) {
 				parser->prev_state = parser->state;
