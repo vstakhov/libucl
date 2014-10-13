@@ -25,6 +25,8 @@
 #include "ucl_internal.h"
 #include "ucl_chartable.h"
 
+#include <glob.h>
+
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h> /* For dirname */
 #endif
@@ -769,17 +771,20 @@ ucl_include_url (const unsigned char *data, size_t len,
 }
 
 /**
- * Include a file to configuration
+ * Include a single file to the parser
  * @param data
  * @param len
  * @param parser
- * @param err
+ * @param check_signature
+ * @param must_exist
+ * @param allow_glob
+ * @param priority
  * @return
  */
 static bool
-ucl_include_file (const unsigned char *data, size_t len,
+ucl_include_file_single (const unsigned char *data, size_t len,
 		struct ucl_parser *parser, bool check_signature, bool must_exist,
-		bool allow_glob, unsigned priority)
+		unsigned priority)
 {
 	bool res;
 	struct ucl_chunk *chunk;
@@ -853,6 +858,73 @@ ucl_include_file (const unsigned char *data, size_t len,
 	return res;
 }
 
+/**
+ * Include a file to configuration
+ * @param data
+ * @param len
+ * @param parser
+ * @param err
+ * @return
+ */
+static bool
+ucl_include_file (const unsigned char *data, size_t len,
+		struct ucl_parser *parser, bool check_signature, bool must_exist,
+		bool allow_glob, unsigned priority)
+{
+	const unsigned char *p = data, *end = data + len;
+	bool need_glob = false;
+	glob_t globbuf;
+	char glob_pattern[PATH_MAX];
+	size_t i;
+
+	if (!allow_glob) {
+		return ucl_include_file_single (data, len, parser, check_signature,
+			must_exist, priority);
+	}
+	else {
+		/* Check for special symbols in a filename */
+		while (p != end) {
+			if (*p == '*' || *p == '?') {
+				need_glob = true;
+				break;
+			}
+			p ++;
+		}
+		if (need_glob) {
+			memset (&glob, 0, sizeof (glob));
+			ucl_strlcpy (glob_pattern, (const char *)data, len);
+			if (glob (glob_pattern, 0, NULL, &globbuf) != 0) {
+				return (!must_exist || false);
+			}
+			for (i = 0; i < globbuf.gl_pathc; i ++) {
+				if (!ucl_include_file_single ((unsigned char *)globbuf.gl_pathv[i],
+						strlen (globbuf.gl_pathv[i]), parser, check_signature,
+						must_exist, priority)) {
+					globfree (&globbuf);
+					return false;
+				}
+				globfree (&globbuf);
+			}
+		}
+		else {
+			return ucl_include_file_single (data, len, parser, check_signature,
+				must_exist, priority);
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Common function to handle .*include* macros
+ * @param data
+ * @param len
+ * @param args
+ * @param parser
+ * @param default_try
+ * @param default_sign
+ * @return
+ */
 static bool
 ucl_include_common (const unsigned char *data, size_t len,
 		const ucl_object_t *args, struct ucl_parser *parser,
