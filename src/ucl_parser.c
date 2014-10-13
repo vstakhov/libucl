@@ -2078,7 +2078,7 @@ ucl_parser_register_variable (struct ucl_parser *parser, const char *var,
 
 		if (new != NULL) {
 			/* Remove variable */
-			LL_DELETE (parser->variables, new);
+			DL_DELETE (parser->variables, new);
 			free (new->var);
 			free (new->value);
 			UCL_FREE (sizeof (struct ucl_variable), new);
@@ -2100,7 +2100,7 @@ ucl_parser_register_variable (struct ucl_parser *parser, const char *var,
 			new->value = strdup (value);
 			new->value_len = strlen (value);
 
-			LL_PREPEND (parser->variables, new);
+			DL_APPEND (parser->variables, new);
 		}
 		else {
 			free (new->value);

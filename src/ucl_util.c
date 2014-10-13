@@ -432,7 +432,7 @@ ucl_parser_free (struct ucl_parser *parser)
 	}
 
 	if (parser->err != NULL) {
-		utstring_free(parser->err);
+		utstring_free (parser->err);
 	}
 
 	UCL_FREE (sizeof (struct ucl_parser), parser);
@@ -789,9 +789,11 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 	bool res;
 	struct ucl_chunk *chunk;
 	unsigned char *buf = NULL;
+	const char *old_curfile;
 	size_t buflen;
 	char filebuf[PATH_MAX], realbuf[PATH_MAX];
 	int prev_state;
+	struct ucl_variable *cur_var, *tmp_var, *old_curdir, *old_filename;
 
 	snprintf (filebuf, sizeof (filebuf), "%.*s", (int)len, data);
 	if (ucl_realpath (filebuf, realbuf) == NULL) {
@@ -832,22 +834,63 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 #endif
 	}
 
+	old_curfile = parser->cur_file;
 	parser->cur_file = realbuf;
+
+	/* Store old file vars */
+	DL_FOREACH_SAFE (parser->variables, cur_var, tmp_var) {
+		if (strcmp (cur_var->var, "CURDIR") == 0) {
+			old_curdir = cur_var;
+			DL_DELETE (parser->variables, cur_var);
+		}
+		else if (strcmp (cur_var->var, "FILENAME") == 0) {
+			old_filename = cur_var;
+			DL_DELETE (parser->variables, cur_var);
+		}
+	}
+
 	ucl_parser_set_filevars (parser, realbuf, false);
 
 	prev_state = parser->state;
 	parser->state = UCL_STATE_INIT;
 
 	res = ucl_parser_add_chunk_priority (parser, buf, buflen, priority);
-	if (res == true) {
-		/* Remove chunk from the stack */
-		chunk = parser->chunks;
-		if (chunk != NULL) {
-			parser->chunks = chunk->next;
-			UCL_FREE (sizeof (struct ucl_chunk), chunk);
+	if (!res && !must_exist) {
+		/* Free error */
+		utstring_free (parser->err);
+		parser->err = NULL;
+		parser->state = UCL_STATE_AFTER_VALUE;
+	}
+
+	/* Remove chunk from the stack */
+	chunk = parser->chunks;
+	if (chunk != NULL) {
+		parser->chunks = chunk->next;
+		UCL_FREE (sizeof (struct ucl_chunk), chunk);
+	}
+
+	/* Restore old file vars */
+	parser->cur_file = old_curfile;
+	DL_FOREACH_SAFE (parser->variables, cur_var, tmp_var) {
+		if (strcmp (cur_var->var, "CURDIR") == 0 && old_curdir) {
+			DL_DELETE (parser->variables, cur_var);
+			free (cur_var->var);
+			free (cur_var->value);
+			UCL_FREE (sizeof (struct ucl_variable), cur_var);
+		}
+		if (strcmp (cur_var->var, "FILENAME") == 0 && old_filename) {
+			DL_DELETE (parser->variables, cur_var);
+			free (cur_var->var);
+			free (cur_var->value);
+			UCL_FREE (sizeof (struct ucl_variable), cur_var);
 		}
 	}
-	parser->cur_file = NULL;
+	if (old_filename) {
+		DL_APPEND (parser->variables, old_filename);
+	}
+	if (old_curdir) {
+		DL_APPEND (parser->variables, old_curdir);
+	}
 
 	parser->state = prev_state;
 

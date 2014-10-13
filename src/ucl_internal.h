@@ -183,7 +183,7 @@ struct ucl_variable {
 	char *value;
 	size_t var_len;
 	size_t value_len;
-	struct ucl_variable *next;
+	struct ucl_variable *prev, *next;
 };
 
 struct ucl_parser {
