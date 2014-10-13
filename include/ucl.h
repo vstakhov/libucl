@@ -248,6 +248,15 @@ UCL_EXTERN ucl_object_t* ucl_object_new (void) UCL_WARN_UNUSED_RESULT;
 UCL_EXTERN ucl_object_t* ucl_object_typed_new (ucl_type_t type) UCL_WARN_UNUSED_RESULT;
 
 /**
+ * Create new object with type and priority specified
+ * @param type type of a new object
+ * @param priority priority of an object
+ * @return new object
+ */
+UCL_EXTERN ucl_object_t* ucl_object_new_full (ucl_type_t type, unsigned priority)
+	UCL_WARN_UNUSED_RESULT;
+
+/**
  * Create new object with userdata dtor
  * @param dtor destructor function
  * @return new object
@@ -665,11 +674,14 @@ UCL_EXTERN const ucl_object_t* ucl_iterate_object (const ucl_object_t *obj,
  * Macro handler for a parser
  * @param data the content of macro
  * @param len the length of content
+ * @param arguments arguments object
  * @param ud opaque user data
  * @param err error pointer
  * @return true if macro has been parsed
  */
-typedef bool (*ucl_macro_handler) (const unsigned char *data, size_t len, void* ud);
+typedef bool (*ucl_macro_handler) (const unsigned char *data, size_t len,
+		const ucl_object_t *arguments,
+		void* ud);
 
 /* Opaque parser */
 struct ucl_parser;
@@ -727,11 +739,22 @@ UCL_EXTERN void ucl_parser_set_variables_handler (struct ucl_parser *parser,
  * @param parser parser structure
  * @param data the pointer to the beginning of a chunk
  * @param len the length of a chunk
- * @param err if *err is NULL it is set to parser error
  * @return true if chunk has been added and false in case of error
  */
 UCL_EXTERN bool ucl_parser_add_chunk (struct ucl_parser *parser,
 		const unsigned char *data, size_t len);
+
+/**
+ * Load new chunk to a parser with the specified priority
+ * @param parser parser structure
+ * @param data the pointer to the beginning of a chunk
+ * @param len the length of a chunk
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_chunk_priority (struct ucl_parser *parser,
+		const unsigned char *data, size_t len, unsigned priority);
 
 /**
  * Load ucl object from a string

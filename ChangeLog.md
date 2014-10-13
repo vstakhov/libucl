@@ -12,3 +12,7 @@
 
 - Allow userdata objects to be emitted and destructed
 - Use userdata objects to store lua function references
+
+### Libucl 0.6
+
+- Reworked macro interface
