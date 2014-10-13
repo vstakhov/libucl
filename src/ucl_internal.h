@@ -163,6 +163,7 @@ struct ucl_chunk {
 	size_t remain;
 	unsigned int line;
 	unsigned int column;
+	unsigned priority;
 	struct ucl_chunk *next;
 };
 

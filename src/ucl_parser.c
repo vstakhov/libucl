@@ -2098,8 +2098,8 @@ ucl_parser_set_variables_handler (struct ucl_parser *parser,
 }
 
 bool
-ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
-		size_t len)
+ucl_parser_add_chunk_priority (struct ucl_parser *parser, const unsigned char *data,
+		size_t len, unsigned priority)
 {
 	struct ucl_chunk *chunk;
 
@@ -2123,6 +2123,7 @@ ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
 		chunk->end = chunk->begin + len;
 		chunk->line = 1;
 		chunk->column = 0;
+		chunk->priority = priority;
 		LL_PREPEND (parser->chunks, chunk);
 		parser->recursion ++;
 		if (parser->recursion > UCL_MAX_RECURSION) {
@@ -2136,6 +2137,13 @@ ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
 	ucl_create_err (&parser->err, "a parser is in an invalid state");
 
 	return false;
+}
+
+bool
+ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
+		size_t len)
+{
+	return ucl_parser_add_chunk_priority (parser, data, len, 0);
 }
 
 bool

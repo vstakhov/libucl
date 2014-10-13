@@ -730,11 +730,22 @@ UCL_EXTERN void ucl_parser_set_variables_handler (struct ucl_parser *parser,
  * @param parser parser structure
  * @param data the pointer to the beginning of a chunk
  * @param len the length of a chunk
- * @param err if *err is NULL it is set to parser error
  * @return true if chunk has been added and false in case of error
  */
 UCL_EXTERN bool ucl_parser_add_chunk (struct ucl_parser *parser,
 		const unsigned char *data, size_t len);
+
+/**
+ * Load new chunk to a parser with the specified priority
+ * @param parser parser structure
+ * @param data the pointer to the beginning of a chunk
+ * @param len the length of a chunk
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_chunk_priority (struct ucl_parser *parser,
+		const unsigned char *data, size_t len, unsigned priority);
 
 /**
  * Load ucl object from a string

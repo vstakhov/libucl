@@ -754,7 +754,7 @@ ucl_include_url (const unsigned char *data, size_t len,
 	prev_state = parser->state;
 	parser->state = UCL_STATE_INIT;
 
-	res = ucl_parser_add_chunk (parser, buf, buflen);
+	res = ucl_parser_add_chunk_priority (parser, buf, buflen, priority);
 	if (res == true) {
 		/* Remove chunk from the stack */
 		chunk = parser->chunks;
@@ -838,7 +838,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 	prev_state = parser->state;
 	parser->state = UCL_STATE_INIT;
 
-	res = ucl_parser_add_chunk (parser, buf, buflen);
+	res = ucl_parser_add_chunk_priority (parser, buf, buflen, priority);
 	if (res == true) {
 		/* Remove chunk from the stack */
 		chunk = parser->chunks;
