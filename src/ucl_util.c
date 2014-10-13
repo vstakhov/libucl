@@ -873,6 +873,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 {
 	const unsigned char *p = data, *end = data + len;
 	bool need_glob = false;
+	int cnt = 0;
 	glob_t globbuf;
 	char glob_pattern[PATH_MAX];
 	size_t i;
@@ -891,8 +892,8 @@ ucl_include_file (const unsigned char *data, size_t len,
 			p ++;
 		}
 		if (need_glob) {
-			memset (&glob, 0, sizeof (glob));
-			ucl_strlcpy (glob_pattern, (const char *)data, len);
+			memset (&globbuf, 0, sizeof (globbuf));
+			ucl_strlcpy (glob_pattern, (const char *)data, sizeof (glob_pattern));
 			if (glob (glob_pattern, 0, NULL, &globbuf) != 0) {
 				return (!must_exist || false);
 			}
@@ -903,7 +904,14 @@ ucl_include_file (const unsigned char *data, size_t len,
 					globfree (&globbuf);
 					return false;
 				}
-				globfree (&globbuf);
+				cnt ++;
+			}
+			globfree (&globbuf);
+
+			if (cnt == 0 && must_exist) {
+				ucl_create_err (&parser->err, "cannot match any files for pattern %s",
+					glob_pattern);
+				return false;
 			}
 		}
 		else {

@@ -1966,6 +1966,7 @@ ucl_state_machine (struct ucl_parser *parser)
 		case UCL_STATE_MACRO:
 			if (*chunk->pos == '(') {
 				macro_args = ucl_parse_macro_arguments (parser, chunk);
+				p = chunk->pos;
 				if (macro_args) {
 					SKIP_SPACES_COMMENTS(parser, chunk, p);
 				}
