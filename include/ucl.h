@@ -248,6 +248,15 @@ UCL_EXTERN ucl_object_t* ucl_object_new (void) UCL_WARN_UNUSED_RESULT;
 UCL_EXTERN ucl_object_t* ucl_object_typed_new (ucl_type_t type) UCL_WARN_UNUSED_RESULT;
 
 /**
+ * Create new object with type and priority specified
+ * @param type type of a new object
+ * @param priority priority of an object
+ * @return new object
+ */
+UCL_EXTERN ucl_object_t* ucl_object_new_full (ucl_type_t type, unsigned priority)
+	UCL_WARN_UNUSED_RESULT;
+
+/**
  * Create new object with userdata dtor
  * @param dtor destructor function
  * @return new object

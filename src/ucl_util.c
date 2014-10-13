@@ -1610,6 +1610,12 @@ ucl_object_new (void)
 ucl_object_t *
 ucl_object_typed_new (ucl_type_t type)
 {
+	return ucl_object_new_full (type, 0);
+}
+
+ucl_object_t *
+ucl_object_new_full (ucl_type_t type, unsigned priority)
+{
 	ucl_object_t *new;
 
 	if (type != UCL_USERDATA) {
@@ -1620,10 +1626,12 @@ ucl_object_typed_new (ucl_type_t type)
 			new->type = (type <= UCL_NULL ? type : UCL_NULL);
 			new->next = NULL;
 			new->prev = new;
+			new->flags = (priority & 0xF) << (sizeof (new->flags) * NBBY - 4);
 		}
 	}
 	else {
 		new = ucl_object_new_userdata (NULL, NULL);
+		new->flags = (priority & 0xF) << (sizeof (new->flags) * NBBY - 4);
 	}
 
 	return new;

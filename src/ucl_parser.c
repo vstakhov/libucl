@@ -2108,7 +2108,7 @@ ucl_parser_add_chunk_priority (struct ucl_parser *parser, const unsigned char *d
 		return false;
 	}
 	if (len == 0) {
-		parser->top_obj = ucl_object_typed_new(UCL_OBJECT);
+		parser->top_obj = ucl_object_typed_new (UCL_OBJECT);
 		return true;
 	}
 	if (parser->state != UCL_STATE_ERROR) {
