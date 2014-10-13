@@ -565,7 +565,7 @@ ucl_add_parser_stack (ucl_object_t *obj, struct ucl_parser *parser, bool is_arra
 
 	if (!is_array) {
 		if (obj == NULL) {
-			obj = ucl_object_typed_new (UCL_OBJECT);
+			obj = ucl_object_new_full (UCL_OBJECT, parser->chunks->priority);
 		}
 		else {
 			obj->type = UCL_OBJECT;
@@ -575,7 +575,7 @@ ucl_add_parser_stack (ucl_object_t *obj, struct ucl_parser *parser, bool is_arra
 	}
 	else {
 		if (obj == NULL) {
-			obj = ucl_object_typed_new (UCL_ARRAY);
+			obj = ucl_object_new_full (UCL_ARRAY, parser->chunks->priority);
 		}
 		else {
 			obj->type = UCL_ARRAY;
@@ -1141,7 +1141,7 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk, bool *next_ke
 	}
 
 	/* Create a new object */
-	nobj = ucl_object_new ();
+	nobj = ucl_object_new_full (UCL_NULL, parser->chunks->priority);
 	keylen = ucl_copy_or_store_ptr (parser, c, &nobj->trash_stack[UCL_TRASH_KEY],
 			&key, end - c, need_unescape, parser->flags & UCL_PARSER_KEY_LOWERCASE, false);
 	if (keylen == -1) {
@@ -1165,7 +1165,27 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk, bool *next_ke
 		parser->stack->obj->len ++;
 	}
 	else {
-		DL_APPEND (tobj, nobj);
+		/*
+		 * The logic here is the following:
+		 *
+		 * - if we have two objects with the same priority, then we form an
+		 * implicit array
+		 * - if a new object has bigger priority, then we overwrite an old one
+		 * - if a new object has lower priority, then we ignore it
+		 */
+		unsigned priold = (tobj->flags >> (sizeof (tobj->flags * NBBY - 4))),
+				prinew = (nobj->flags >> (sizeof (nobj->flags * NBBY - 4)));
+		if (priold == prinew) {
+			DL_APPEND (tobj, nobj);
+		}
+		else if (priold > prinew) {
+			ucl_object_unref (nobj);
+			return true;
+		}
+		else {
+			ucl_hash_replace (container, tobj, nobj);
+			ucl_object_unref (tobj);
+		}
 	}
 
 	if (ucl_escape) {
@@ -1314,7 +1334,7 @@ ucl_get_value_object (struct ucl_parser *parser)
 
 	if (parser->stack->obj->type == UCL_ARRAY) {
 		/* Object must be allocated */
-		obj = ucl_object_new ();
+		obj = ucl_object_new_full (UCL_NULL, parser->chunks->priority);
 		t = parser->stack->obj->value.av;
 		DL_APPEND (t, obj);
 		parser->cur_obj = obj;
@@ -2108,7 +2128,7 @@ ucl_parser_add_chunk_priority (struct ucl_parser *parser, const unsigned char *d
 		return false;
 	}
 	if (len == 0) {
-		parser->top_obj = ucl_object_typed_new (UCL_OBJECT);
+		parser->top_obj = ucl_object_new_full (UCL_OBJECT, priority);
 		return true;
 	}
 	if (parser->state != UCL_STATE_ERROR) {
