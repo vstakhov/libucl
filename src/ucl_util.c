@@ -708,7 +708,8 @@ ucl_sig_check (const unsigned char *data, size_t datalen,
  */
 static bool
 ucl_include_url (const unsigned char *data, size_t len,
-		struct ucl_parser *parser, bool check_signature, bool must_exist)
+		struct ucl_parser *parser, bool check_signature, bool must_exist,
+		unsigned priority)
 {
 
 	bool res;
@@ -777,7 +778,8 @@ ucl_include_url (const unsigned char *data, size_t len,
  */
 static bool
 ucl_include_file (const unsigned char *data, size_t len,
-		struct ucl_parser *parser, bool check_signature, bool must_exist)
+		struct ucl_parser *parser, bool check_signature, bool must_exist,
+		bool allow_glob, unsigned priority)
 {
 	bool res;
 	struct ucl_chunk *chunk;
@@ -851,6 +853,63 @@ ucl_include_file (const unsigned char *data, size_t len,
 	return res;
 }
 
+static bool
+ucl_include_common (const unsigned char *data, size_t len,
+		const ucl_object_t *args, struct ucl_parser *parser,
+		bool default_try,
+		bool default_sign)
+{
+	bool try_load, allow_glob, allow_url, need_sign;
+	unsigned priority;
+	const ucl_object_t *param;
+	ucl_object_iter_t it = NULL;
+
+	/* Default values */
+	try_load = default_try;
+	allow_glob = false;
+	allow_url = true;
+	need_sign = default_sign;
+	priority = 0;
+
+	/* Process arguments */
+	if (args != NULL && args->type == UCL_OBJECT) {
+		while ((param = ucl_iterate_object (args, &it, true)) != NULL) {
+			if (param->type == UCL_BOOLEAN) {
+				if (strcmp (param->key, "try") == 0) {
+					try_load = ucl_object_toboolean (param);
+				}
+				else if (strcmp (param->key, "sign") == 0) {
+					need_sign = ucl_object_toboolean (param);
+				}
+				else if (strcmp (param->key, "glob") == 0) {
+					allow_glob =  ucl_object_toboolean (param);
+				}
+				else if (strcmp (param->key, "url") == 0) {
+					allow_url =  ucl_object_toboolean (param);
+				}
+			}
+			else if (param->type == UCL_INT) {
+				if (strcmp (param->key, "priority") == 0) {
+					priority = ucl_object_toint (param);
+				}
+			}
+		}
+	}
+
+	if (*data == '/' || *data == '.') {
+		/* Try to load a file */
+		return ucl_include_file (data, len, parser, need_sign, !try_load,
+				allow_glob, priority);
+	}
+	else if (allow_url) {
+		/* Globbing is not used for URL's */
+		return ucl_include_url (data, len, parser, need_sign, !try_load,
+				priority);
+	}
+
+	return false;
+}
+
 /**
  * Handle include macro
  * @param data include data
@@ -865,12 +924,7 @@ ucl_include_handler (const unsigned char *data, size_t len,
 {
 	struct ucl_parser *parser = ud;
 
-	if (*data == '/' || *data == '.') {
-		/* Try to load a file */
-		return ucl_include_file (data, len, parser, false, true);
-	}
-
-	return ucl_include_url (data, len, parser, false, true);
+	return ucl_include_common (data, len, args, parser, false, false);
 }
 
 /**
@@ -887,12 +941,7 @@ ucl_includes_handler (const unsigned char *data, size_t len,
 {
 	struct ucl_parser *parser = ud;
 
-	if (*data == '/' || *data == '.') {
-		/* Try to load a file */
-		return ucl_include_file (data, len, parser, true, true);
-	}
-
-	return ucl_include_url (data, len, parser, true, true);
+	return ucl_include_common (data, len, args, parser, false, true);
 }
 
 
@@ -902,12 +951,7 @@ ucl_try_include_handler (const unsigned char *data, size_t len,
 {
 	struct ucl_parser *parser = ud;
 
-	if (*data == '/' || *data == '.') {
-		/* Try to load a file */
-		return ucl_include_file (data, len, parser, false, false);
-	}
-
-	return ucl_include_url (data, len, parser, false, false);
+	return ucl_include_common (data, len, args, parser, true, false);
 }
 
 UCL_EXTERN bool
