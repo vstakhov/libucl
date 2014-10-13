@@ -665,11 +665,14 @@ UCL_EXTERN const ucl_object_t* ucl_iterate_object (const ucl_object_t *obj,
  * Macro handler for a parser
  * @param data the content of macro
  * @param len the length of content
+ * @param arguments arguments object
  * @param ud opaque user data
  * @param err error pointer
  * @return true if macro has been parsed
  */
-typedef bool (*ucl_macro_handler) (const unsigned char *data, size_t len, void* ud);
+typedef bool (*ucl_macro_handler) (const unsigned char *data, size_t len,
+		const ucl_object_t *arguments,
+		void* ud);
 
 /* Opaque parser */
 struct ucl_parser;

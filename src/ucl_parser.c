@@ -1796,7 +1796,7 @@ ucl_state_machine (struct ucl_parser *parser)
 	unsigned char *macro_escaped;
 	size_t macro_len = 0;
 	struct ucl_macro *macro = NULL;
-	bool next_key = false, end_of_object = false;
+	bool next_key = false, end_of_object = false, ret;
 
 	if (parser->top_obj == NULL) {
 		if (*chunk->pos == '[') {
@@ -1959,21 +1959,25 @@ ucl_state_machine (struct ucl_parser *parser)
 				parser->state = UCL_STATE_ERROR;
 				return false;
 			}
-			macro_len = ucl_expand_variable (parser, &macro_escaped, macro_start, macro_len);
+			macro_len = ucl_expand_variable (parser, &macro_escaped,
+					macro_start, macro_len);
 			parser->state = parser->prev_state;
 			if (macro_escaped == NULL) {
-				if (!macro->handler (macro_start, macro_len, macro->ud)) {
-					return false;
-				}
+				ret = macro->handler (macro_start, macro_len, macro_args,
+						macro->ud);
 			}
 			else {
-				if (!macro->handler (macro_escaped, macro_len, macro->ud)) {
-					UCL_FREE (macro_len + 1, macro_escaped);
-					return false;
-				}
+				ret = macro->handler (macro_escaped, macro_len, macro_args,
+						macro->ud);
 				UCL_FREE (macro_len + 1, macro_escaped);
 			}
 			p = chunk->pos;
+			if (macro_args) {
+				ucl_object_unref (macro_args);
+			}
+			if (!ret) {
+				return false;
+			}
 			break;
 		default:
 			/* TODO: add all states */
