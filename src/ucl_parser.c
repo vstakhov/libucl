@@ -825,6 +825,11 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 			break;
 		}
 	}
+	else if (endptr == end) {
+		/* Just a number at the end of chunk */
+		p = endptr;
+		goto set_obj;
+	}
 
 	*pos = c;
 	return EINVAL;
