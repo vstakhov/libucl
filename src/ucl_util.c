@@ -860,7 +860,8 @@ ucl_include_file (const unsigned char *data, size_t len,
  * @return
  */
 UCL_EXTERN bool
-ucl_include_handler (const unsigned char *data, size_t len, void* ud)
+ucl_include_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud)
 {
 	struct ucl_parser *parser = ud;
 
@@ -881,7 +882,8 @@ ucl_include_handler (const unsigned char *data, size_t len, void* ud)
  * @return
  */
 UCL_EXTERN bool
-ucl_includes_handler (const unsigned char *data, size_t len, void* ud)
+ucl_includes_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud)
 {
 	struct ucl_parser *parser = ud;
 
@@ -895,7 +897,8 @@ ucl_includes_handler (const unsigned char *data, size_t len, void* ud)
 
 
 UCL_EXTERN bool
-ucl_try_include_handler (const unsigned char *data, size_t len, void* ud)
+ucl_try_include_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud)
 {
 	struct ucl_parser *parser = ud;
 

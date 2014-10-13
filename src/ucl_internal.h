@@ -223,9 +223,11 @@ size_t ucl_unescape_json_string (char *str, size_t len);
  * @param err error ptr
  * @return
  */
-bool ucl_include_handler (const unsigned char *data, size_t len, void* ud);
+bool ucl_include_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud);
 
-bool ucl_try_include_handler (const unsigned char *data, size_t len, void* ud);
+bool ucl_try_include_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud);
 
 /**
  * Handle includes macro
@@ -235,7 +237,8 @@ bool ucl_try_include_handler (const unsigned char *data, size_t len, void* ud);
  * @param err error ptr
  * @return
  */
-bool ucl_includes_handler (const unsigned char *data, size_t len, void* ud);
+bool ucl_includes_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud);
 
 size_t ucl_strlcpy (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_unsafe (char *dst, const char *src, size_t siz);
