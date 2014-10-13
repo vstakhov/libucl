@@ -1262,11 +1262,6 @@ ucl_parse_string_value (struct ucl_parser *parser,
 		ucl_chunk_skipc (chunk, p);
 	}
 
-	if (p >= chunk->end) {
-		ucl_set_err (parser, UCL_ESYNTAX, "unfinished value", &parser->err);
-		return false;
-	}
-
 	return true;
 }
 
