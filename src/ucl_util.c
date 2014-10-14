@@ -806,6 +806,13 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 		return false;
 	}
 
+	if (parser->cur_file && strcmp (realbuf, parser->cur_file) == 0) {
+		/* We are likely including the file itself */
+		ucl_create_err (&parser->err, "trying to include the file %s from itself",
+				realbuf);
+		return false;
+	}
+
 	if (!ucl_fetch_file (realbuf, &buf, &buflen, &parser->err, must_exist)) {
 		return (!must_exist || false);
 	}
@@ -867,6 +874,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 	if (chunk != NULL) {
 		parser->chunks = chunk->next;
 		UCL_FREE (sizeof (struct ucl_chunk), chunk);
+		parser->recursion --;
 	}
 
 	/* Restore old file vars */
