@@ -193,7 +193,7 @@ struct ucl_parser {
 	int flags;
 	ucl_object_t *top_obj;
 	ucl_object_t *cur_obj;
-	const char *cur_file;
+	char *cur_file;
 	struct ucl_macro *macroes;
 	struct ucl_stack *stack;
 	struct ucl_chunk *chunks;

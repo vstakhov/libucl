@@ -435,6 +435,10 @@ ucl_parser_free (struct ucl_parser *parser)
 		utstring_free (parser->err);
 	}
 
+	if (parser->cur_file) {
+		free (parser->cur_file);
+	}
+
 	UCL_FREE (sizeof (struct ucl_parser), parser);
 }
 
@@ -789,11 +793,12 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 	bool res;
 	struct ucl_chunk *chunk;
 	unsigned char *buf = NULL;
-	const char *old_curfile;
+	char *old_curfile;
 	size_t buflen;
 	char filebuf[PATH_MAX], realbuf[PATH_MAX];
 	int prev_state;
-	struct ucl_variable *cur_var, *tmp_var, *old_curdir, *old_filename;
+	struct ucl_variable *cur_var, *tmp_var, *old_curdir = NULL,
+			*old_filename = NULL;
 
 	snprintf (filebuf, sizeof (filebuf), "%.*s", (int)len, data);
 	if (ucl_realpath (filebuf, realbuf) == NULL) {
@@ -842,7 +847,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 	}
 
 	old_curfile = parser->cur_file;
-	parser->cur_file = realbuf;
+	parser->cur_file = strdup (realbuf);
 
 	/* Store old file vars */
 	DL_FOREACH_SAFE (parser->variables, cur_var, tmp_var) {
@@ -898,6 +903,9 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 	}
 	if (old_curdir) {
 		DL_APPEND (parser->variables, old_curdir);
+	}
+	if (old_curfile) {
+		free (old_curfile);
 	}
 
 	parser->state = prev_state;
@@ -1134,14 +1142,16 @@ ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 		return false;
 	}
 
-	parser->cur_file = realbuf;
+	if (parser->cur_file) {
+		free (parser->cur_file);
+	}
+	parser->cur_file = strdup (realbuf);
 	ucl_parser_set_filevars (parser, realbuf, false);
 	ret = ucl_parser_add_chunk (parser, buf, len);
 
 	if (len > 0) {
 		ucl_munmap (buf, len);
 	}
-	parser->cur_file = NULL;
 
 	return ret;
 }
@@ -1165,6 +1175,9 @@ ucl_parser_add_fd (struct ucl_parser *parser, int fd)
 		return false;
 	}
 
+	if (parser->cur_file) {
+		free (parser->cur_file);
+	}
 	parser->cur_file = NULL;
 	len = st.st_size;
 	ret = ucl_parser_add_chunk (parser, buf, len);
