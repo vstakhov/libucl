@@ -891,7 +891,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 			free (cur_var->value);
 			UCL_FREE (sizeof (struct ucl_variable), cur_var);
 		}
-		if (strcmp (cur_var->var, "FILENAME") == 0 && old_filename) {
+		else if (strcmp (cur_var->var, "FILENAME") == 0 && old_filename) {
 			DL_DELETE (parser->variables, cur_var);
 			free (cur_var->var);
 			free (cur_var->value);
