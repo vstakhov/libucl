@@ -1382,7 +1382,7 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 		return false;
 	}
 
-	if (top->type != UCL_OBJECT) {
+	if (top->type != UCL_OBJECT && top->type != UCL_ARRAY) {
 		/* It is possible to convert NULL type to an object */
 		if (top->type == UCL_NULL) {
 			top->type = UCL_OBJECT;
@@ -1424,17 +1424,41 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 		ucl_copy_key_trash (elt);
 	}
 
-	found = __DECONST (ucl_object_t *, ucl_hash_search_obj (top->value.ov, elt));
+	if (top->type == UCL_ARRAY) {
+		found = __DECONST (ucl_object_t *, ucl_array_find_index
+			(top, strtoul(key, NULL, 10)));
+	} else {
+		found = __DECONST (ucl_object_t *,
+			ucl_hash_search_obj (top->value.ov, elt));
+	}
 
 	if (found == NULL) {
+		if (top->type == UCL_ARRAY && replace) {
+			//return false;
+		}
 		top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
 		top->len ++;
 		if (replace) {
+			/** If the key did not exist, and we insert it, why
+			 * return false here? check that this is covered by the
+			 * tests
+			 */
 			ret = false;
 		}
 	}
 	else {
-		if (replace) {
+		if (replace && top->type == UCL_ARRAY) {
+			/*
+			ucl_object_t *trash = ucl_array_delete(top, found);
+			ucl_object_unref(trash);
+			ret = ucl_array_append(top, elt);
+			ucl_object_unref (found);
+			*/
+			found->len = elt->len;
+			found->value.av = elt->value.av;
+			ucl_object_unref (elt);
+		}
+		else if (replace) {
 			ucl_hash_replace (top->value.ov, found, elt);
 			ucl_object_unref (found);
 		}
@@ -1553,13 +1577,17 @@ ucl_object_find_keyl (const ucl_object_t *obj, const char *key, size_t klen)
 	const ucl_object_t *ret;
 	ucl_object_t srch;
 
-	if (obj == NULL || obj->type != UCL_OBJECT || key == NULL) {
+	if (obj == NULL || key == NULL) {
+		return NULL;
+	} else if (obj->type == UCL_ARRAY) {
+		ret = ucl_array_find_index (obj, strtoul(key, NULL, 10));
+	} else if (obj->type == UCL_OBJECT) {
+		srch.key = key;
+		srch.keylen = klen;
+		ret = ucl_hash_search_obj (obj->value.ov, &srch);
+	} else {
 		return NULL;
 	}
-
-	srch.key = key;
-	srch.keylen = klen;
-	ret = ucl_hash_search_obj (obj->value.ov, &srch);
 
 	return ret;
 }
