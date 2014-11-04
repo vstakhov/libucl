@@ -1434,7 +1434,7 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 
 	if (found == NULL) {
 		if (top->type == UCL_ARRAY && replace) {
-			//return false;
+			return false;
 		}
 		top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
 		top->len ++;
