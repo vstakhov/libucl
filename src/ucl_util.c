@@ -1448,12 +1448,6 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 	}
 	else {
 		if (replace && top->type == UCL_ARRAY) {
-			/*
-			ucl_object_t *trash = ucl_array_delete(top, found);
-			ucl_object_unref(trash);
-			ret = ucl_array_append(top, elt);
-			ucl_object_unref (found);
-			*/
 			found->len = elt->len;
 			found->value.av = elt->value.av;
 			ucl_object_unref (elt);
