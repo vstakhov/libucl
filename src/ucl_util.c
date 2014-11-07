@@ -1843,7 +1843,8 @@ ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
 bool
 ucl_array_merge (ucl_object_t *top, ucl_object_t *elt)
 {
-	ucl_object_t *cur, *tmp;
+	const ucl_object_t *cur;
+	ucl_object_t *tmp;
 	ucl_object_iter_t it = NULL;
 	bool success = false;
 
