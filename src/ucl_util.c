@@ -1840,6 +1840,23 @@ ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
 	return true;
 }
 
+bool
+ucl_array_merge (ucl_object_t *top, ucl_object_t *elt)
+{
+	ucl_object_t *cur, *tmp;
+	ucl_object_iter_t it = NULL;
+	bool success = false;
+
+	while ((cur = ucl_iterate_object (elt, &it, true)) != NULL) {
+		tmp = ucl_object_ref (cur);
+		success = ucl_array_append (top, tmp);
+		if (success == false) {
+			break;
+		}
+	}
+	return success;
+}
+
 ucl_object_t *
 ucl_array_delete (ucl_object_t *top, ucl_object_t *elt)
 {

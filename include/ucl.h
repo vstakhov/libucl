@@ -421,6 +421,14 @@ UCL_EXTERN bool ucl_array_prepend (ucl_object_t *top,
 		ucl_object_t *elt);
 
 /**
+ * Merge the contents of two array objects
+ * @param top destination object (will be created automatically if top is NULL)
+ * @param elt element to append (must NOT be NULL)
+ * @return true if all values have been merged
+ */
+UCL_EXTERN bool ucl_array_merge (ucl_object_t *top, ucl_object_t *elt);
+
+/**
  * Removes an element `elt` from the array `top`. Caller must unref the returned object when it is not
  * needed.
  * @param top array ucl object
