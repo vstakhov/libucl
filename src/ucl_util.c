@@ -1845,12 +1845,12 @@ ucl_array_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 {
 	ucl_object_t *cur, *tmp, *cp;
 
-	if (elt == NULL || top->type != UCL_ARRAY || elt->type != UCL_ARRAY) {
+	if (elt == NULL || top == NULL || top->type != UCL_ARRAY || elt->type != UCL_ARRAY) {
 		return false;
 	}
 
 	DL_FOREACH_SAFE (elt->value.av, cur, tmp) {
-		if (copy == true) {
+		if (copy) {
 			cp = ucl_object_copy (cur);
 		} else {
 			cp = cur;
@@ -1859,7 +1859,7 @@ ucl_array_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 			ucl_array_append (top, cp);
 		}
 	}
-	if (copy == true) {
+	if (!copy) {
 		elt->value.av = NULL;
 		elt->len = 0;
 	}
