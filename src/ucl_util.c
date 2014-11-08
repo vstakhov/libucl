@@ -1952,6 +1952,28 @@ ucl_array_find_index (const ucl_object_t *top, unsigned int index)
 }
 
 ucl_object_t *
+ucl_array_replace_index (ucl_object_t *top, ucl_object_t *elt,
+	unsigned int index)
+{
+	ucl_object_t *cur, *tmp;
+
+	if (top == NULL || top->type != UCL_ARRAY || elt == NULL ||
+			top->len == 0 || (index + 1) > top->len) {
+		return NULL;
+	}
+
+	DL_FOREACH_SAFE (top->value.av, cur, tmp) {
+		if (index == 0) {
+			DL_REPLACE_ELEM (top->value.av, cur, elt);
+			return cur;
+		}
+		--index;
+	}
+
+	return NULL;
+}
+
+ucl_object_t *
 ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
 {
 

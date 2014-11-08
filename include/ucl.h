@@ -472,6 +472,17 @@ UCL_EXTERN const ucl_object_t* ucl_array_find_index (const ucl_object_t *top,
 		unsigned int index);
 
 /**
+ * Replace an element in an array with a different element
+ * @param top destination object (must be of type UCL_ARRAY)
+ * @param elt element to append (must NOT be NULL)
+ * @param index array index in destination to overwrite with elt
+ * @return object that was replaced or NULL if index is not found
+ */
+ucl_object_t *
+ucl_array_replace_index (ucl_object_t *top, ucl_object_t *elt,
+	unsigned int index);
+
+/**
  * Removes the first element from the array `top`. Caller must unref the returned object when it is not
  * needed.
  * @param top array ucl object
