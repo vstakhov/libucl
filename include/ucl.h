@@ -404,7 +404,7 @@ UCL_EXTERN bool ucl_object_insert_key_merged (ucl_object_t *top, ucl_object_t *e
 
 /**
  * Append an element to the front of array object
- * @param top destination object (will be created automatically if top is NULL)
+ * @param top destination object (must NOT be NULL)
  * @param elt element to append (must NOT be NULL)
  * @return true if value has been inserted
  */
@@ -413,12 +413,22 @@ UCL_EXTERN bool ucl_array_append (ucl_object_t *top,
 
 /**
  * Append an element to the start of array object
- * @param top destination object (will be created automatically if top is NULL)
+ * @param top destination object (must NOT be NULL)
  * @param elt element to append (must NOT be NULL)
  * @return true if value has been inserted
  */
 UCL_EXTERN bool ucl_array_prepend (ucl_object_t *top,
 		ucl_object_t *elt);
+
+/**
+ * Move all elements of second array into the first array
+ * @param top destination array (must be of type UCL_ARRAY)
+ * @param elt array to copy elements from (must be of type UCL_ARRAY)
+ * @param copy copy elements instead of moving them
+ * @return true if second array was not null
+ */
+UCL_EXTERN bool ucl_array_merge (ucl_object_t *top, ucl_object_t *elt,
+		bool copy);
 
 /**
  * Removes an element `elt` from the array `top`. Caller must unref the returned object when it is not
