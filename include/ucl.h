@@ -454,7 +454,7 @@ UCL_EXTERN ucl_object_t* ucl_array_pop_last (ucl_object_t *top);
 
 /**
  * Return object identified by an index of the array `top`
- * @param top object to get a key from (must be a non-empty UCL_ARRAY)
+ * @param top object to get a key from (must be of type UCL_ARRAY)
  * @param index array index to return
  * @return object at the specified index or NULL if index is not found
  */
