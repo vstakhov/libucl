@@ -1843,19 +1843,20 @@ ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
 bool
 ucl_array_merge (ucl_object_t *top, ucl_object_t *elt)
 {
-	const ucl_object_t *cur;
-	ucl_object_t *tmp;
-	ucl_object_iter_t it = NULL;
-	bool success = false;
+	ucl_object_t *cur, *tmp, *cp;
 
-	while ((cur = ucl_iterate_object (elt, &it, true)) != NULL) {
-		tmp = ucl_object_ref (cur);
-		success = ucl_array_append (top, tmp);
-		if (success == false) {
-			break;
+	if (elt == NULL || top->type != UCL_ARRAY || elt->type != UCL_ARRAY) {
+		return false;
+	}
+
+	DL_FOREACH_SAFE (elt->value.av, cur, tmp) {
+		cp = ucl_object_copy (cur);
+		if (cp != NULL) {
+			ucl_array_append (top, cp);
 		}
 	}
-	return success;
+
+	return true;
 }
 
 ucl_object_t *

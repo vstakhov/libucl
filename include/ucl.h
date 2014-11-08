@@ -421,10 +421,10 @@ UCL_EXTERN bool ucl_array_prepend (ucl_object_t *top,
 		ucl_object_t *elt);
 
 /**
- * Merge the contents of two array objects
- * @param top destination object (will be created automatically if top is NULL)
- * @param elt element to append (must NOT be NULL)
- * @return true if all values have been merged
+ * Copy all elements of second array into first array
+ * @param top destination array (will be created automatically if top is NULL)
+ * @param elt array to copy elements from (must NOT be NULL)
+ * @return true if second array is not null
  */
 UCL_EXTERN bool ucl_array_merge (ucl_object_t *top, ucl_object_t *elt);
 
