@@ -421,12 +421,14 @@ UCL_EXTERN bool ucl_array_prepend (ucl_object_t *top,
 		ucl_object_t *elt);
 
 /**
- * Copy all elements of second array into first array
+ * Move all elements of second array into the first array
  * @param top destination array (will be created automatically if top is NULL)
  * @param elt array to copy elements from (must NOT be NULL)
- * @return true if second array is not null
+ * @param copy copy elements instead of moving them
+ * @return true if second array was not null
  */
-UCL_EXTERN bool ucl_array_merge (ucl_object_t *top, ucl_object_t *elt);
+UCL_EXTERN bool ucl_array_merge (ucl_object_t *top, ucl_object_t *elt,
+		bool copy);
 
 /**
  * Removes an element `elt` from the array `top`. Caller must unref the returned object when it is not
