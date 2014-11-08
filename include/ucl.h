@@ -466,9 +466,9 @@ UCL_EXTERN const ucl_object_t* ucl_array_find_index (const ucl_object_t *top,
  * @param top destination object (must be of type UCL_ARRAY)
  * @param elt element to append (must NOT be NULL)
  * @param index array index in destination to overwrite with elt
- * @return true if array index has been replaced
+ * @return object that was replaced or NULL if index is not found
  */
-bool
+ucl_object_t *
 ucl_array_replace_index (ucl_object_t *top, ucl_object_t *elt,
 	unsigned int index);
 
