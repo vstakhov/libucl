@@ -1924,6 +1924,24 @@ ucl_array_find_index (const ucl_object_t *top, unsigned int index)
 	return NULL;
 }
 
+bool
+ucl_array_replace_index (ucl_object_t *top, ucl_object_t *elt,
+	unsigned int index)
+{
+	ucl_object_t *dst_obj = NULL;
+
+	if (top == NULL || top->type != UCL_ARRAY || elt == NULL) {
+		return false;
+	}
+	dst_obj = __DECONST(ucl_object_t *, ucl_array_find_index (top, index));
+	if (dst_obj == NULL) {
+		return false;
+	}
+	dst_obj->len = elt->len;
+	dst_obj->value = elt->value;
+	return true;
+}
+
 ucl_object_t *
 ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
 {
