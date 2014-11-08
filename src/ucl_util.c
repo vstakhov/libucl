@@ -1547,6 +1547,42 @@ ucl_object_replace_key (ucl_object_t *top, ucl_object_t *elt,
 	return ucl_object_insert_key_common (top, elt, key, keylen, copy_key, false, true);
 }
 
+bool
+ucl_object_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
+{
+	ucl_object_t *cur, *tmp;
+	int ret = true;
+
+	if (top == NULL || top->type != UCL_OBJECT || elt == NULL || elt->type != UCL_OBJECT) {
+		return false;
+	}
+
+	}
+	/* Mix two hashes */
+	DL_FOREACH_SAFE(elt->value.ov, cur, tmp) {
+		if (copy) {
+			cp = ucl_object_copy (cur);
+		} else {
+			cp = cur;
+		}
+		found = ucl_hash_search (top->value.ov, cp->key, cp->keylen));
+		if (found == NULL) {
+			/* The key does not exist */
+			top->value.ov = ucl_hash_insert_object (top->value.ov, cp);
+			top->len ++;
+		} else {
+			/* The key already exists, replace it */
+			ucl_hash_replace (top->value.ov, found, cp);
+		}
+	}
+	if (!copy) {
+		elt->value.ov = NULL;
+		elt->len = 0;
+	}
+
+	return true;
+}
+
 const ucl_object_t *
 ucl_object_find_keyl (const ucl_object_t *obj, const char *key, size_t klen)
 {
