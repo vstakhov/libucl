@@ -1561,7 +1561,8 @@ ucl_object_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 	while ((cur = (ucl_object_t*)ucl_hash_iterate (elt->value.ov, &iter))) {
 		if (copy) {
 			cp = ucl_object_copy (cur);
-		} else {
+		}
+		else {
 			cp = ucl_object_ref (cur);
 		}
 		found = __DECONST(ucl_object_t *, ucl_hash_search (top->value.ov, cp->key, cp->keylen));
@@ -1569,7 +1570,8 @@ ucl_object_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 			/* The key does not exist */
 			top->value.ov = ucl_hash_insert_object (top->value.ov, cp);
 			top->len ++;
-		} else {
+		}
+		else {
 			/* The key already exists, replace it */
 			ucl_hash_replace (top->value.ov, found, cp);
 			ucl_object_unref (found);
