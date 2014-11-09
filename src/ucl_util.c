@@ -1550,18 +1550,19 @@ ucl_object_replace_key (ucl_object_t *top, ucl_object_t *elt,
 bool
 ucl_object_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 {
-	ucl_object_t *cur, *tmp, *cp, *found;
+	ucl_object_t *cur = NULL, *cp = NULL, *found = NULL;
+	ucl_object_iter_t iter = NULL;
 
 	if (top == NULL || top->type != UCL_OBJECT || elt == NULL || elt->type != UCL_OBJECT) {
 		return false;
 	}
 
 	/* Mix two hashes */
-	DL_FOREACH_SAFE(elt->value.ov, cur, tmp) {
+	while ((cur = (ucl_object_t*)ucl_hash_iterate (elt->value.ov, &iter))) {
 		if (copy) {
 			cp = ucl_object_copy (cur);
 		} else {
-			cp = cur;
+			cp = ucl_object_ref (cur);
 		}
 		found = __DECONST(ucl_object_t *, ucl_hash_search (top->value.ov, cp->key, cp->keylen));
 		if (found == NULL) {
@@ -1571,11 +1572,8 @@ ucl_object_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 		} else {
 			/* The key already exists, replace it */
 			ucl_hash_replace (top->value.ov, found, cp);
+			ucl_object_unref(found);
 		}
-	}
-	if (!copy) {
-		elt->value.ov = NULL;
-		elt->len = 0;
 	}
 
 	return true;
