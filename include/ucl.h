@@ -423,11 +423,11 @@ UCL_EXTERN bool ucl_array_prepend (ucl_object_t *top,
 		ucl_object_t *elt);
 
 /**
- * Move all elements of second array into the first array
+ * Merge all elements of second array into the first array
  * @param top destination array (must be of type UCL_ARRAY)
  * @param elt array to copy elements from (must be of type UCL_ARRAY)
- * @param copy copy elements instead of moving them
- * @return true if second array was not null
+ * @param copy copy elements instead of referencing them
+ * @return true if arrays were merged
  */
 UCL_EXTERN bool ucl_array_merge (ucl_object_t *top, ucl_object_t *elt,
 		bool copy);

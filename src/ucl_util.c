@@ -1852,16 +1852,13 @@ ucl_array_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 	DL_FOREACH_SAFE (elt->value.av, cur, tmp) {
 		if (copy) {
 			cp = ucl_object_copy (cur);
-		} else {
-			cp = cur;
+		}
+		else {
+			cp = ucl_object_ref (cur);
 		}
 		if (cp != NULL) {
 			ucl_array_append (top, cp);
 		}
-	}
-	if (!copy) {
-		elt->value.av = NULL;
-		elt->len = 0;
 	}
 
 	return true;
