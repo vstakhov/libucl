@@ -1853,15 +1853,11 @@ ucl_array_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 		if (copy) {
 			cp = ucl_object_copy (cur);
 		} else {
-			cp = cur;
+			cp = ucl_object_ref (cur);
 		}
 		if (cp != NULL) {
 			ucl_array_append (top, cp);
 		}
-	}
-	if (!copy) {
-		elt->value.av = NULL;
-		elt->len = 0;
 	}
 
 	return true;
