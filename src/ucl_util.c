@@ -1572,7 +1572,7 @@ ucl_object_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 		} else {
 			/* The key already exists, replace it */
 			ucl_hash_replace (top->value.ov, found, cp);
-			ucl_object_unref(found);
+			ucl_object_unref (found);
 		}
 	}
 
