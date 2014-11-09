@@ -403,7 +403,7 @@ UCL_EXTERN bool ucl_object_insert_key_merged (ucl_object_t *top, ucl_object_t *e
 		const char *key, size_t keylen, bool copy_key);
 
 /**
- * Append an element to the front of array object
+ * Append an element to the end of array object
  * @param top destination object (must NOT be NULL)
  * @param elt element to append (must NOT be NULL)
  * @return true if value has been inserted
