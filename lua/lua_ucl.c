@@ -77,12 +77,6 @@ static ucl_object_t* ucl_object_lua_fromelt (lua_State *L, int idx);
 
 static void *ucl_null;
 
-struct ucl_lua_funcdata {
-	lua_State *L;
-	int idx;
-	char *ret;
-};
-
 /**
  * Push a single element of an object to lua
  * @param L
@@ -813,4 +807,14 @@ luaopen_ucl (lua_State *L)
 	lua_setfield (L, -2, "null");
 
 	return 1;
+}
+
+struct ucl_lua_funcdata*
+ucl_object_toclosure (const ucl_object_t *obj)
+{
+	if (obj == NULL || obj->type != UCL_USERDATA) {
+		return NULL;
+	}
+
+	return (struct ucl_lua_funcdata*)obj->value.ud;
 }

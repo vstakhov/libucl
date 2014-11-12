@@ -33,6 +33,15 @@
 #include "ucl.h"
 
 /**
+ * Closure structure for lua function storing inside UCL
+ */
+struct ucl_lua_funcdata {
+	lua_State *L;
+	int idx;
+	char *ret;
+};
+
+/**
  * Initialize lua UCL API
  */
 UCL_EXTERN int luaopen_ucl (lua_State *L);
@@ -53,5 +62,8 @@ UCL_EXTERN ucl_object_t* ucl_object_lua_import (lua_State *L, int idx);
  */
 UCL_EXTERN int ucl_object_push_lua (lua_State *L,
 		const ucl_object_t *obj, bool allow_array);
+
+UCL_EXTERN struct ucl_lua_funcdata* ucl_object_toclosure (
+		const ucl_object_t *obj);
 
 #endif /* LUA_UCL_H_ */
