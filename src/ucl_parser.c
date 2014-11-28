@@ -960,6 +960,36 @@ ucl_lex_json_string (struct ucl_parser *parser,
 	return false;
 }
 
+static void
+ucl_parser_append_elt (struct ucl_parser *parser, ucl_hash_t *cont,
+		ucl_object_t *top,
+		ucl_object_t *elt)
+{
+	ucl_object_t *nobj;
+
+	if ((parser->flags & UCL_PARSER_NO_IMPLICIT_ARRAYS) == 0) {
+		/* Implicit array */
+		top->flags |= UCL_OBJECT_MULTIVALUE;
+		DL_APPEND (top, elt);
+	}
+	else {
+		if ((top->flags & UCL_OBJECT_MULTIVALUE) != 0) {
+			/* Just add to the explicit array */
+			DL_APPEND (top->value.av, elt);
+		}
+		else {
+			/* Convert to an array */
+			ucl_hash_delete (cont, top);
+			nobj = ucl_object_typed_new (UCL_ARRAY);
+			nobj->key = top->key;
+			nobj->keylen = top->keylen;
+			nobj->flags |= UCL_OBJECT_MULTIVALUE;
+			DL_APPEND (nobj->value.av, elt);
+			ucl_hash_insert (cont, nobj, nobj->key, nobj->keylen);
+		}
+	}
+}
+
 /**
  * Parse a key in an object
  * @param parser
@@ -1174,14 +1204,14 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk, bool *next_ke
 		 * The logic here is the following:
 		 *
 		 * - if we have two objects with the same priority, then we form an
-		 * implicit array
+		 * implicit or explicit array
 		 * - if a new object has bigger priority, then we overwrite an old one
 		 * - if a new object has lower priority, then we ignore it
 		 */
 		unsigned priold = (tobj->flags >> (sizeof (tobj->flags * NBBY - 4))),
 				prinew = (nobj->flags >> (sizeof (nobj->flags * NBBY - 4)));
 		if (priold == prinew) {
-			DL_APPEND (tobj, nobj);
+			ucl_parser_append_elt (parser, container, tobj, nobj);
 		}
 		else if (priold > prinew) {
 			ucl_object_unref (nobj);
