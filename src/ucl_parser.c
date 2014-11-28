@@ -1208,8 +1208,8 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk, bool *next_ke
 		 * - if a new object has bigger priority, then we overwrite an old one
 		 * - if a new object has lower priority, then we ignore it
 		 */
-		unsigned priold = (tobj->flags >> (sizeof (tobj->flags * NBBY - 4))),
-				prinew = (nobj->flags >> (sizeof (nobj->flags * NBBY - 4)));
+		unsigned priold = ucl_object_get_priority (tobj),
+				prinew = ucl_object_get_priority (nobj);
 		if (priold == prinew) {
 			ucl_parser_append_elt (parser, container, tobj, nobj);
 		}

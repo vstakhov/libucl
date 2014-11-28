@@ -686,6 +686,21 @@ UCL_EXTERN void ucl_object_array_sort (ucl_object_t *ar,
 		int (*cmp)(const ucl_object_t *o1, const ucl_object_t *o2));
 
 /**
+ * Get the priority for specific UCL object
+ * @param obj any ucl object
+ * @return priority of an object
+ */
+UCL_EXTERN unsigned int ucl_object_get_priority (const ucl_object_t *obj);
+
+/**
+ * Set explicit priority of an object.
+ * @param obj any ucl object
+ * @param priority new priroity value (only 4 least significant bits are considred)
+ */
+UCL_EXTERN void ucl_object_set_priority (ucl_object_t *obj,
+		unsigned int priority);
+
+/**
  * Opaque iterator object
  */
 typedef void* ucl_object_iter_t;

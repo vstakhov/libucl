@@ -1732,12 +1732,12 @@ ucl_object_new_full (ucl_type_t type, unsigned priority)
 			new->type = (type <= UCL_NULL ? type : UCL_NULL);
 			new->next = NULL;
 			new->prev = new;
-			new->flags = (priority & 0xF) << (sizeof (new->flags) * NBBY - 4);
+			ucl_object_set_priority (new, priority);
 		}
 	}
 	else {
 		new = ucl_object_new_userdata (NULL, NULL);
-		new->flags = (priority & 0xF) << (sizeof (new->flags) * NBBY - 4);
+		ucl_object_set_priority (new, priority);
 	}
 
 	return new;
@@ -2382,4 +2382,26 @@ ucl_object_array_sort (ucl_object_t *ar,
 	}
 
 	DL_SORT (ar->value.av, cmp);
+}
+
+#define PRIOBITS 4
+
+unsigned int
+ucl_object_get_priority (const ucl_object_t *obj)
+{
+	if (obj == NULL) {
+		return 0;
+	}
+
+	return (obj->flags >> ((sizeof (obj->flags) * NBBY) - PRIOBITS));
+}
+
+void
+ucl_object_set_priority (ucl_object_t *obj,
+		unsigned int priority)
+{
+	if (obj != NULL) {
+		priority &= (0x1 << PRIOBITS) - 1;
+		obj->flags |= priority << ((sizeof (obj->flags) * NBBY) - PRIOBITS);
+	}
 }
