@@ -16,3 +16,7 @@
 ### Libucl 0.6
 
 - Reworked macro interface
+
+### Libucl 0.6.1
+
+- Various utilities fixes
