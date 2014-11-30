@@ -854,6 +854,13 @@ UCL_EXTERN ucl_object_t* ucl_parser_get_object (struct ucl_parser *parser);
  * @param parser parser object
  */
 UCL_EXTERN const char *ucl_parser_get_error(struct ucl_parser *parser);
+
+/**
+ * Clear the error in the parser
+ * @param parser parser object
+ */
+UCL_EXTERN void ucl_parser_clear_error(struct ucl_parser *parser);
+
 /**
  * Free ucl parser object
  * @param parser parser object

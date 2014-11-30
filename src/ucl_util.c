@@ -455,6 +455,14 @@ ucl_parser_get_error(struct ucl_parser *parser)
 	return utstring_body(parser->err);
 }
 
+UCL_EXTERN void
+ucl_parser_clear_error(struct ucl_parser *parser)
+{
+	if (parser != NULL && parser->err != NULL) {
+		parser->err = NULL;
+	}
+}
+
 UCL_EXTERN bool
 ucl_pubkey_add (struct ucl_parser *parser, const unsigned char *key, size_t len)
 {
