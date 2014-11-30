@@ -459,6 +459,7 @@ UCL_EXTERN void
 ucl_parser_clear_error(struct ucl_parser *parser)
 {
 	if (parser != NULL && parser->err != NULL) {
+		utstring_free(parser->err);
 		parser->err = NULL;
 	}
 }
