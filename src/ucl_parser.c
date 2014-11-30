@@ -976,6 +976,7 @@ ucl_parser_append_elt (struct ucl_parser *parser, ucl_hash_t *cont,
 		if ((top->flags & UCL_OBJECT_MULTIVALUE) != 0) {
 			/* Just add to the explicit array */
 			DL_APPEND (top->value.av, elt);
+			top->len ++;
 		}
 		else {
 			/* Convert to an array */
@@ -986,6 +987,7 @@ ucl_parser_append_elt (struct ucl_parser *parser, ucl_hash_t *cont,
 			nobj->flags |= UCL_OBJECT_MULTIVALUE;
 			DL_APPEND (nobj->value.av, top);
 			DL_APPEND (nobj->value.av, elt);
+			nobj->len = 2;
 			ucl_hash_insert (cont, nobj, nobj->key, nobj->keylen);
 		}
 	}
