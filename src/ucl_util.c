@@ -2005,6 +2005,12 @@ ucl_array_replace_index (ucl_object_t *top, ucl_object_t *elt,
 	DL_FOREACH_SAFE (top->value.av, cur, tmp) {
 		if (index == 0) {
 			DL_REPLACE_ELEM (top->value.av, cur, elt);
+			/*
+			 * Unlink cur from the linked list so it can safely be
+			 * freed, otherwise ucl_object_unref() will walk the
+			 * linked list and remove more items than we want
+			 */
+			cur->next = NULL;
 			return cur;
 		}
 		--index;
