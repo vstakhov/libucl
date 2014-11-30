@@ -2001,7 +2001,6 @@ ucl_array_replace_index (ucl_object_t *top, ucl_object_t *elt,
 			 * freed, otherwise ucl_object_unref() will walk the
 			 * linked list and remove more items than we want
 			 */
-			cur->prev = NULL;
 			cur->next = NULL;
 			return cur;
 		}
