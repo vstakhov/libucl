@@ -984,6 +984,7 @@ ucl_parser_append_elt (struct ucl_parser *parser, ucl_hash_t *cont,
 			nobj->key = top->key;
 			nobj->keylen = top->keylen;
 			nobj->flags |= UCL_OBJECT_MULTIVALUE;
+			DL_APPEND (nobj->value.av, top);
 			DL_APPEND (nobj->value.av, elt);
 			ucl_hash_insert (cont, nobj, nobj->key, nobj->keylen);
 		}
