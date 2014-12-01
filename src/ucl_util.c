@@ -1403,7 +1403,7 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 	}
 
 	if (top->value.ov == NULL) {
-		top->value.ov = ucl_hash_create ();
+		top->value.ov = ucl_hash_create (false);
 	}
 
 	if (keylen == 0) {
@@ -1436,7 +1436,7 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 	found = __DECONST (ucl_object_t *, ucl_hash_search_obj (top->value.ov, elt));
 
 	if (found == NULL) {
-		top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
+		top->value.ov = ucl_hash_insert_object (top->value.ov, elt, false);
 		top->len ++;
 		if (replace) {
 			ret = false;
@@ -1453,7 +1453,7 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 				ucl_object_insert_key_common (elt, found, found->key,
 						found->keylen, copy_key, false, false);
 				ucl_hash_delete (top->value.ov, found);
-				top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
+				top->value.ov = ucl_hash_insert_object (top->value.ov, elt, false);
 			}
 			else if (found->type == UCL_OBJECT && elt->type != UCL_OBJECT) {
 				/* Insert new to old */
@@ -1577,7 +1577,7 @@ ucl_object_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 		found = __DECONST(ucl_object_t *, ucl_hash_search (top->value.ov, cp->key, cp->keylen));
 		if (found == NULL) {
 			/* The key does not exist */
-			top->value.ov = ucl_hash_insert_object (top->value.ov, cp);
+			top->value.ov = ucl_hash_insert_object (top->value.ov, cp, false);
 			top->len ++;
 		}
 		else {
