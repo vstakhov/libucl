@@ -225,24 +225,31 @@ void ucl_hash_replace (ucl_hash_t* hashlin, const ucl_object_t *old,
 	}
 }
 
+struct ucl_hash_real_iter {
+	const ucl_object_t **cur;
+	const ucl_object_t **end;
+};
+
 const void*
 ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 {
-	uint32_t it = (int)(uintptr_t)(*iter);
+	struct ucl_hash_real_iter *it = (struct ucl_hash_real_iter *)(*iter);
 	const ucl_object_t *ret = NULL;
 
-	/*
-	 * For khash NULL means hash start, so we can here assume the same
-	 */
-	while (it < kv_size (hashlin->ar)) {
-		if ((ret = kv_A (hashlin->ar, it)) != NULL) {
-			it ++;
-			break;
-		}
-		it ++;
+	if (it == NULL) {
+		it = UCL_ALLOC (sizeof (*it));
+		it->cur = &hashlin->ar.a[0];
+		it->end = it->cur + hashlin->ar.n;
 	}
 
-	*iter = (void *)(uintptr_t)it;
+	if (it->cur < it->end) {
+		ret = *it->cur++;
+	}
+	else {
+		UCL_FREE (sizeof (*it), it);
+	}
+
+	*iter = it;
 
 	return ret;
 }
@@ -250,9 +257,9 @@ ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 bool
 ucl_hash_iter_has_next (ucl_hash_t *hashlin, ucl_hash_iter_t iter)
 {
-	uint32_t it = (uint32_t)(uintptr_t)(iter);
+	struct ucl_hash_real_iter *it = (struct ucl_hash_real_iter *)(iter);
 
-	return it < kv_size (hashlin->ar) - 1;
+	return it->cur < it->end - 1;
 }
 
 
