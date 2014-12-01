@@ -82,7 +82,7 @@ int main() {
 	if ((v).n == (v).m) {													\
 		kv_grow(type, v);													\
 	}																		\
-	memmove((v).a, (v).a[1], sizeof(type) * (v).n);							\
+	memmove((v).a + 1, (v).a, sizeof(type) * (v).n);							\
 	(v).a[0] = (x);															\
 	(v).n ++;																\
 } while (0)
@@ -93,5 +93,11 @@ int main() {
 		(v1).n = (v0).n + (v1).n;											\
 	} while (0)
 
+#define kv_del(type, v, i) do {												\
+	if ((i) < (v).n) {														\
+		memmove((v).a + (i), (v).a + ((i) + 1), sizeof(type) * ((v).n - (i) - 1)); \
+		(v).n --;															\
+	}																		\
+} while (0)
 
 #endif

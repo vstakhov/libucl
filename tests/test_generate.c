@@ -59,7 +59,7 @@ main (int argc, char **argv)
 	cur = ucl_object_fromstring_common ("value1", 0, UCL_STRING_TRIM);
 	ucl_object_insert_key (obj, cur, "key0", 0, false);
 	cur = ucl_object_fromdouble (0.1);
-	ucl_object_replace_key (obj, cur, "key0", 0, false);
+	assert (ucl_object_replace_key (obj, cur, "key0", 0, false));
 
 	/* Create some strings */
 	cur = ucl_object_fromstring_common ("  test string    ", 0, UCL_STRING_TRIM);

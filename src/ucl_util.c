@@ -1955,7 +1955,7 @@ ucl_array_delete (ucl_object_t *top, ucl_object_t *elt)
 
 	for (i = 0; i < vec->n; i ++) {
 		if (kv_A (*vec, i) == elt) {
-			kv_A (*vec, i) = NULL;
+			kv_del (ucl_object_t *, *vec, i);
 			ret = elt;
 			top->len --;
 			break;
@@ -1998,7 +1998,7 @@ ucl_array_pop_last (ucl_object_t *top)
 	if (vec != NULL && vec->n > 0) {
 		obj = &kv_A (*vec, vec->n - 1);
 		ret = *obj;
-		*obj = NULL;
+		kv_del (ucl_object_t *, *vec, vec->n - 1);
 		top->len --;
 	}
 
@@ -2014,7 +2014,7 @@ ucl_array_pop_first (ucl_object_t *top)
 	if (vec != NULL && vec->n > 0) {
 		obj = &kv_A (*vec, 0);
 		ret = *obj;
-		*obj = NULL;
+		kv_del (ucl_object_t *, *vec, 0);
 		top->len --;
 	}
 

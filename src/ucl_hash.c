@@ -121,7 +121,7 @@ ucl_hash_create (bool ignore_case)
 
 void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func)
 {
-	ucl_object_t *cur, *tmp;
+	const ucl_object_t *cur, *tmp;
 
 	if (func != NULL) {
 		/* Iterate over the hash first */
@@ -193,16 +193,20 @@ void ucl_hash_replace (ucl_hash_t* hashlin, const ucl_object_t *old,
 {
 	khiter_t k;
 	int ret;
-	struct ucl_hash_elt *elt;
+	struct ucl_hash_elt elt, *pelt;
 
 	if (hashlin->caseless) {
 		khash_t(ucl_hash_caseless_node) *h = (khash_t(ucl_hash_caseless_node) *)
 				hashlin->hash;
 		k = kh_put (ucl_hash_caseless_node, h, old, &ret);
 		if (ret == 0) {
-			elt = &kh_value (h, k);
-			elt->obj = new;
-			kv_A (hashlin->ar, elt->ar_idx) = new;
+			elt = kh_value (h, k);
+			kh_del (ucl_hash_caseless_node, h, k);
+			k = kh_put (ucl_hash_caseless_node, h, new, &ret);
+			pelt = &kh_value (h, k);
+			pelt->obj = new;
+			pelt->ar_idx = elt.ar_idx;
+			kv_A (hashlin->ar, elt.ar_idx) = new;
 		}
 	}
 	else {
@@ -210,9 +214,13 @@ void ucl_hash_replace (ucl_hash_t* hashlin, const ucl_object_t *old,
 				hashlin->hash;
 		k = kh_put (ucl_hash_node, h, old, &ret);
 		if (ret == 0) {
-			elt = &kh_value (h, k);
-			elt->obj = new;
-			kv_A (hashlin->ar, elt->ar_idx) = new;
+			elt = kh_value (h, k);
+			kh_del (ucl_hash_node, h, k);
+			k = kh_put (ucl_hash_node, h, new, &ret);
+			pelt = &kh_value (h, k);
+			pelt->obj = new;
+			pelt->ar_idx = elt.ar_idx;
+			kv_A (hashlin->ar, elt.ar_idx) = new;
 		}
 	}
 }
