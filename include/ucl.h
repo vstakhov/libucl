@@ -192,7 +192,7 @@ typedef struct ucl_object_s {
 		int64_t iv;							/**< Int value of an object */
 		const char *sv;					/**< String value of an object */
 		double dv;							/**< Double value of an object */
-		struct ucl_object_s *av;			/**< Array					*/
+		void *av;							/**< Array					*/
 		void *ov;							/**< Object					*/
 		void* ud;							/**< Opaque user data		*/
 	} value;

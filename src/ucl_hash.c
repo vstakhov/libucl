@@ -121,6 +121,8 @@ ucl_hash_create (bool ignore_case)
 
 void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func)
 {
+	ucl_object_t *cur, *tmp;
+
 	if (func != NULL) {
 		/* Iterate over the hash first */
 		khash_t(ucl_hash_node) *h = (khash_t(ucl_hash_node) *)
@@ -129,7 +131,12 @@ void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func)
 
 		for (k = kh_begin (h); k != kh_end (h); ++k) {
 			if (kh_exist (h, k)) {
-				func (__DECONST (ucl_object_t *, (kh_value (h, k)).obj));
+				cur = (kh_value (h, k)).obj;
+				while (cur != NULL) {
+					tmp = cur->next;
+					func (__DECONST (ucl_object_t *, cur));
+					cur = tmp;
+				}
 			}
 		}
 	}
@@ -146,6 +153,7 @@ void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func)
 	}
 
 	kv_destroy (hashlin->ar);
+	UCL_FREE (sizeof (*hashlin), hashlin);
 }
 
 void
