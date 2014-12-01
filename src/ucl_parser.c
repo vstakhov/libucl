@@ -975,8 +975,7 @@ ucl_parser_append_elt (struct ucl_parser *parser, ucl_hash_t *cont,
 	else {
 		if ((top->flags & UCL_OBJECT_MULTIVALUE) != 0) {
 			/* Just add to the explicit array */
-			DL_APPEND (top->value.av, elt);
-			top->len ++;
+			ucl_array_append (top, elt);
 		}
 		else {
 			/* Convert to an array */
@@ -985,9 +984,8 @@ ucl_parser_append_elt (struct ucl_parser *parser, ucl_hash_t *cont,
 			nobj->key = top->key;
 			nobj->keylen = top->keylen;
 			nobj->flags |= UCL_OBJECT_MULTIVALUE;
-			DL_APPEND (nobj->value.av, top);
-			DL_APPEND (nobj->value.av, elt);
-			nobj->len = 2;
+			ucl_array_append (nobj, top);
+			ucl_array_append (nobj, top);
 			ucl_hash_insert (cont, nobj, nobj->key, nobj->keylen);
 		}
 	}
@@ -1369,11 +1367,9 @@ ucl_get_value_object (struct ucl_parser *parser)
 	if (parser->stack->obj->type == UCL_ARRAY) {
 		/* Object must be allocated */
 		obj = ucl_object_new_full (UCL_NULL, parser->chunks->priority);
-		t = parser->stack->obj->value.av;
-		DL_APPEND (t, obj);
+		t = parser->stack->obj;
+		ucl_array_append (t, obj);
 		parser->cur_obj = obj;
-		parser->stack->obj->value.av = t;
-		parser->stack->obj->len ++;
 	}
 	else {
 		/* Object has been already allocated */
