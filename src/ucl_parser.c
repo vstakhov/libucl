@@ -570,7 +570,7 @@ ucl_add_parser_stack (ucl_object_t *obj, struct ucl_parser *parser, bool is_arra
 		else {
 			obj->type = UCL_OBJECT;
 		}
-		obj->value.ov = ucl_hash_create ();
+		obj->value.ov = ucl_hash_create (parser->flags & UCL_PARSER_KEY_LOWERCASE);
 		parser->state = UCL_STATE_KEY;
 	}
 	else {
@@ -1197,7 +1197,8 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk, bool *next_ke
 	nobj->keylen = keylen;
 	tobj = __DECONST (ucl_object_t *, ucl_hash_search_obj (container, nobj));
 	if (tobj == NULL) {
-		container = ucl_hash_insert_object (container, nobj);
+		container = ucl_hash_insert_object (container, nobj,
+				parser->flags & UCL_PARSER_KEY_LOWERCASE);
 		nobj->prev = nobj;
 		nobj->next = NULL;
 		parser->stack->obj->len ++;

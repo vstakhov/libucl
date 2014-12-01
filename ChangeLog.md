@@ -20,3 +20,7 @@
 ### Libucl 0.6.1
 
 - Various utilities fixes
+
+### Libucl 0.7.0
+
+- Move to klib library from uthash to reduce memory overhead and increase performance
