@@ -164,7 +164,7 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 			elt = &kh_value (h, k);
 			kv_push (const ucl_object_t *, hashlin->ar, obj);
 			elt->obj = obj;
-			elt->ar_idx = kv_size (hashlin->ar);
+			elt->ar_idx = kv_size (hashlin->ar) - 1;
 		}
 	}
 	else {
@@ -175,7 +175,7 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 			elt = &kh_value (h, k);
 			kv_push (const ucl_object_t *, hashlin->ar, obj);
 			elt->obj = obj;
-			elt->ar_idx = kv_size (hashlin->ar);
+			elt->ar_idx = kv_size (hashlin->ar) - 1;
 		}
 	}
 }
