@@ -236,6 +236,9 @@ ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 	struct ucl_hash_real_iter *it = (struct ucl_hash_real_iter *)(*iter);
 	const ucl_object_t *ret = NULL;
 
+	if (hashlin == NULL)
+		return NULL;
+
 	if (it == NULL) {
 		it = UCL_ALLOC (sizeof (*it));
 		it->cur = &hashlin->ar.a[0];
