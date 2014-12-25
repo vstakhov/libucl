@@ -1687,6 +1687,89 @@ ucl_iterate_object (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expan
 	return NULL;
 }
 
+const char safe_iter_magic[4] = {'u', 'i', 't', 'e'};
+struct ucl_object_safe_iter {
+	char magic[4]; /* safety check */
+	const ucl_object_t *impl_it; /* implicit object iteration */
+	ucl_object_iter_t expl_it; /* explicit iteration */
+};
+
+#define UCL_SAFE_ITER(ptr) (struct ucl_object_safe_iter *)(ptr)
+#define UCL_SAFE_ITER_CHECK(it) do { \
+	assert (it != NULL); \
+	assert (memcmp (it->magic, safe_iter_magic, sizeof (it->magic)) == 0); \
+ } while (0)
+
+ucl_object_iter_t
+ucl_object_iterate_new (const ucl_object_t *obj)
+{
+	struct ucl_object_safe_iter *it;
+
+	it = UCL_ALLOC (sizeof (*it));
+	if (it != NULL) {
+		memcpy (it->magic, safe_iter_magic, sizeof (it->magic));
+		it->expl_it = NULL;
+		it->impl_it = obj;
+	}
+
+	return (ucl_object_iter_t)it;
+}
+
+
+ucl_object_iter_t
+ucl_object_iterate_reset (ucl_object_iter_t it, const ucl_object_t *obj)
+{
+	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER (it);
+
+	UCL_SAFE_ITER_CHECK (rit);
+
+	rit->impl_it = obj;
+	rit->expl_it = NULL;
+
+	return it;
+}
+
+const ucl_object_t*
+ucl_object_iterate_safe (ucl_object_iter_t it)
+{
+	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER (it);
+	const ucl_object_t *ret = NULL;
+
+	UCL_SAFE_ITER_CHECK (rit);
+
+	if (rit->impl_it == NULL) {
+		return NULL;
+	}
+
+	if (rit->impl_it->type == UCL_OBJECT || rit->impl_it->type == UCL_ARRAY) {
+		ret = ucl_iterate_object (rit->impl_it, &rit->expl_it, true);
+
+		if (ret == NULL) {
+			/* Need to switch to another implicit object in chain */
+			rit->impl_it = rit->impl_it->next;
+			rit->expl_it = NULL;
+			return ucl_object_iterate_safe (it);
+		}
+	}
+	else {
+		/* Just iterate over the implicit array */
+		ret = rit->impl_it;
+		rit->impl_it = rit->impl_it->next;
+	}
+
+	return ret;
+}
+
+void
+ucl_object_iterate_free (ucl_object_iter_t it)
+{
+	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER (it);
+
+	UCL_SAFE_ITER_CHECK (rit);
+
+	UCL_FREE (sizeof (*rit), it);
+}
+
 const ucl_object_t *
 ucl_lookup_path (const ucl_object_t *top, const char *path_in) {
 	const ucl_object_t *o = NULL, *found;
