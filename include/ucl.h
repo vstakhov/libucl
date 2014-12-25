@@ -737,7 +737,8 @@ UCL_EXTERN ucl_object_iter_t ucl_object_iterate_reset (ucl_object_iter_t it,
  * @param iter safe iterator
  * @return the next object in sequence
  */
-UCL_EXTERN const ucl_object_t* ucl_object_iterate_safe (ucl_object_iter_t iter);
+UCL_EXTERN const ucl_object_t* ucl_object_iterate_safe (ucl_object_iter_t iter,
+		bool expand_values);
 
 /**
  * Free memory associated with the safe iterator

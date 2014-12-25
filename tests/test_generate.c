@@ -30,7 +30,8 @@ int
 main (int argc, char **argv)
 {
 	ucl_object_t *obj, *cur, *ar, *ref;
-	const ucl_object_t *found;
+	ucl_object_iter_t it;
+	const ucl_object_t *found, *it_obj;
 	FILE *out;
 	unsigned char *emitted;
 	const char *fname_out = NULL;
@@ -138,6 +139,33 @@ main (int argc, char **argv)
 	/* No such key */
 	found = ucl_lookup_path (obj, "key9..key1");
 	assert (found == NULL);
+
+	/* Test iteration */
+	it = ucl_object_iterate_new (obj);
+	it_obj = ucl_object_iterate_safe (it, true);
+	/* key0 = 0.1 */
+	assert (ucl_object_type (it_obj) == UCL_FLOAT);
+	it_obj = ucl_object_iterate_safe (it, true);
+	/* key1 = "" */
+	assert (ucl_object_type (it_obj) == UCL_STRING);
+	it_obj = ucl_object_iterate_safe (it, true);
+	/* key2 = "" */
+	assert (ucl_object_type (it_obj) == UCL_STRING);
+	it_obj = ucl_object_iterate_safe (it, true);
+	/* key3 = "" */
+	assert (ucl_object_type (it_obj) == UCL_STRING);
+	it_obj = ucl_object_iterate_safe (it, true);
+	/* key4 = ([float, int, float], boolean) */
+	ucl_object_iterate_reset (it, it_obj);
+	it_obj = ucl_object_iterate_safe (it, true);
+	assert (ucl_object_type (it_obj) == UCL_FLOAT);
+	it_obj = ucl_object_iterate_safe (it, true);
+	assert (ucl_object_type (it_obj) == UCL_INT);
+	it_obj = ucl_object_iterate_safe (it, true);
+	assert (ucl_object_type (it_obj) == UCL_FLOAT);
+	it_obj = ucl_object_iterate_safe (it, true);
+	assert (ucl_object_type (it_obj) == UCL_BOOLEAN);
+	ucl_object_iterate_free (it);
 
 	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
 

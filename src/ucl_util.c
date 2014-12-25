@@ -1730,7 +1730,7 @@ ucl_object_iterate_reset (ucl_object_iter_t it, const ucl_object_t *obj)
 }
 
 const ucl_object_t*
-ucl_object_iterate_safe (ucl_object_iter_t it)
+ucl_object_iterate_safe (ucl_object_iter_t it, bool expand_values)
 {
 	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER (it);
 	const ucl_object_t *ret = NULL;
@@ -1748,13 +1748,19 @@ ucl_object_iterate_safe (ucl_object_iter_t it)
 			/* Need to switch to another implicit object in chain */
 			rit->impl_it = rit->impl_it->next;
 			rit->expl_it = NULL;
-			return ucl_object_iterate_safe (it);
+			return ucl_object_iterate_safe (it, expand_values);
 		}
 	}
 	else {
 		/* Just iterate over the implicit array */
 		ret = rit->impl_it;
 		rit->impl_it = rit->impl_it->next;
+		if (expand_values) {
+			/* We flatten objects if need to expand values */
+			if (ret->type == UCL_OBJECT || ret->type == UCL_ARRAY) {
+				return ucl_object_iterate_safe (it, expand_values);
+			}
+		}
 	}
 
 	return ret;
