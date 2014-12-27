@@ -151,6 +151,14 @@ typedef unsigned long long khint64_t;
 #endif
 #endif /* kh_inline */
 
+#ifndef kh_unused
+# ifdef __GNUC__
+#   define kh_unused(x) __attribute__((__unused__)) x
+# else
+#   define kh_unused(x) x
+# endif
+#endif
+
 typedef khint32_t khint_t;
 typedef khint_t khiter_t;
 
@@ -191,13 +199,13 @@ static const double __ac_HASH_UPPER = 0.77;
 		khval_t *vals; \
 	} kh_##name##_t;
 
-#define __KHASH_PROTOTYPES(name, khkey_t, khval_t)	 					\
-	extern kh_##name##_t *kh_init_##name(void);							\
-	extern void kh_destroy_##name(kh_##name##_t *h);					\
-	extern void kh_clear_##name(kh_##name##_t *h);						\
-	extern khint_t kh_get_##name(const kh_##name##_t *h, khkey_t key); 	\
-	extern int kh_resize_##name(kh_##name##_t *h, khint_t new_n_buckets); \
-	extern khint_t kh_put_##name(kh_##name##_t *h, khkey_t key, int *ret); \
+#define __KHASH_PROTOTYPES(name, khkey_t, khval_t)	 						\
+	extern kh_##name##_t * kh_init_##name(void);							\
+	extern void kh_destroy_##name(kh_##name##_t *h);						\
+	extern void kh_clear_##name(kh_##name##_t *h);							\
+	extern khint_t kh_get_##name(const kh_##name##_t *h, khkey_t key); 		\
+	extern int kh_resize_##name(kh_##name##_t *h, khint_t new_n_buckets); 	\
+	extern khint_t kh_put_##name(kh_##name##_t *h, khkey_t key, int *ret); 	\
 	extern void kh_del_##name(kh_##name##_t *h, khint_t x);
 
 #define __KHASH_IMPL(name, SCOPE, khkey_t, khval_t, kh_is_map, __hash_func, __hash_equal) \
@@ -212,7 +220,7 @@ static const double __ac_HASH_UPPER = 0.77;
 			kfree(h);													\
 		}																\
 	}																	\
-	SCOPE void kh_clear_##name(kh_##name##_t *h)						\
+	SCOPE void kh_unused(kh_clear_##name)(kh_##name##_t *h)				\
 	{																	\
 		if (h && h->flags) {											\
 			memset(h->flags, 0xaa, __ac_fsize(h->n_buckets) * sizeof(khint32_t)); \

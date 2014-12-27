@@ -54,7 +54,7 @@ ucl_hash_equal (const ucl_object_t *k1, const ucl_object_t *k2)
 }
 
 KHASH_INIT (ucl_hash_node, const ucl_object_t *, struct ucl_hash_elt, 1,
-		ucl_hash_func, ucl_hash_equal);
+		ucl_hash_func, ucl_hash_equal)
 
 static inline uint32_t
 ucl_hash_caseless_func (const ucl_object_t *o)
@@ -95,7 +95,7 @@ ucl_hash_caseless_equal (const ucl_object_t *k1, const ucl_object_t *k2)
 }
 
 KHASH_INIT (ucl_hash_caseless_node, const ucl_object_t *, struct ucl_hash_elt, 1,
-		ucl_hash_caseless_func, ucl_hash_caseless_equal);
+		ucl_hash_caseless_func, ucl_hash_caseless_equal)
 
 ucl_hash_t*
 ucl_hash_create (bool ignore_case)
