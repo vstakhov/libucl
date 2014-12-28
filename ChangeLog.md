@@ -24,3 +24,7 @@
 ### Libucl 0.7.0
 
 - Move to klib library from uthash to reduce memory overhead and increase performance
+
+### Libucl 0.7.1
+
+- Added safe iterators API
