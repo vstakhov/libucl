@@ -156,10 +156,10 @@ is converted to the following object:
 ```nginx
 section {
 	blah {
-			key = value;
+		key = value;
 	}
 	foo {
-			key = value;
+		key = value;
 	}
 }
 ```
@@ -177,9 +177,9 @@ is presented as:
 ```nginx    
 section {
 	blah {
-			foo {
-					key = value;
-			}
+		foo {
+			key = value;
+		}
 	}
 }
 ```
@@ -219,8 +219,8 @@ UCL supports external macros both multiline and single line ones:
 ```nginx
 .macro "sometext";
 .macro {
-     Some long text
-     ....
+    Some long text
+    ....
 };
 ```
 
