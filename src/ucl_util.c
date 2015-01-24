@@ -26,7 +26,9 @@
 #include "ucl_chartable.h"
 #include "kvec.h"
 
+#ifndef _WIN32
 #include <glob.h>
+#endif
 
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h> /* For dirname */
@@ -72,6 +74,11 @@ typedef kvec_t(ucl_object_t *) ucl_array_t;
 #endif
 #ifndef MAP_FAILED
 #define MAP_FAILED      ((void *) -1)
+#endif
+
+#ifdef _WIN32
+#include <limits.h>
+#define NBBY CHAR_BIT
 #endif
 
 static void *ucl_mmap(char *addr, size_t length, int prot, int access, int fd, off_t offset)
@@ -960,10 +967,10 @@ ucl_include_file (const unsigned char *data, size_t len,
 	const unsigned char *p = data, *end = data + len;
 	bool need_glob = false;
 	int cnt = 0;
-	glob_t globbuf;
 	char glob_pattern[PATH_MAX];
 	size_t i;
 
+#ifndef _WIN32
 	if (!allow_glob) {
 		return ucl_include_file_single (data, len, parser, check_signature,
 			must_exist, priority);
@@ -978,6 +985,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 			p ++;
 		}
 		if (need_glob) {
+			glob_t globbuf;
 			memset (&globbuf, 0, sizeof (globbuf));
 			ucl_strlcpy (glob_pattern, (const char *)data, sizeof (glob_pattern));
 			if (glob (glob_pattern, 0, NULL, &globbuf) != 0) {
@@ -1005,7 +1013,13 @@ ucl_include_file (const unsigned char *data, size_t len,
 				must_exist, priority);
 		}
 	}
-
+#else
+	/* Win32 compilers do not support globbing. Therefore, for Win32,
+	   treat allow_glob/need_glob as a NOOP and just return */
+	return ucl_include_file_single (data, len, parser, check_signature,
+		must_exist, priority);
+#endif
+	
 	return true;
 }
 
