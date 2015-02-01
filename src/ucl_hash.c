@@ -123,6 +123,10 @@ void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func)
 {
 	const ucl_object_t *cur, *tmp;
 
+	if (hashlin == NULL) {
+		return;
+	}
+
 	if (func != NULL) {
 		/* Iterate over the hash first */
 		khash_t(ucl_hash_node) *h = (khash_t(ucl_hash_node) *)
@@ -164,6 +168,10 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 	int ret;
 	struct ucl_hash_elt *elt;
 
+	if (hashlin == NULL) {
+		return;
+	}
+
 	if (hashlin->caseless) {
 		khash_t(ucl_hash_caseless_node) *h = (khash_t(ucl_hash_caseless_node) *)
 				hashlin->hash;
@@ -194,6 +202,10 @@ void ucl_hash_replace (ucl_hash_t* hashlin, const ucl_object_t *old,
 	khiter_t k;
 	int ret;
 	struct ucl_hash_elt elt, *pelt;
+
+	if (hashlin == NULL) {
+		return;
+	}
 
 	if (hashlin->caseless) {
 		khash_t(ucl_hash_caseless_node) *h = (khash_t(ucl_hash_caseless_node) *)
@@ -236,8 +248,9 @@ ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 	struct ucl_hash_real_iter *it = (struct ucl_hash_real_iter *)(*iter);
 	const ucl_object_t *ret = NULL;
 
-	if (hashlin == NULL)
+	if (hashlin == NULL) {
 		return NULL;
+	}
 
 	if (it == NULL) {
 		it = UCL_ALLOC (sizeof (*it));
@@ -277,6 +290,10 @@ ucl_hash_search (ucl_hash_t* hashlin, const char *key, unsigned keylen)
 	search.key = key;
 	search.keylen = keylen;
 
+	if (hashlin == NULL) {
+		return NULL;
+	}
+
 	if (hashlin->caseless) {
 		khash_t(ucl_hash_caseless_node) *h = (khash_t(ucl_hash_caseless_node) *)
 						hashlin->hash;
@@ -305,6 +322,10 @@ ucl_hash_delete (ucl_hash_t* hashlin, const ucl_object_t *obj)
 {
 	khiter_t k;
 	struct ucl_hash_elt *elt;
+
+	if (hashlin == NULL) {
+		return;
+	}
 
 	if (hashlin->caseless) {
 		khash_t(ucl_hash_caseless_node) *h = (khash_t(ucl_hash_caseless_node) *)
