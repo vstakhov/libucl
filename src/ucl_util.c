@@ -2461,7 +2461,7 @@ ucl_object_compare (const ucl_object_t *o1, const ucl_object_t *o2)
 
 	switch (o1->type) {
 	case UCL_STRING:
-		if (o1->len == o2->len) {
+		if (o1->len == o2->len && o1->len > 0) {
 			ret = strcmp (ucl_object_tostring(o1), ucl_object_tostring(o2));
 		}
 		else {
@@ -2477,7 +2477,7 @@ ucl_object_compare (const ucl_object_t *o1, const ucl_object_t *o2)
 		ret = ucl_object_toboolean (o1) - ucl_object_toboolean (o2);
 		break;
 	case UCL_ARRAY:
-		if (o1->len == o2->len) {
+		if (o1->len == o2->len && o1->len > 0) {
 			UCL_ARRAY_GET (vec1, o1);
 			UCL_ARRAY_GET (vec2, o1);
 			unsigned i;
@@ -2506,7 +2506,7 @@ ucl_object_compare (const ucl_object_t *o1, const ucl_object_t *o2)
 		}
 		break;
 	case UCL_OBJECT:
-		if (o1->len == o2->len) {
+		if (o1->len == o2->len && o1->len > 0) {
 			while ((it1 = ucl_iterate_object (o1, &iter, true)) != NULL) {
 				it2 = ucl_object_find_key (o2, ucl_object_key (it1));
 				if (it2 == NULL) {
