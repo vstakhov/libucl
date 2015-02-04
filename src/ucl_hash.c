@@ -263,6 +263,8 @@ ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 	}
 	else {
 		UCL_FREE (sizeof (*it), it);
+		*iter = NULL;
+		return NULL;
 	}
 
 	*iter = it;

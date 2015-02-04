@@ -1364,6 +1364,10 @@ ucl_get_value_object (struct ucl_parser *parser)
 {
 	ucl_object_t *t, *obj = NULL;
 
+	if (parser == NULL || parser->stack == NULL || parser->stack->obj == NULL) {
+		return NULL;
+	}
+
 	if (parser->stack->obj->type == UCL_ARRAY) {
 		/* Object must be allocated */
 		obj = ucl_object_new_full (UCL_NULL, parser->chunks->priority);
