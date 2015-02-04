@@ -2479,7 +2479,7 @@ ucl_object_compare (const ucl_object_t *o1, const ucl_object_t *o2)
 	case UCL_ARRAY:
 		if (o1->len == o2->len && o1->len > 0) {
 			UCL_ARRAY_GET (vec1, o1);
-			UCL_ARRAY_GET (vec2, o1);
+			UCL_ARRAY_GET (vec2, o2);
 			unsigned i;
 
 			/* Compare all elements in both arrays */
