@@ -1792,6 +1792,12 @@ ucl_object_iterate_free (ucl_object_iter_t it)
 
 const ucl_object_t *
 ucl_lookup_path (const ucl_object_t *top, const char *path_in) {
+	return ucl_lookup_path_char (top, path_in, '.');
+}
+
+
+const ucl_object_t *
+ucl_lookup_path_char (const ucl_object_t *top, const char *path_in, const char sep) {
 	const ucl_object_t *o = NULL, *found;
 	const char *p, *c;
 	char *err_str;
@@ -1805,20 +1811,20 @@ ucl_lookup_path (const ucl_object_t *top, const char *path_in) {
 	p = path_in;
 
 	/* Skip leading dots */
-	while (*p == '.') {
+	while (*p == sep) {
 		p ++;
 	}
 
 	c = p;
 	while (*p != '\0') {
 		p ++;
-		if (*p == '.' || *p == '\0') {
+		if (*p == sep || *p == '\0') {
 			if (p > c) {
 				switch (top->type) {
 				case UCL_ARRAY:
 					/* Key should be an int */
 					index = strtoul (c, &err_str, 10);
-					if (err_str != NULL && (*err_str != '.' && *err_str != '\0')) {
+					if (err_str != NULL && (*err_str != sep && *err_str != '\0')) {
 						return NULL;
 					}
 					o = ucl_array_find_index (top, index);
