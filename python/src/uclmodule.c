@@ -136,6 +136,7 @@ static PyMethodDef uclMethods[] = {
 	{NULL, NULL, 0, NULL}
 };
 
+#if PY_MAJOR_VERSION >= 3
 static struct PyModuleDef uclmodule = {
 	PyModuleDef_HEAD_INIT,
 	"ucl",
@@ -148,3 +149,8 @@ PyMODINIT_FUNC
 PyInit_ucl(void) {
 	return PyModule_Create(&uclmodule);
 }
+#else
+void initucl(void) {
+	Py_InitModule("ucl", uclMethods);
+}
+#endif

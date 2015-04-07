@@ -2,6 +2,11 @@
 import json
 import unittest
 import ucl
+import sys
+
+if sys.version_info[:2] == (2, 7):
+    unittest.TestCase.assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
+
 
 class TestUcl(unittest.TestCase):
     def test_no_args(self):
