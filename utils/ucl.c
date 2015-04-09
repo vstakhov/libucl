@@ -50,7 +50,8 @@ void usage(const char *name, FILE *out) {
 
 int main(int argc, char **argv) {
   char ch;
-  FILE *in = stdin, *out = stdout, *schema = NULL;
+  FILE *in = stdin, *out = stdout;
+  const char *schema = NULL;
   unsigned char *buf = NULL;
   size_t size = 0;
   struct ucl_parser *parser = NULL;
@@ -75,11 +76,7 @@ int main(int argc, char **argv) {
       }
       break;
     case 's':
-      schema = fopen(optarg, "r");
-      if (schema == NULL) {
-        perror("fopen on schema file");
-        exit(EX_NOINPUT);
-      }
+      schema = optarg;
       break;
     case 'f':
       if (strcmp(optarg, "ucl") == 0) {
@@ -139,36 +136,19 @@ int main(int argc, char **argv) {
     ucl_object_t *schema_obj = NULL;
     struct ucl_schema_error error;
 
-    r = 0;
-    while(!feof(schema) && !ferror(schema)) {
-      if (r == size) {
-        buf = realloc(buf, size*2);
-        size *= 2;
-        if (buf == NULL) {
-          perror("realloc");
-          exit(EX_OSERR);
-        }
-      }
-      r += fread(buf + r, 1, size - r, schema);
-      if (ferror(in)) {
-        fprintf(stderr, "Failed to read the schema file.\n");
-        exit(EX_IOERR);
-      }
-      fclose(schema);
-      if (!ucl_parser_add_chunk(schema_parser, buf, r)) {
-        fprintf(stderr, "Failed to parse schema file: %s\n",
-                ucl_parser_get_error(schema_parser));
-        exit(EX_DATAERR);
-      }
-      if ((schema_obj = ucl_parser_get_object(schema_parser)) == NULL) {
-        fprintf(stderr, "Failed to get root object: %s\n",
-                ucl_parser_get_error(schema_parser));
-        exit(EX_DATAERR);
-      }
-      if (!ucl_object_validate(schema_obj, obj, &error)) {
-        fprintf(stderr, "Validation failed: %s\n", error.msg);
-        exit(EX_DATAERR);
-      }
+    if (!ucl_parser_add_file(schema_parser, schema)) {
+      fprintf(stderr, "Failed to parse schema file: %s\n",
+              ucl_parser_get_error(schema_parser));
+      exit(EX_DATAERR);
+    }
+    if ((schema_obj = ucl_parser_get_object(schema_parser)) == NULL) {
+      fprintf(stderr, "Failed to get root object: %s\n",
+              ucl_parser_get_error(schema_parser));
+      exit(EX_DATAERR);
+    }
+    if (!ucl_object_validate(schema_obj, obj, &error)) {
+      fprintf(stderr, "Validation failed: %s\n", error.msg);
+      exit(EX_DATAERR);
     }
   }
   fprintf(out, "%s\n", ucl_object_emit(obj, emitter));
