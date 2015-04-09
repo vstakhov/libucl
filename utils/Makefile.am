@@ -11,8 +11,12 @@ ucl_objdump_SOURCES = objdump.c
 ucl_objdump_LDADD = $(common_utils_ldadd)
 ucl_objdump_CFLAGS = $(common_utils_cflags)
 
+ucl_SOURCES = ucl.c
+ucl_LDADD = $(common_utils_ldadd)
+ucl_CFLAGS = $(common_utils_cflags)
+
 if UTILS
-UTL = ucl_chargen ucl_objdump
+UTL = ucl_chargen ucl_objdump ucl
 else
 UTL =
 endif
