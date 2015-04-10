@@ -22,7 +22,7 @@
 
 #include <stdio.h>
 #include <getopt.h>
-#include <sysexits.h>
+#include <stdlib.h>
 
 #include "ucl.h"
 
@@ -64,14 +64,14 @@ int main(int argc, char **argv) {
       in = fopen(optarg, "r");
       if (in == NULL) {
         perror("fopen on input file");
-        exit(EX_NOINPUT);
+        exit(EXIT_FAILURE);
       }
       break;
     case 'o':
       out = fopen(optarg, "w");
       if (out == NULL) {
         perror("fopen on output file");
-        exit(EX_CANTCREAT);
+        exit(EXIT_FAILURE);
       }
       break;
     case 's':
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
         emitter = UCL_EMIT_JSON_COMPACT;
       } else {
         fprintf(stderr, "Unknown output format: %s\n", optarg);
-        exit(EX_USAGE);
+        exit(EXIT_FAILURE);
       }
       break;
     case 'h':
@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
       exit(0);
     default:
       usage(argv[0], stderr);
-      exit(EX_USAGE);
+      exit(EXIT_FAILURE);
       break;
     }
   }
@@ -110,25 +110,25 @@ int main(int argc, char **argv) {
       size *= 2;
       if (buf == NULL) {
         perror("realloc");
-        exit(EX_OSERR);
+        exit(EXIT_FAILURE);
       }
     }
     r += fread(buf + r, 1, size - r, in);
   }
   if (ferror(in)) {
     fprintf(stderr, "Failed to read the input file.\n");
-    exit(EX_IOERR);
+    exit(EXIT_FAILURE);
   }
   fclose(in);
   if (!ucl_parser_add_chunk(parser, buf, r)) {
     fprintf(stderr, "Failed to parse input file: %s\n",
             ucl_parser_get_error(parser));
-    exit(EX_DATAERR);
+    exit(EXIT_FAILURE);
   }
   if ((obj = ucl_parser_get_object(parser)) == NULL) {
     fprintf(stderr, "Failed to get root object: %s\n",
             ucl_parser_get_error(parser));
-    exit(EX_DATAERR);
+    exit(EXIT_FAILURE);
   }
   if (schema != NULL) {
     struct ucl_parser *schema_parser = ucl_parser_new(0);
@@ -138,16 +138,16 @@ int main(int argc, char **argv) {
     if (!ucl_parser_add_file(schema_parser, schema)) {
       fprintf(stderr, "Failed to parse schema file: %s\n",
               ucl_parser_get_error(schema_parser));
-      exit(EX_DATAERR);
+      exit(EXIT_FAILURE);
     }
     if ((schema_obj = ucl_parser_get_object(schema_parser)) == NULL) {
       fprintf(stderr, "Failed to get root object: %s\n",
               ucl_parser_get_error(schema_parser));
-      exit(EX_DATAERR);
+      exit(EXIT_FAILURE);
     }
     if (!ucl_object_validate(schema_obj, obj, &error)) {
       fprintf(stderr, "Validation failed: %s\n", error.msg);
-      exit(EX_DATAERR);
+      exit(EXIT_FAILURE);
     }
   }
   fprintf(out, "%s\n", ucl_object_emit(obj, emitter));
