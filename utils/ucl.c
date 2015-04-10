@@ -53,9 +53,8 @@ int main(int argc, char **argv) {
   FILE *in = stdin, *out = stdout;
   const char *schema = NULL;
   unsigned char *buf = NULL;
-  size_t size = 0;
+  size_t size = 0, r = 0;
   struct ucl_parser *parser = NULL;
-  int r;
   ucl_object_t *obj = NULL;
   ucl_emitter_t emitter = UCL_EMIT_CONFIG;
 
