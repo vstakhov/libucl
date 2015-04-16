@@ -88,10 +88,12 @@ private:
 	static struct ucl_emitter_functions default_emit_funcs()
 	{
 		struct ucl_emitter_functions func = {
-				Ucl::append_char,
-				Ucl::append_len,
-				Ucl::append_int,
-				Ucl::append_double
+			Ucl::append_char,
+			Ucl::append_len,
+			Ucl::append_int,
+			Ucl::append_double,
+			nullptr,
+			nullptr
 		};
 
 		return func;
@@ -254,7 +256,9 @@ public:
 	std::string dump (ucl_emitter_t type = UCL_EMIT_JSON) const
 	{
 		std::string out;
-		dump (out);
+
+		dump (out, type);
+
 		return out;
 	}
 
