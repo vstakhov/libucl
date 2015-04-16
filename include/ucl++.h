@@ -25,6 +25,8 @@
 #pragma once
 #include <string>
 #include <memory>
+#include <iostream>
+#include <strstream>
 
 #include "ucl.h"
 
@@ -357,13 +359,20 @@ public:
 		return Ucl (obj);
 	}
 
-	static Ucl parse (const char * in, std::string & err) {
+	static Ucl parse (const char * in, std::string & err)
+	{
 		if (in) {
 			return parse (std::string(in), err);
 		} else {
 			err = "null input";
 			return nullptr;
 		}
+	}
+
+	static Ucl parse (std::istream &ifs, std::string &err)
+	{
+		return Ucl::parse (std::string(std::istreambuf_iterator<char>(ifs),
+				std::istreambuf_iterator<char>()), err);
 	}
 
 	bool operator== (const Ucl &rhs) const
