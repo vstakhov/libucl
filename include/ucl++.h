@@ -252,6 +252,16 @@ public:
 		return UCL_NULL;
 	}
 
+	const std::string key () const {
+		std::string res;
+
+		if (obj->key) {
+			res.assign (obj->key, obj->keylen);
+		}
+
+		return res;
+	}
+
 	double number_value () const
 	{
 		if (obj) {
@@ -279,7 +289,7 @@ public:
 		return false;
 	}
 
-	const std::string &string_value () const
+	const std::string string_value () const
 	{
 		std::string res;
 
@@ -287,26 +297,26 @@ public:
 			res.assign (ucl_object_tostring (obj.get()));
 		}
 
-		return std::move (res);
+		return res;
 	}
 
-	const Ucl & operator[] (size_t i) const
+	const Ucl operator[] (size_t i) const
 	{
 		if (type () == UCL_ARRAY) {
-			return std::move (Ucl (ucl_array_find_index (obj.get(), i)));
+			return Ucl (ucl_array_find_index (obj.get(), i));
 		}
 
-		return std::move (Ucl (nullptr));
+		return Ucl (nullptr);
 	}
 
-	const Ucl & operator[](const std::string &key) const
+	const Ucl operator[](const std::string &key) const
 	{
 		if (type () == UCL_OBJECT) {
-			return std::move (Ucl (ucl_object_find_keyl (obj.get(),
-					key.data (), key.size ())));
+			return Ucl (ucl_object_find_keyl (obj.get(),
+					key.data (), key.size ()));
 		}
 
-		return std::move (Ucl (nullptr));
+		return Ucl (nullptr);
 	}
 	// Serialize.
 	void dump (std::string &out, ucl_emitter_t type = UCL_EMIT_JSON) const
