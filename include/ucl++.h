@@ -37,6 +37,8 @@ constexpr ucl_map_construct_t ucl_map_construct = ucl_map_construct_t();
 struct ucl_array_construct_t { };
 constexpr ucl_array_construct_t ucl_array_construct = ucl_array_construct_t();
 
+class const_iterator;
+
 class Ucl final {
 private:
 
@@ -100,6 +102,8 @@ private:
 	};
 
 	std::unique_ptr<ucl_object_t, ucl_deleter> obj;
+
+	friend class const_iterator;
 
 public:
 
@@ -314,6 +318,58 @@ public:
 		}
 
 		return true;
+	}
+};
+
+class const_iterator {
+private:
+	struct ucl_iter_deleter {
+		void operator() (ucl_object_iter_t *it) {
+			ucl_object_iterate_free (it);
+		}
+	};
+	std::unique_ptr<ucl_object_iter_t, ucl_iter_deleter> it;
+	std::unique_ptr<Ucl> cur;
+public:
+	typedef std::forward_iterator_tag iterator_category;
+
+	const_iterator() {}
+	const_iterator(const const_iterator &other) {
+		it.reset (other.it.get ());
+	}
+	~const_iterator() {}
+
+	const_iterator& operator=(const const_iterator &other) {
+		it.reset (other.it.get ());
+		return *this;
+	}
+
+	bool operator==(const const_iterator &other) const
+	{
+		return cur->obj == other.cur->obj;
+	}
+
+	bool operator!=(const const_iterator &other) const
+	{
+		return cur->obj != other.cur->obj;
+	}
+
+	const_iterator& operator++()
+	{
+		if (it && cur) {
+			cur.reset (new Ucl(ucl_object_iterate_safe (it.get(), true)));
+		}
+
+		return *this;
+	}
+
+	const Ucl& operator*() const
+	{
+		return *cur;
+	}
+	const Ucl* operator->() const
+	{
+		return cur.get();
 	}
 };
 
