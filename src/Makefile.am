@@ -20,7 +20,8 @@ libucl_la_LIBADD=	@LIBFETCH_LIBS@ \
 					@LIBREGEX_LIB@ \
 					@CURL_LIBS@
 
-include_HEADERS=	$(top_srcdir)/include/ucl.h
+include_HEADERS=	$(top_srcdir)/include/ucl.h \
+					$(top_srcdir)/include/ucl++.h
 noinst_HEADERS=	ucl_internal.h \
 				xxhash.h \
 				ucl_hash.h \

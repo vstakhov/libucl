@@ -27,3 +27,6 @@ Makefile.in
 
 # pkgconf
 libucl.pc
+
+# python extension
+python/build
