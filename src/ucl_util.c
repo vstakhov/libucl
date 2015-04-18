@@ -1920,6 +1920,10 @@ ucl_object_new_userdata (ucl_userdata_dtor dtor, ucl_userdata_emitter emitter)
 ucl_type_t
 ucl_object_type (const ucl_object_t *obj)
 {
+	if (obj == NULL) {
+		return NULL;
+	}
+
 	return obj->type;
 }
 
