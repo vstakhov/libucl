@@ -498,6 +498,15 @@ UCL_EXTERN const ucl_object_t* ucl_array_find_index (const ucl_object_t *top,
 		unsigned int index);
 
 /**
+ * Return the index of `elt` in the array `top`
+ * @param top object to get a key from (must be of type UCL_ARRAY)
+ * @param elt element to find index of (must NOT be NULL)
+ * @return index of `elt` in the array `top or NULL if `elt` is not found
+ */
+UCL_EXTERN unsigned int ucl_array_index_of (ucl_object_t *top,
+		ucl_object_t *elt);
+
+/**
  * Replace an element in an array with a different element, returning the object
  * that was replaced. This object is not released, caller must unref the
  * returned object when it is no longer needed.
