@@ -1921,7 +1921,7 @@ ucl_type_t
 ucl_object_type (const ucl_object_t *obj)
 {
 	if (obj == NULL) {
-		return NULL;
+		return UCL_NULL;
 	}
 
 	return obj->type;
