@@ -429,6 +429,7 @@ ucl_parser_free (struct ucl_parser *parser)
 	struct ucl_chunk *chunk, *ctmp;
 	struct ucl_pubkey *key, *ktmp;
 	struct ucl_variable *var, *vtmp;
+	ucl_object_t *tr, *trtmp;
 
 	if (parser == NULL) {
 		return;
@@ -456,6 +457,9 @@ ucl_parser_free (struct ucl_parser *parser)
 		free (var->value);
 		free (var->var);
 		UCL_FREE (sizeof (struct ucl_variable), var);
+	}
+	LL_FOREACH_SAFE (parser->trash_objs, tr, trtmp) {
+		ucl_object_unref (tr);
 	}
 
 	if (parser->err != NULL) {
