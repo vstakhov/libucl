@@ -1220,6 +1220,11 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
 			ucl_parser_append_elt (parser, container, tobj, nobj);
 		}
 		else if (priold > prinew) {
+			/*
+			 * We add this new object to a list of trash objects just to ensure
+			 * that it won't come to any real object
+			 * XXX: rather inefficient approach
+			 */
 			DL_APPEND (parser->trash_objs, nobj);
 		}
 		else {
@@ -2052,6 +2057,11 @@ ucl_state_machine (struct ucl_parser *parser)
 						macro->ud);
 				UCL_FREE (macro_len + 1, macro_escaped);
 			}
+
+			/*
+			 * Chunk can be modified within macro handler
+			 */
+			chunk = parser->chunks;
 			p = chunk->pos;
 			if (macro_args) {
 				ucl_object_unref (macro_args);
