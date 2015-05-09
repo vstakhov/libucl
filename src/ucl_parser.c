@@ -2234,12 +2234,13 @@ bool
 ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data,
 		size_t len)
 {
-	return ucl_parser_add_chunk_priority (parser, data, len, 0);
+	return ucl_parser_add_chunk_priority (parser, data, len,
+			UCL_DEFAULT_PRIORITY);
 }
 
 bool
-ucl_parser_add_string (struct ucl_parser *parser, const char *data,
-		size_t len)
+ucl_parser_add_string_priority (struct ucl_parser *parser, const char *data,
+		size_t len, unsigned priority)
 {
 	if (data == NULL) {
 		ucl_create_err (&parser->err, "invalid string added");
@@ -2249,5 +2250,14 @@ ucl_parser_add_string (struct ucl_parser *parser, const char *data,
 		len = strlen (data);
 	}
 
-	return ucl_parser_add_chunk (parser, (const unsigned char *)data, len);
+	return ucl_parser_add_chunk_priority (parser,
+			(const unsigned char *)data, len, priority);
+}
+
+bool
+ucl_parser_add_string (struct ucl_parser *parser, const char *data,
+		size_t len)
+{
+	return ucl_parser_add_string_priority (parser,
+			(const unsigned char *)data, len, UCL_DEFAULT_PRIORITY);
 }

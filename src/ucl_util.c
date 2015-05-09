@@ -1,4 +1,5 @@
 /* Copyright (c) 2013, Vsevolod Stakhov
+ * Copyright (c) 2015 Allan Jude <allanjude@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1172,7 +1173,8 @@ ucl_parser_set_filevars (struct ucl_parser *parser, const char *filename, bool n
 }
 
 UCL_EXTERN bool
-ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
+ucl_parser_add_file_priority (struct ucl_parser *parser, const char *filename,
+		unsigned priority)
 {
 	unsigned char *buf;
 	size_t len;
@@ -1195,7 +1197,7 @@ ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 	}
 	parser->cur_file = strdup (realbuf);
 	ucl_parser_set_filevars (parser, realbuf, false);
-	ret = ucl_parser_add_chunk (parser, buf, len);
+	ret = ucl_parser_add_chunk_priority (parser, buf, len, priority);
 
 	if (len > 0) {
 		ucl_munmap (buf, len);
@@ -1205,7 +1207,15 @@ ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 }
 
 UCL_EXTERN bool
-ucl_parser_add_fd (struct ucl_parser *parser, int fd)
+ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
+{
+	return ucl_parser_add_file_priority(parser, filename,
+			UCL_DEFAULT_PRIORITY);
+}
+
+UCL_EXTERN bool
+ucl_parser_add_fd_priority (struct ucl_parser *parser, int fd,
+		unsigned priority)
 {
 	unsigned char *buf;
 	size_t len;
@@ -1228,13 +1238,19 @@ ucl_parser_add_fd (struct ucl_parser *parser, int fd)
 	}
 	parser->cur_file = NULL;
 	len = st.st_size;
-	ret = ucl_parser_add_chunk (parser, buf, len);
+	ret = ucl_parser_add_chunk_priority (parser, buf, len, priority);
 
 	if (len > 0) {
 		ucl_munmap (buf, len);
 	}
 
 	return ret;
+}
+
+UCL_EXTERN bool
+ucl_parser_add_fd (struct ucl_parser *parser, int fd)
+{
+	return ucl_parser_add_fd_priority(parser, fd, UCL_DEFAULT_PRIORITY);
 }
 
 size_t

@@ -89,6 +89,8 @@ extern "C" {
 #define UCL_DEPRECATED(func) func
 #endif
 
+#define UCL_DEFAULT_PRIORITY 8
+
 /**
  * @defgroup structures Structures and types
  * UCL defines several enumeration types used for error reporting or specifying flags and attributes.
@@ -874,6 +876,19 @@ UCL_EXTERN bool ucl_parser_add_string (struct ucl_parser *parser,
 UCL_EXTERN bool ucl_parser_add_file (struct ucl_parser *parser,
 		const char *filename);
 
+
+/**
+ * Load and add data from a file
+ * @param parser parser structure
+ * @param filename the name of file
+ * @param err if *err is NULL it is set to parser error
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_file_priority (struct ucl_parser *parser,
+		const char *filename, unsigned priority);
+
 /**
  * Load and add data from a file descriptor
  * @param parser parser structure
@@ -883,6 +898,18 @@ UCL_EXTERN bool ucl_parser_add_file (struct ucl_parser *parser,
  */
 UCL_EXTERN bool ucl_parser_add_fd (struct ucl_parser *parser,
 		int fd);
+
+/**
+ * Load and add data from a file descriptor
+ * @param parser parser structure
+ * @param filename the name of file
+ * @param err if *err is NULL it is set to parser error
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_fd_priority (struct ucl_parser *parser,
+		int fd, unsigned priority);
 
 /**
  * Get a top object for a parser (refcount is increased)
