@@ -2153,6 +2153,21 @@ ucl_array_find_index (const ucl_object_t *top, unsigned int index)
 	return NULL;
 }
 
+unsigned int
+ucl_array_index_of (ucl_object_t *top, ucl_object_t *elt)
+{
+	UCL_ARRAY_GET (vec, top);
+	unsigned i;
+
+	for (i = 0; i < vec->n; i ++) {
+		if (kv_A (*vec, i) == elt) {
+			return i;
+		}
+	}
+
+	return NULL;
+}
+
 ucl_object_t *
 ucl_array_replace_index (ucl_object_t *top, ucl_object_t *elt,
 	unsigned int index)
