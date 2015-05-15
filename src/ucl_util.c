@@ -459,7 +459,7 @@ ucl_parser_free (struct ucl_parser *parser)
 		UCL_FREE (sizeof (struct ucl_variable), var);
 	}
 	LL_FOREACH_SAFE (parser->trash_objs, tr, trtmp) {
-		ucl_object_unref (tr);
+		ucl_object_free_internal (tr, false, ucl_object_dtor_free);
 	}
 
 	if (parser->err != NULL) {
@@ -483,7 +483,7 @@ ucl_parser_get_error(struct ucl_parser *parser)
 	if (parser->err == NULL)
 		return NULL;
 
-	return utstring_body(parser->err);
+	return utstring_body (parser->err);
 }
 
 UCL_EXTERN void
