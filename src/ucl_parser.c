@@ -981,14 +981,13 @@ ucl_parser_append_elt (struct ucl_parser *parser, ucl_hash_t *cont,
 		}
 		else {
 			/* Convert to an array */
-			ucl_hash_delete (cont, top);
 			nobj = ucl_object_typed_new (UCL_ARRAY);
 			nobj->key = top->key;
 			nobj->keylen = top->keylen;
 			nobj->flags |= UCL_OBJECT_MULTIVALUE;
 			ucl_array_append (nobj, top);
 			ucl_array_append (nobj, elt);
-			ucl_hash_insert (cont, nobj, nobj->key, nobj->keylen);
+			ucl_hash_replace (cont, top, nobj);
 		}
 	}
 }
