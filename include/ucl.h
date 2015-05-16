@@ -883,6 +883,18 @@ UCL_EXTERN bool ucl_parser_add_string (struct ucl_parser *parser,
 		const char *data,size_t len);
 
 /**
+ * Load ucl object from a string
+ * @param parser parser structure
+ * @param data the pointer to the string
+ * @param len the length of the string, if `len` is 0 then `data` must be zero-terminated string
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @return true if string has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_string_priority (struct ucl_parser *parser,
+		const char *data, size_t len, unsigned priority);
+
+/**
  * Load and add data from a file
  * @param parser parser structure
  * @param filename the name of file
@@ -893,6 +905,18 @@ UCL_EXTERN bool ucl_parser_add_file (struct ucl_parser *parser,
 		const char *filename);
 
 /**
+ * Load and add data from a file
+ * @param parser parser structure
+ * @param filename the name of file
+ * @param err if *err is NULL it is set to parser error
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_file_priority (struct ucl_parser *parser,
+		const char *filename, unsigned priority);
+
+/**
  * Load and add data from a file descriptor
  * @param parser parser structure
  * @param filename the name of file
@@ -901,6 +925,18 @@ UCL_EXTERN bool ucl_parser_add_file (struct ucl_parser *parser,
  */
 UCL_EXTERN bool ucl_parser_add_fd (struct ucl_parser *parser,
 		int fd);
+
+/**
+ * Load and add data from a file descriptor
+ * @param parser parser structure
+ * @param filename the name of file
+ * @param err if *err is NULL it is set to parser error
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_fd_priority (struct ucl_parser *parser,
+		int fd, unsigned priority);
 
 /**
  * Get a top object for a parser (refcount is increased)
