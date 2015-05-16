@@ -268,6 +268,17 @@ ucl_unescape_json_string (char *str, size_t len)
 	while (len) {
 		if (*h == '\\') {
 			h ++;
+
+			if (len == 1) {
+				/*
+				 * If \ is last, then do not try to go further
+				 * Issue: #74
+				 */
+				len --;
+				*t++ = '\\';
+				continue;
+			}
+
 			switch (*h) {
 			case 'n':
 				*t++ = '\n';
@@ -352,7 +363,10 @@ ucl_unescape_json_string (char *str, size_t len)
 		else {
 			*t++ = *h++;
 		}
-		len --;
+
+		if (len > 0) {
+			len --;
+		}
 	}
 	*t = '\0';
 
