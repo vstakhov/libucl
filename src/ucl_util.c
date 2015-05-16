@@ -1223,8 +1223,12 @@ ucl_parser_add_file_priority (struct ucl_parser *parser, const char *filename,
 UCL_EXTERN bool
 ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 {
+	if (parser == NULL) {
+		return false;
+	}
+
 	return ucl_parser_add_file_priority(parser, filename,
-			UCL_DEFAULT_PRIORITY);
+			parser->default_priority);
 }
 
 UCL_EXTERN bool
@@ -1264,7 +1268,11 @@ ucl_parser_add_fd_priority (struct ucl_parser *parser, int fd,
 UCL_EXTERN bool
 ucl_parser_add_fd (struct ucl_parser *parser, int fd)
 {
-	return ucl_parser_add_fd_priority(parser, fd, UCL_DEFAULT_PRIORITY);
+	if (parser == NULL) {
+		return false;
+	}
+
+	return ucl_parser_add_fd_priority(parser, fd, parser->default_priority);
 }
 
 size_t
