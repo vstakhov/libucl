@@ -501,7 +501,7 @@ UCL_EXTERN const ucl_object_t* ucl_array_find_index (const ucl_object_t *top,
  * Return the index of `elt` in the array `top`
  * @param top object to get a key from (must be of type UCL_ARRAY)
  * @param elt element to find index of (must NOT be NULL)
- * @return index of `elt` in the array `top or NULL if `elt` is not found
+ * @return index of `elt` in the array `top or (unsigned int)-1 if `elt` is not found
  */
 UCL_EXTERN unsigned int ucl_array_index_of (ucl_object_t *top,
 		ucl_object_t *elt);

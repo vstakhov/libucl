@@ -2165,7 +2165,7 @@ ucl_array_index_of (ucl_object_t *top, ucl_object_t *elt)
 		}
 	}
 
-	return NULL;
+	return (unsigned int)(-1);
 }
 
 ucl_object_t *
