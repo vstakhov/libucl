@@ -2076,13 +2076,22 @@ bool
 ucl_array_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 {
 	unsigned i;
+	ucl_object_t *cp = NULL;
 	ucl_object_t **obj;
-	UCL_ARRAY_GET (v1, top);
-	UCL_ARRAY_GET (v2, elt);
 
 	if (elt == NULL || top == NULL || top->type != UCL_ARRAY || elt->type != UCL_ARRAY) {
 		return false;
 	}
+
+	if (copy) {
+		cp = ucl_object_copy (elt);
+	}
+	else {
+		cp = ucl_object_ref (elt);
+	}
+
+	UCL_ARRAY_GET (v1, top);
+	UCL_ARRAY_GET (v2, cp);
 
 	kv_concat (ucl_object_t *, *v1, *v2);
 
@@ -2091,14 +2100,7 @@ ucl_array_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 		if (*obj == NULL) {
 			continue;
 		}
-
 		top->len ++;
-		if (copy) {
-			*obj = ucl_object_copy (*obj);
-		}
-		else {
-			ucl_object_ref (*obj);
-		}
 	}
 
 	return true;
