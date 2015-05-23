@@ -2096,6 +2096,7 @@ ucl_parser_new (int flags)
 	ucl_parser_register_macro (new, "include", ucl_include_handler, new);
 	ucl_parser_register_macro (new, "try_include", ucl_try_include_handler, new);
 	ucl_parser_register_macro (new, "includes", ucl_includes_handler, new);
+	ucl_parser_register_macro (new, "priority", ucl_priority_handler, new);
 
 	new->flags = flags;
 
