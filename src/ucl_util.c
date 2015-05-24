@@ -2635,6 +2635,9 @@ ucl_object_set_priority (ucl_object_t *obj,
 {
 	if (obj != NULL) {
 		priority &= (0x1 << PRIOBITS) - 1;
-		obj->flags |= priority << ((sizeof (obj->flags) * NBBY) - PRIOBITS);
+		priority <<= ((sizeof (obj->flags) * NBBY) - PRIOBITS);
+		priority |= obj->flags & ((1 << ((sizeof (obj->flags) * NBBY) -
+				PRIOBITS)) - 1);
+		obj->flags = priority;
 	}
 }
