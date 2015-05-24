@@ -1505,6 +1505,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 						}
 
 						obj->type = UCL_STRING;
+						obj->flags |= UCL_OBJECT_MULTILINE;
 						if ((str_len = ucl_copy_or_store_ptr (parser, c,
 								&obj->trash_stack[UCL_TRASH_VALUE],
 								&obj->value.sv, str_len - 1, false,
