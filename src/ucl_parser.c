@@ -67,6 +67,7 @@ ucl_set_err (struct ucl_parser *parser, int code, const char *str, UT_string **e
 	else {
 		filename = "<unknown>";
 	}
+
 	if (chunk->pos < chunk->end) {
 		if (isgraph (*chunk->pos)) {
 			fmt_string = "error while parsing %s: "
@@ -84,6 +85,8 @@ ucl_set_err (struct ucl_parser *parser, int code, const char *str, UT_string **e
 		ucl_create_err (err, "error while parsing %s: at the end of chunk: %s",
 			filename, str);
 	}
+
+	parser->err_code = code;
 }
 
 /**
@@ -513,7 +516,7 @@ ucl_copy_or_store_ptr (struct ucl_parser *parser,
 		/* Copy string */
 		*dst = UCL_ALLOC (in_len + 1);
 		if (*dst == NULL) {
-			ucl_set_err (parser, 0, "cannot allocate memory for a string",
+			ucl_set_err (parser, UCL_EINTERNAL, "cannot allocate memory for a string",
 					&parser->err);
 			return false;
 		}
@@ -585,7 +588,7 @@ ucl_add_parser_stack (ucl_object_t *obj, struct ucl_parser *parser, bool is_arra
 
 	st = UCL_ALLOC (sizeof (struct ucl_stack));
 	if (st == NULL) {
-		ucl_set_err (parser, 0, "cannot allocate memory for an object",
+		ucl_set_err (parser, UCL_EINTERNAL, "cannot allocate memory for an object",
 				&parser->err);
 		ucl_object_unref (obj);
 		return NULL;
@@ -877,7 +880,8 @@ ucl_lex_number (struct ucl_parser *parser,
 		return true;
 	}
 	else if (ret == ERANGE) {
-		ucl_set_err (parser, ERANGE, "numeric value out of range", &parser->err);
+		ucl_set_err (parser, UCL_ESYNTAX, "numeric value out of range",
+				&parser->err);
 	}
 
 	return false;
@@ -1553,7 +1557,7 @@ parse_string:
 			}
 			str_len = chunk->pos - c - stripped_spaces;
 			if (str_len <= 0) {
-				ucl_set_err (parser, 0, "string value must not be empty",
+				ucl_set_err (parser, UCL_ESYNTAX, "string value must not be empty",
 						&parser->err);
 				return false;
 			}

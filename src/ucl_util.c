@@ -495,10 +495,41 @@ ucl_parser_get_error(struct ucl_parser *parser)
 		return NULL;
 	}
 
-	if (parser->err == NULL)
+	if (parser->err == NULL) {
 		return NULL;
+	}
 
 	return utstring_body (parser->err);
+}
+
+UCL_EXTERN int
+ucl_parser_get_error_code(struct ucl_parser *parser)
+{
+	if (parser == NULL) {
+		return 0;
+	}
+
+	return parser->err_code;
+}
+
+UCL_EXTERN unsigned
+ucl_parser_get_column(struct ucl_parser *parser)
+{
+	if (parser == NULL || parser->chunks == NULL) {
+		return 0;
+	}
+
+	return parser->chunks->column;
+}
+
+UCL_EXTERN unsigned
+ucl_parser_get_linenum(struct ucl_parser *parser)
+{
+	if (parser == NULL || parser->chunks == NULL) {
+		return 0;
+	}
+
+	return parser->chunks->column;
 }
 
 UCL_EXTERN void
@@ -507,6 +538,7 @@ ucl_parser_clear_error(struct ucl_parser *parser)
 	if (parser != NULL && parser->err != NULL) {
 		utstring_free(parser->err);
 		parser->err = NULL;
+		parser->err_code = 0;
 	}
 }
 

@@ -192,6 +192,7 @@ struct ucl_parser {
 	unsigned int recursion;
 	int flags;
 	unsigned default_priority;
+	int err_code;
 	ucl_object_t *top_obj;
 	ucl_object_t *cur_obj;
 	ucl_object_t *trash_objs;

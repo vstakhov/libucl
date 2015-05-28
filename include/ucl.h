@@ -947,10 +947,32 @@ UCL_EXTERN bool ucl_parser_add_fd_priority (struct ucl_parser *parser,
 UCL_EXTERN ucl_object_t* ucl_parser_get_object (struct ucl_parser *parser);
 
 /**
- * Get the error string if failing
+ * Get the error string if parsing has been failed
  * @param parser parser object
+ * @return error description
  */
 UCL_EXTERN const char *ucl_parser_get_error(struct ucl_parser *parser);
+
+/**
+ * Get the code of the last error
+ * @param parser parser object
+ * @return error code
+ */
+UCL_EXTERN int ucl_parser_get_error_code(struct ucl_parser *parser);
+
+/**
+ * Get the current column number within parser
+ * @param parser parser object
+ * @return current column number
+ */
+UCL_EXTERN unsigned ucl_parser_get_column(struct ucl_parser *parser);
+
+/**
+ * Get the current line number within parser
+ * @param parser parser object
+ * @return current line number
+ */
+UCL_EXTERN unsigned ucl_parser_get_linenum(struct ucl_parser *parser);
 
 /**
  * Clear the error in the parser
