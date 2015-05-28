@@ -426,7 +426,7 @@ ucl_copy_value_trash (const ucl_object_t *obj)
 	return obj->trash_stack[UCL_TRASH_VALUE];
 }
 
-UCL_EXTERN ucl_object_t*
+ucl_object_t*
 ucl_parser_get_object (struct ucl_parser *parser)
 {
 	if (parser->state != UCL_STATE_ERROR && parser->top_obj != NULL) {
@@ -436,7 +436,7 @@ ucl_parser_get_object (struct ucl_parser *parser)
 	return NULL;
 }
 
-UCL_EXTERN void
+void
 ucl_parser_free (struct ucl_parser *parser)
 {
 	struct ucl_stack *stack, *stmp;
@@ -488,7 +488,7 @@ ucl_parser_free (struct ucl_parser *parser)
 	UCL_FREE (sizeof (struct ucl_parser), parser);
 }
 
-UCL_EXTERN const char *
+const char *
 ucl_parser_get_error(struct ucl_parser *parser)
 {
 	if (parser == NULL) {
@@ -502,7 +502,7 @@ ucl_parser_get_error(struct ucl_parser *parser)
 	return utstring_body (parser->err);
 }
 
-UCL_EXTERN int
+int
 ucl_parser_get_error_code(struct ucl_parser *parser)
 {
 	if (parser == NULL) {
@@ -512,7 +512,7 @@ ucl_parser_get_error_code(struct ucl_parser *parser)
 	return parser->err_code;
 }
 
-UCL_EXTERN unsigned
+unsigned
 ucl_parser_get_column(struct ucl_parser *parser)
 {
 	if (parser == NULL || parser->chunks == NULL) {
@@ -522,7 +522,7 @@ ucl_parser_get_column(struct ucl_parser *parser)
 	return parser->chunks->column;
 }
 
-UCL_EXTERN unsigned
+unsigned
 ucl_parser_get_linenum(struct ucl_parser *parser)
 {
 	if (parser == NULL || parser->chunks == NULL) {
@@ -532,7 +532,7 @@ ucl_parser_get_linenum(struct ucl_parser *parser)
 	return parser->chunks->column;
 }
 
-UCL_EXTERN void
+void
 ucl_parser_clear_error(struct ucl_parser *parser)
 {
 	if (parser != NULL && parser->err != NULL) {
@@ -542,7 +542,7 @@ ucl_parser_clear_error(struct ucl_parser *parser)
 	}
 }
 
-UCL_EXTERN bool
+bool
 ucl_pubkey_add (struct ucl_parser *parser, const unsigned char *key, size_t len)
 {
 #ifndef HAVE_OPENSSL
@@ -1152,7 +1152,7 @@ ucl_include_common (const unsigned char *data, size_t len,
  * @param err error ptr
  * @return
  */
-UCL_EXTERN bool
+bool
 ucl_include_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, void* ud)
 {
@@ -1169,7 +1169,7 @@ ucl_include_handler (const unsigned char *data, size_t len,
  * @param err error ptr
  * @return
  */
-UCL_EXTERN bool
+bool
 ucl_includes_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, void* ud)
 {
@@ -1179,7 +1179,7 @@ ucl_includes_handler (const unsigned char *data, size_t len,
 }
 
 
-UCL_EXTERN bool
+bool
 ucl_try_include_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, void* ud)
 {
@@ -1188,7 +1188,7 @@ ucl_try_include_handler (const unsigned char *data, size_t len,
 	return ucl_include_common (data, len, args, parser, true, false);
 }
 
-UCL_EXTERN bool
+bool
 ucl_parser_set_filevars (struct ucl_parser *parser, const char *filename, bool need_expand)
 {
 	char realbuf[PATH_MAX], *curdir;
@@ -1218,7 +1218,7 @@ ucl_parser_set_filevars (struct ucl_parser *parser, const char *filename, bool n
 	return true;
 }
 
-UCL_EXTERN bool
+bool
 ucl_parser_add_file_priority (struct ucl_parser *parser, const char *filename,
 		unsigned priority)
 {
@@ -1252,7 +1252,7 @@ ucl_parser_add_file_priority (struct ucl_parser *parser, const char *filename,
 	return ret;
 }
 
-UCL_EXTERN bool
+bool
 ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 {
 	if (parser == NULL) {
@@ -1263,7 +1263,7 @@ ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 			parser->default_priority);
 }
 
-UCL_EXTERN bool
+bool
 ucl_parser_add_fd_priority (struct ucl_parser *parser, int fd,
 		unsigned priority)
 {
@@ -1297,7 +1297,7 @@ ucl_parser_add_fd_priority (struct ucl_parser *parser, int fd,
 	return ret;
 }
 
-UCL_EXTERN bool
+bool
 ucl_parser_add_fd (struct ucl_parser *parser, int fd)
 {
 	if (parser == NULL) {
