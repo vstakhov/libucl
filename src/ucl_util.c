@@ -1041,7 +1041,8 @@ ucl_include_file (const unsigned char *data, size_t len,
 		if (need_glob) {
 			glob_t globbuf;
 			memset (&globbuf, 0, sizeof (globbuf));
-			ucl_strlcpy (glob_pattern, (const char *)data, sizeof (glob_pattern));
+			ucl_strlcpy (glob_pattern, (const char *)data,
+				(len + 1 < sizeof (glob_pattern) ? len + 1 : sizeof (glob_pattern)));
 			if (glob (glob_pattern, 0, NULL, &globbuf) != 0) {
 				return (!must_exist || false);
 			}
