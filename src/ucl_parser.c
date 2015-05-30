@@ -861,6 +861,7 @@ set_obj:
  * Parse possible number
  * @param parser
  * @param chunk
+ * @param obj
  * @return true if a number has been parsed
  */
 static bool
@@ -891,6 +892,9 @@ ucl_lex_number (struct ucl_parser *parser,
  * Parse quoted string with possible escapes
  * @param parser
  * @param chunk
+ * @param need_unescape
+ * @param ucl_escape
+ * @param var_expand
  * @return true if a string has been parsed
  */
 static bool
@@ -1000,6 +1004,8 @@ ucl_parser_append_elt (struct ucl_parser *parser, ucl_hash_t *cont,
  * Parse a key in an object
  * @param parser
  * @param chunk
+ * @param next_key
+ * @param end_of_object
  * @return true if a key has been parsed
  */
 static bool
@@ -1250,6 +1256,8 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
  * Parse a cl string
  * @param parser
  * @param chunk
+ * @param var_expand
+ * @param need_unescape
  * @return true if a key has been parsed
  */
 static bool
@@ -1319,6 +1327,8 @@ ucl_parse_string_value (struct ucl_parser *parser,
  * @param chunk
  * @param term
  * @param term_len
+ * @param beg
+ * @param var_expand
  * @return size of multiline string or 0 in case of error
  */
 static int
@@ -1680,6 +1690,9 @@ ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
  * Handle macro data
  * @param parser
  * @param chunk
+ * @param marco
+ * @param macro_start
+ * @param macro_len
  * @return
  */
 static bool
@@ -1870,8 +1883,6 @@ restore_chunk:
 /**
  * Handle the main states of rcl parser
  * @param parser parser structure
- * @param data the pointer to the beginning of a chunk
- * @param len the length of a chunk
  * @return true if chunk has been parsed and false in case of error
  */
 static bool
