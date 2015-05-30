@@ -529,7 +529,7 @@ ucl_parser_get_linenum(struct ucl_parser *parser)
 		return 0;
 	}
 
-	return parser->chunks->column;
+	return parser->chunks->line;
 }
 
 void
