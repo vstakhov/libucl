@@ -244,6 +244,9 @@ bool ucl_try_include_handler (const unsigned char *data, size_t len,
 bool ucl_includes_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, void* ud);
 
+void ucl_resolve_priority (struct ucl_parser *parser, ucl_hash_t *container,
+		ucl_object_t *old_obj, ucl_object_t *new_obj);
+
 size_t ucl_strlcpy (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_unsafe (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_tolower (char *dst, const char *src, size_t siz);
