@@ -1143,7 +1143,7 @@ ucl_include_common (const unsigned char *data, size_t len,
 			}
 			else if (param->type == UCL_ARRAY) {
 				if (strcmp (param->key, "path") == 0) {
-					ucl_set_include_path(parser, param);
+					ucl_set_include_path (parser, param);
 				}
 			}
 			else if (param->type == UCL_INT) {
@@ -1155,7 +1155,7 @@ ucl_include_common (const unsigned char *data, size_t len,
 	}
 
 	if (parser->includepaths == NULL) {
-		if (allow_url && strnstr(data, "://", len) != NULL) {
+		if (allow_url && ucl_strnstr(data, "://", len) != NULL) {
 			/* Globbing is not used for URL's */
 			return ucl_include_url (data, len, parser, need_sign,
 					!try_load, priority);
@@ -1167,7 +1167,7 @@ ucl_include_common (const unsigned char *data, size_t len,
 		}
 	}
 	else {
-		if (allow_url && strnstr(data, "://", len) != NULL) {
+		if (allow_url && ucl_strnstr(data, "://", len) != NULL) {
 			/* Globbing is not used for URL's */
 			return ucl_include_url (data, len, parser, need_sign,
 					!try_load, priority);
@@ -1417,6 +1417,51 @@ ucl_strlcpy_tolower (char *dst, const char *src, size_t siz)
 	}
 
 	return (s - src);    /* count does not include NUL */
+}
+
+/*
+ * Find the first occurrence of find in s
+ */
+char *
+ucl_strnstr (const char *s, const char *find, int len)
+{
+	char c, sc;
+	int mlen;
+
+	if ((c = *find++) != 0) {
+		mlen = strlen (find);
+		do {
+			do {
+				if ((sc = *s++) == 0 || len-- == 0)
+					return (NULL);
+			} while (sc != c);
+		} while (ucl_strncmp (s, find, mlen) != 0);
+		s--;
+	}
+	return ((char *)s);
+}
+
+/*
+ * Find the first occurrence of find in s, ignore case.
+ */
+char *
+ucl_strncasestr (const char *s, const char *find, int len)
+{
+	char c, sc;
+	int mlen;
+
+	if ((c = *find++) != 0) {
+		c = tolower (c);
+		mlen = strlen (find);
+		do {
+			do {
+				if ((sc = *s++) == 0 || len-- == 0)
+					return (NULL);
+			} while (tolower (sc) != c);
+		} while (ucl_strncasecmp (s, find, mlen) != 0);
+		s--;
+	}
+	return ((char *)s);
 }
 
 ucl_object_t *

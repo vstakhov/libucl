@@ -2310,11 +2310,11 @@ ucl_set_include_path (struct ucl_parser *parser, ucl_object_t *paths)
 	}
 
 	if (parser->includepaths == NULL) {
-		parser->includepaths = ucl_object_copy(paths);
+		parser->includepaths = ucl_object_copy (paths);
 	}
 	else {
 		ucl_object_unref (parser->includepaths);
-		parser->includepaths = ucl_object_copy(paths);
+		parser->includepaths = ucl_object_copy (paths);
 	}
 
 	if (parser->includepaths == NULL) {

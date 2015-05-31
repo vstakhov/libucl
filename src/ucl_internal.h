@@ -249,6 +249,8 @@ size_t ucl_strlcpy (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_unsafe (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_tolower (char *dst, const char *src, size_t siz);
 
+char *ucl_strnstr (const char *s, const char *find, int len);
+char *ucl_strncasestr (const char *s, const char *find, int len);
 
 #ifdef __GNUC__
 static inline void
