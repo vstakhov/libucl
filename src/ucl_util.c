@@ -454,6 +454,10 @@ ucl_parser_free (struct ucl_parser *parser)
 		ucl_object_unref (parser->top_obj);
 	}
 
+	if (parser->includepaths != NULL) {
+		ucl_object_unref (parser->includepaths);
+	}
+
 	LL_FOREACH_SAFE (parser->stack, stack, stmp) {
 		free (stack);
 	}
@@ -875,7 +879,7 @@ ucl_include_url (const unsigned char *data, size_t len,
 static bool
 ucl_include_file_single (const unsigned char *data, size_t len,
 		struct ucl_parser *parser, bool check_signature, bool must_exist,
-		unsigned priority)
+		bool soft_fail, unsigned priority)
 {
 	bool res;
 	struct ucl_chunk *chunk;
@@ -889,6 +893,9 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 
 	snprintf (filebuf, sizeof (filebuf), "%.*s", (int)len, data);
 	if (ucl_realpath (filebuf, realbuf) == NULL) {
+		if (soft_fail) {
+			return false;
+		}
 		if (!must_exist) {
 			return true;
 		}
@@ -900,12 +907,18 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 
 	if (parser->cur_file && strcmp (realbuf, parser->cur_file) == 0) {
 		/* We are likely including the file itself */
+		if (soft_fail) {
+			return false;
+		}
 		ucl_create_err (&parser->err, "trying to include the file %s from itself",
 				realbuf);
 		return false;
 	}
 
 	if (!ucl_fetch_file (realbuf, &buf, &buflen, &parser->err, must_exist)) {
+		if (soft_fail) {
+			return false;
+		}
 		return (!must_exist || false);
 	}
 
@@ -1016,7 +1029,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 static bool
 ucl_include_file (const unsigned char *data, size_t len,
 		struct ucl_parser *parser, bool check_signature, bool must_exist,
-		bool allow_glob, unsigned priority)
+		bool allow_glob, bool soft_fail, unsigned priority)
 {
 	const unsigned char *p = data, *end = data + len;
 	bool need_glob = false;
@@ -1027,7 +1040,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 #ifndef _WIN32
 	if (!allow_glob) {
 		return ucl_include_file_single (data, len, parser, check_signature,
-			must_exist, priority);
+			must_exist, soft_fail, priority);
 	}
 	else {
 		/* Check for special symbols in a filename */
@@ -1049,7 +1062,10 @@ ucl_include_file (const unsigned char *data, size_t len,
 			for (i = 0; i < globbuf.gl_pathc; i ++) {
 				if (!ucl_include_file_single ((unsigned char *)globbuf.gl_pathv[i],
 						strlen (globbuf.gl_pathv[i]), parser, check_signature,
-						must_exist, priority)) {
+						must_exist, soft_fail, priority)) {
+					if (soft_fail) {
+						continue;
+					}
 					globfree (&globbuf);
 					return false;
 				}
@@ -1065,14 +1081,14 @@ ucl_include_file (const unsigned char *data, size_t len,
 		}
 		else {
 			return ucl_include_file_single (data, len, parser, check_signature,
-				must_exist, priority);
+				must_exist, soft_fail, priority);
 		}
 	}
 #else
 	/* Win32 compilers do not support globbing. Therefore, for Win32,
 	   treat allow_glob/need_glob as a NOOP and just return */
 	return ucl_include_file_single (data, len, parser, check_signature,
-		must_exist, priority);
+		must_exist, soft_fail, priority);
 #endif
 	
 	return true;
@@ -1094,10 +1110,11 @@ ucl_include_common (const unsigned char *data, size_t len,
 		bool default_try,
 		bool default_sign)
 {
-	bool try_load, allow_glob, allow_url, need_sign;
+	bool try_load, allow_glob, allow_url, need_sign, search;
 	unsigned priority;
 	const ucl_object_t *param;
-	ucl_object_iter_t it = NULL;
+	ucl_object_iter_t it = NULL, ip = NULL;
+	char ipath[PATH_MAX];
 
 	/* Default values */
 	try_load = default_try;
@@ -1105,6 +1122,7 @@ ucl_include_common (const unsigned char *data, size_t len,
 	allow_url = true;
 	need_sign = default_sign;
 	priority = 0;
+	search = false;
 
 	/* Process arguments */
 	if (args != NULL && args->type == UCL_OBJECT) {
@@ -1123,6 +1141,11 @@ ucl_include_common (const unsigned char *data, size_t len,
 					allow_url =  ucl_object_toboolean (param);
 				}
 			}
+			else if (param->type == UCL_ARRAY) {
+				if (strcmp (param->key, "path") == 0) {
+					ucl_set_include_path(parser, param);
+				}
+			}
 			else if (param->type == UCL_INT) {
 				if (strcmp (param->key, "priority") == 0) {
 					priority = ucl_object_toint (param);
@@ -1131,15 +1154,48 @@ ucl_include_common (const unsigned char *data, size_t len,
 		}
 	}
 
-	if (*data == '/' || *data == '.') {
-		/* Try to load a file */
-		return ucl_include_file (data, len, parser, need_sign, !try_load,
-				allow_glob, priority);
+	if (parser->includepaths == NULL) {
+		if (allow_url && strnstr(data, "://", len) != NULL) {
+			/* Globbing is not used for URL's */
+			return ucl_include_url (data, len, parser, need_sign,
+					!try_load, priority);
+		}
+		else if (data != NULL) {
+			/* Try to load a file */
+			return ucl_include_file (data, len, parser, need_sign, !try_load,
+					allow_glob, false, priority);
+		}
 	}
-	else if (allow_url) {
-		/* Globbing is not used for URL's */
-		return ucl_include_url (data, len, parser, need_sign, !try_load,
-				priority);
+	else {
+		if (allow_url && strnstr(data, "://", len) != NULL) {
+			/* Globbing is not used for URL's */
+			return ucl_include_url (data, len, parser, need_sign,
+					!try_load, priority);
+		}
+
+		ip = ucl_object_iterate_new (parser->includepaths);
+		while ((param = ucl_object_iterate_safe (ip, true)) != NULL) {
+			if (ucl_object_type(param) == UCL_STRING) {
+				snprintf (ipath, sizeof (ipath), "%s/%.*s", ucl_object_tostring(param),
+						(int)len, data);
+				if ((search = ucl_include_file (ipath, strlen(ipath), parser, need_sign,
+						!try_load, allow_glob, true, priority))) {
+					if (!allow_glob) {
+						break;
+					}
+				}
+			}
+		}
+		ucl_object_iterate_free (ip);
+		if (search == true) {
+			return true;
+		}
+		else {
+			ucl_create_err (&parser->err,
+					"cannot find file: %.*s in search path",
+					(int)len, data);
+			return false;
+		}
 	}
 
 	return false;
