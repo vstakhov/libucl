@@ -262,6 +262,8 @@ parser is created but before any configurations are parsed.
 all files that matches the specified pattern (normally the format of patterns is defined in `glob` manual page
 for your operating system). This option is meaningless for URL includes.
 * `url` (default: **true**) - allow URL includes.
+* `path` (default: empty) - A UCL_ARRAY of directories to search for the include file.
+Search ends after the first patch, unless `glob` is true, then all matches are included.
 * `priority` (default: 0) - specify priority for the include (see below).
 
 Priorities are used by UCL parser to manage the policy of objects rewriting during including other files
