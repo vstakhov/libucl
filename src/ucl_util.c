@@ -1128,26 +1128,26 @@ ucl_include_common (const unsigned char *data, size_t len,
 	if (args != NULL && args->type == UCL_OBJECT) {
 		while ((param = ucl_iterate_object (args, &it, true)) != NULL) {
 			if (param->type == UCL_BOOLEAN) {
-				if (strcmp (param->key, "try") == 0) {
+				if (strncmp (param->key, "try", param->keylen) == 0) {
 					try_load = ucl_object_toboolean (param);
 				}
-				else if (strcmp (param->key, "sign") == 0) {
+				else if (strncmp (param->key, "sign", param->keylen) == 0) {
 					need_sign = ucl_object_toboolean (param);
 				}
-				else if (strcmp (param->key, "glob") == 0) {
+				else if (strncmp (param->key, "glob", param->keylen) == 0) {
 					allow_glob =  ucl_object_toboolean (param);
 				}
-				else if (strcmp (param->key, "url") == 0) {
+				else if (strncmp (param->key, "url", param->keylen) == 0) {
 					allow_url =  ucl_object_toboolean (param);
 				}
 			}
 			else if (param->type == UCL_ARRAY) {
-				if (strcmp (param->key, "path") == 0) {
-					ucl_set_include_path (parser, param);
+				if (strncmp (param->key, "path", param->keylen) == 0) {
+					ucl_set_include_path (parser, __DECONST(ucl_object_t *, param));
 				}
 			}
 			else if (param->type == UCL_INT) {
-				if (strcmp (param->key, "priority") == 0) {
+				if (strncmp (param->key, "priority", param->keylen) == 0) {
 					priority = ucl_object_toint (param);
 				}
 			}
@@ -1435,7 +1435,7 @@ ucl_strnstr (const char *s, const char *find, int len)
 				if ((sc = *s++) == 0 || len-- == 0)
 					return (NULL);
 			} while (sc != c);
-		} while (ucl_strncmp (s, find, mlen) != 0);
+		} while (strncmp (s, find, mlen) != 0);
 		s--;
 	}
 	return ((char *)s);
@@ -1458,7 +1458,7 @@ ucl_strncasestr (const char *s, const char *find, int len)
 				if ((sc = *s++) == 0 || len-- == 0)
 					return (NULL);
 			} while (tolower (sc) != c);
-		} while (ucl_strncasecmp (s, find, mlen) != 0);
+		} while (strncasecmp (s, find, mlen) != 0);
 		s--;
 	}
 	return ((char *)s);
