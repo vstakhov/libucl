@@ -802,7 +802,7 @@ ucl_sig_check (const unsigned char *data, size_t datalen,
 static bool
 ucl_include_url (const unsigned char *data, size_t len,
 		struct ucl_parser *parser, bool check_signature, bool must_exist,
-		char *nestkey, unsigned priority)
+		bool nested, const char *nestkey, const char *target, unsigned priority)
 {
 
 	bool res;
@@ -875,7 +875,7 @@ ucl_include_url (const unsigned char *data, size_t len,
 static bool
 ucl_include_file_single (const unsigned char *data, size_t len,
 		struct ucl_parser *parser, bool check_signature, bool must_exist,
-		char *nestkey, unsigned priority)
+		bool nested, const char *nestkey, const char *target, unsigned priority)
 {
 	bool res;
 	struct ucl_chunk *chunk;
@@ -886,7 +886,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 	int prev_state;
 	struct ucl_variable *cur_var, *tmp_var, *old_curdir = NULL,
 			*old_filename = NULL;
-	ucl_object_t *nest_obj, *old_obj;
+	ucl_object_t *nest_obj = NULL, *old_obj = NULL;
 	ucl_hash_t *container = NULL;
 	struct ucl_stack *st = NULL;
 
@@ -956,53 +956,95 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 	prev_state = parser->state;
 	parser->state = UCL_STATE_INIT;
 
-	if (nestkey != NULL) {
-		if (*nestkey == '\0') {
-			/* Auto generate a key name based on the included filename */
-			nestkey = basename(realbuf);
-			ext = strrchr(nestkey, '.');
-			if (strcmp(ext, ".conf") == 0 || strcmp(ext, ".ucl") == 0) {
-				/* Strip off .conf or .ucl */
-				*ext = '\0';
-			}
+	if (nested && nestkey == NULL) {
+		/* Auto generate a key name based on the included filename */
+		nestkey = basename(realbuf);
+		ext = strrchr(nestkey, '.');
+		if (strcmp(ext, ".conf") == 0 || strcmp(ext, ".ucl") == 0) {
+			/* Strip off .conf or .ucl */
+			*ext = '\0';
 		}
+	}
+	if (nestkey != NULL) {
 		/* This is a nested include */
 		container = parser->stack->obj->value.ov;
 
-		/* Create an object with key: nested */
-		nest_obj = ucl_object_new_full (UCL_OBJECT, priority);
-		nest_obj->key = nestkey;
-		nest_obj->keylen = strlen(nestkey);
-		ucl_copy_key_trash(nest_obj);
-		old_obj = __DECONST (ucl_object_t *, ucl_hash_search_obj (container, nest_obj));
+		old_obj = __DECONST (ucl_object_t *, ucl_hash_search (container, nestkey, strlen(nestkey)));
 
-		if (old_obj == NULL) {
-			container = ucl_hash_insert_object (container, nest_obj,
+		if (strcmp(target, "array") == 0 && old_obj == NULL) {
+			/* Create an array with key: nested */
+			old_obj = ucl_object_new_full (UCL_ARRAY, priority);
+			old_obj->key = nestkey;
+			old_obj->keylen = strlen(nestkey);
+			ucl_copy_key_trash(old_obj);
+			old_obj->prev = old_obj;
+			old_obj->next = NULL;
+
+			container = ucl_hash_insert_object (container, old_obj,
 					parser->flags & UCL_PARSER_KEY_LOWERCASE);
+			parser->stack->obj->len ++;
+
+			nest_obj = ucl_object_new_full (UCL_OBJECT, priority);
 			nest_obj->prev = nest_obj;
 			nest_obj->next = NULL;
+
+			ucl_array_append(old_obj, nest_obj);
+		}
+		else if (old_obj == NULL) {
+			/* Create an object with key: nested */
+			nest_obj = ucl_object_new_full (UCL_OBJECT, priority);
+			nest_obj->key = nestkey;
+			nest_obj->keylen = strlen(nestkey);
+			ucl_copy_key_trash(nest_obj);
+			nest_obj->prev = nest_obj;
+			nest_obj->next = NULL;
+
+			container = ucl_hash_insert_object (container, nest_obj,
+					parser->flags & UCL_PARSER_KEY_LOWERCASE);
 			parser->stack->obj->len ++;
-		} else {
-			/*
-			 * XXX TODO
-			 * Not sure we should use DL_APPEND here.
-			 * User more likely wants 1 object, rather than an array
-			 */
-			ucl_resolve_priority (parser, container, old_obj, nest_obj);
+		}
+		else if (strcmp(target, "array") == 0 || ucl_object_type(old_obj) == UCL_ARRAY) {
+			if (ucl_object_type(old_obj) == UCL_ARRAY) {
+				/* Append to the existing array */
+				nest_obj = ucl_object_new_full (UCL_OBJECT, priority);
+				nest_obj->prev = nest_obj;
+				nest_obj->next = NULL;
+	
+				ucl_array_append (old_obj, nest_obj);
+			}
+			else {
+				/* Convert the object to an array */
+			}
+		}
+		else {
+			if (ucl_object_type(old_obj) == UCL_OBJECT) {
+				/* Append to existing Object*/
+				nest_obj = old_obj;
+			}
+			else {
+				/* The key is not an object */
+				ucl_create_err (&parser->err,
+						"Conflicting type for key: %s",
+						nestkey);
+				return false;
+			}
 		}
 
 		 /* Put all of the content of the include inside that object */
 		parser->stack->obj->value.ov = container;
-		st = UCL_ALLOC (sizeof (struct ucl_stack));
-		if (st == NULL) {
-			ucl_create_err (&parser->err, "cannot allocate memory for an object");
-			ucl_object_unref (nest_obj);
-			return NULL;
+
+		if (nest_obj != NULL) {
+			st = UCL_ALLOC (sizeof (struct ucl_stack));
+			if (st == NULL) {
+				ucl_create_err (&parser->err, "cannot allocate memory for an object");
+				ucl_object_unref (nest_obj);
+				return NULL;
+			}
+			st->obj = nest_obj;
+			st->level = parser->stack->level;
+			LL_PREPEND (parser->stack, st);
+			parser->cur_obj = nest_obj;
 		}
-		st->obj = nest_obj;
-		st->level = parser->stack->level;
-		LL_PREPEND (parser->stack, st);
-		parser->cur_obj = nest_obj;
 	}
 
 	res = ucl_parser_add_chunk_priority (parser, buf, buflen, priority);
@@ -1014,7 +1056,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 	}
 
 	/* Stop nesting the include, take 1 level off the stack */
-	if (nestkey != NULL) {
+	if (nestkey != NULL && nest_obj != NULL) {
 		parser->stack = st->next;
 		UCL_FREE (sizeof (struct ucl_stack), st);
 	}
@@ -1074,7 +1116,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 static bool
 ucl_include_file (const unsigned char *data, size_t len,
 		struct ucl_parser *parser, bool check_signature, bool must_exist,
-		bool allow_glob, char *nestkey, unsigned priority)
+		bool allow_glob, bool nested, const char *nestkey, const char *target, unsigned priority)
 {
 	const unsigned char *p = data, *end = data + len;
 	bool need_glob = false;
@@ -1085,7 +1127,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 #ifndef _WIN32
 	if (!allow_glob) {
 		return ucl_include_file_single (data, len, parser, check_signature,
-			must_exist, nestkey, priority);
+			must_exist, nested, nestkey, target, priority);
 	}
 	else {
 		/* Check for special symbols in a filename */
@@ -1107,7 +1149,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 			for (i = 0; i < globbuf.gl_pathc; i ++) {
 				if (!ucl_include_file_single ((unsigned char *)globbuf.gl_pathv[i],
 						strlen (globbuf.gl_pathv[i]), parser, check_signature,
-						must_exist, nestkey, priority)) {
+						must_exist, nested, nestkey, target, priority)) {
 					globfree (&globbuf);
 					return false;
 				}
@@ -1123,14 +1165,14 @@ ucl_include_file (const unsigned char *data, size_t len,
 		}
 		else {
 			return ucl_include_file_single (data, len, parser, check_signature,
-				must_exist, nestkey, priority);
+				must_exist, nested, nestkey, target, priority);
 		}
 	}
 #else
 	/* Win32 compilers do not support globbing. Therefore, for Win32,
 	   treat allow_glob/need_glob as a NOOP and just return */
 	return ucl_include_file_single (data, len, parser, check_signature,
-		must_exist, nestkey, priority);
+		must_exist, nested, nestkey, target, priority);
 #endif
 	
 	return true;
@@ -1153,7 +1195,7 @@ ucl_include_common (const unsigned char *data, size_t len,
 		bool default_sign)
 {
 	bool try_load, allow_glob, allow_url, need_sign, nested;
-	char *nestkey;
+	const char *nestkey, *target;
 	unsigned priority;
 	const ucl_object_t *param;
 	ucl_object_iter_t it = NULL;
@@ -1165,6 +1207,7 @@ ucl_include_common (const unsigned char *data, size_t len,
 	need_sign = default_sign;
 	nested = false;
 	nestkey = NULL;
+	target = "object";
 	priority = 0;
 
 	/* Process arguments */
@@ -1188,8 +1231,11 @@ ucl_include_common (const unsigned char *data, size_t len,
 				}
 			}
 			else if (param->type == UCL_STRING) {
-				if (strcmp (param->key, "nestkey") == 0) {
-					nestkey = strdup(ucl_object_tostring (param));
+				if (strcmp (param->key, "key") == 0) {
+					nestkey = ucl_object_tostring (param);
+				}
+				else if (strcmp (param->key, "target") == 0) {
+					target = ucl_object_tostring (param);
 				}
 			}
 			else if (param->type == UCL_INT) {
@@ -1200,19 +1246,15 @@ ucl_include_common (const unsigned char *data, size_t len,
 		}
 	}
 
-	if (nested == true && nestkey == NULL) {
-		nestkey = "";
-	}
-
 	if (*data == '/' || *data == '.') {
 		/* Try to load a file */
 		return ucl_include_file (data, len, parser, need_sign, !try_load,
-				allow_glob, nestkey, priority);
+				allow_glob, nested, nestkey, target, priority);
 	}
 	else if (allow_url) {
 		/* Globbing is not used for URL's */
 		return ucl_include_url (data, len, parser, need_sign, !try_load,
-				nestkey, priority);
+				nested, nestkey, target, priority);
 	}
 
 	return false;
