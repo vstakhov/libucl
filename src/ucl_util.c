@@ -1149,8 +1149,8 @@ ucl_include_common (const unsigned char *data, size_t len,
  * Handle include macro
  * @param data include data
  * @param len length of data
+ * @param args UCL object representing arguments to the macro
  * @param ud user data
- * @param err error ptr
  * @return
  */
 bool
@@ -1166,8 +1166,8 @@ ucl_include_handler (const unsigned char *data, size_t len,
  * Handle includes macro
  * @param data include data
  * @param len length of data
+ * @param args UCL object representing arguments to the macro
  * @param ud user data
- * @param err error ptr
  * @return
  */
 bool
@@ -1179,7 +1179,14 @@ ucl_includes_handler (const unsigned char *data, size_t len,
 	return ucl_include_common (data, len, args, parser, false, true);
 }
 
-
+/**
+ * Handle tryinclude macro
+ * @param data include data
+ * @param len length of data
+ * @param args UCL object representing arguments to the macro
+ * @param ud user data
+ * @return
+ */
 bool
 ucl_try_include_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, void* ud)
@@ -1187,6 +1194,64 @@ ucl_try_include_handler (const unsigned char *data, size_t len,
 	struct ucl_parser *parser = ud;
 
 	return ucl_include_common (data, len, args, parser, true, false);
+}
+
+/**
+ * Handle priority macro
+ * @param data include data
+ * @param len length of data
+ * @param args UCL object representing arguments to the macro
+ * @param ud user data
+ * @return
+ */
+bool
+ucl_priority_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud)
+{
+	struct ucl_parser *parser = ud;
+	unsigned priority = 255;
+	const ucl_object_t *param;
+	bool found = false;
+	char *value = NULL, *leftover = NULL;
+	ucl_object_iter_t it = NULL;
+
+	if (parser == NULL) {
+		return false;
+	}
+
+	/* Process arguments */
+	if (args != NULL && args->type == UCL_OBJECT) {
+		while ((param = ucl_iterate_object (args, &it, true)) != NULL) {
+			if (param->type == UCL_INT) {
+				if (strcmp (param->key, "priority") == 0) {
+					priority = ucl_object_toint (param);
+					found = true;
+				}
+			}
+		}
+	}
+
+	if (len > 0) {
+		value = malloc(len + 1);
+		ucl_strlcpy(value, (const char *)data, len + 1);
+		priority = strtol(value, &leftover, 10);
+		if (*leftover != '\0') {
+			ucl_create_err (&parser->err, "Invalid priority value in macro: %s",
+				value);
+			free(value);
+			return false;
+		}
+		free(value);
+		found = true;
+	}
+
+	if (found == true) {
+		parser->chunks->priority = priority;
+		return true;
+	}
+
+	ucl_create_err (&parser->err, "Unable to parse priority macro");
+	return false;
 }
 
 bool
