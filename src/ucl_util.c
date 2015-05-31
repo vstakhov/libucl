@@ -961,8 +961,8 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 			/* Auto generate a key name based on the included filename */
 			nestkey = basename(realbuf);
 			ext = strrchr(nestkey, '.');
-			if (strcmp(ext, ".conf") == 0) {
-				/* Strip off .conf */
+			if (strcmp(ext, ".conf") == 0 || strcmp(ext, ".ucl") == 0) {
+				/* Strip off .conf or .ucl */
 				*ext = '\0';
 			}
 		}
