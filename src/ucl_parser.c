@@ -1225,7 +1225,6 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
 		 */
 		unsigned priold = ucl_object_get_priority (tobj),
 				prinew = ucl_object_get_priority (nobj);
-
 		if (priold == prinew) {
 			ucl_parser_append_elt (parser, container, tobj, nobj);
 		}
