@@ -1215,7 +1215,32 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
 		parser->stack->obj->len ++;
 	}
 	else {
-		ucl_resolve_priority (parser, container, tobj, nobj);
+		/*
+		 * The logic here is the following:
+		 *
+		 * - if we have two objects with the same priority, then we form an
+		 * implicit or explicit array
+		 * - if a new object has bigger priority, then we overwrite an old one
+		 * - if a new object has lower priority, then we ignore it
+		 */
+		unsigned priold = ucl_object_get_priority (tobj),
+				prinew = ucl_object_get_priority (nobj);
+
+		if (priold == prinew) {
+			ucl_parser_append_elt (parser, container, tobj, nobj);
+		}
+		else if (priold > prinew) {
+			/*
+			 * We add this new object to a list of trash objects just to ensure
+			 * that it won't come to any real object
+			 * XXX: rather inefficient approach
+			 */
+			DL_APPEND (parser->trash_objs, nobj);
+		}
+		else {
+			ucl_hash_replace (container, tobj, nobj);
+			ucl_object_unref (tobj);
+		}
 	}
 
 	if (ucl_escape) {
@@ -1226,38 +1251,6 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
 	parser->cur_obj = nobj;
 
 	return true;
-}
-
-void
-ucl_resolve_priority (struct ucl_parser *parser, ucl_hash_t *container,
-		ucl_object_t *old_obj, ucl_object_t *new_obj)
-{
-	/*
-	 * The logic here is the following:
-	 *
-	 * - if we have two objects with the same priority, then we form an
-	 * implicit or explicit array
-	 * - if a new object has bigger priority, then we overwrite an old one
-	 * - if a new object has lower priority, then we ignore it
-	 */
-	unsigned priold = ucl_object_get_priority (old_obj),
-			prinew = ucl_object_get_priority (new_obj);
-
-	if (priold == prinew) {
-		ucl_parser_append_elt (parser, container, old_obj, new_obj);
-	}
-	else if (priold > prinew) {
-		/*
-		 * We add this new object to a list of trash objects just to ensure
-		 * that it won't come to any real object
-		 * XXX: rather inefficient approach
-		 */
-		DL_APPEND (parser->trash_objs, new_obj);
-	}
-	else {
-		ucl_hash_replace (container, old_obj, new_obj);
-		ucl_object_unref (old_obj);
-	}
 }
 
 /**
