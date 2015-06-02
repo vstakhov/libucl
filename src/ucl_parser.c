@@ -2116,6 +2116,7 @@ ucl_parser_new (int flags)
 	ucl_parser_register_macro (new, "priority", ucl_priority_handler, new);
 
 	new->flags = flags;
+	new->includepaths = NULL;
 
 	/* Initial assumption about filevars */
 	ucl_parser_set_filevars (new, NULL, false);
@@ -2301,4 +2302,26 @@ ucl_parser_add_string (struct ucl_parser *parser, const char *data,
 
 	return ucl_parser_add_string_priority (parser,
 			(const unsigned char *)data, len, parser->default_priority);
+}
+
+bool
+ucl_set_include_path (struct ucl_parser *parser, ucl_object_t *paths)
+{
+	if (parser == NULL || paths == NULL) {
+		return false;
+	}
+
+	if (parser->includepaths == NULL) {
+		parser->includepaths = ucl_object_copy (paths);
+	}
+	else {
+		ucl_object_unref (parser->includepaths);
+		parser->includepaths = ucl_object_copy (paths);
+	}
+
+	if (parser->includepaths == NULL) {
+		return false;
+	}
+
+	return true;
 }

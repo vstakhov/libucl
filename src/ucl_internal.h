@@ -196,6 +196,7 @@ struct ucl_parser {
 	ucl_object_t *top_obj;
 	ucl_object_t *cur_obj;
 	ucl_object_t *trash_objs;
+	ucl_object_t *includepaths;
 	char *cur_file;
 	struct ucl_macro *macroes;
 	struct ucl_stack *stack;
@@ -267,6 +268,8 @@ size_t ucl_strlcpy (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_unsafe (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_tolower (char *dst, const char *src, size_t siz);
 
+char *ucl_strnstr (const char *s, const char *find, int len);
+char *ucl_strncasestr (const char *s, const char *find, int len);
 
 #ifdef __GNUC__
 static inline void
