@@ -1223,7 +1223,7 @@ ucl_priority_handler (const unsigned char *data, size_t len,
 	if (args != NULL && args->type == UCL_OBJECT) {
 		while ((param = ucl_iterate_object (args, &it, true)) != NULL) {
 			if (param->type == UCL_INT) {
-				if (strcmp (param->key, "priority") == 0) {
+				if (strncmp (param->key, "priority", param->keylen) == 0) {
 					priority = ucl_object_toint (param);
 					found = true;
 				}
