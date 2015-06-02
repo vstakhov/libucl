@@ -985,7 +985,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 
 		old_obj = __DECONST (ucl_object_t *, ucl_hash_search (container, nestkey, strlen(nestkey)));
 
-		if (strcmp(target, "array") == 0 && old_obj == NULL) {
+		if (strcasecmp(target, "array") == 0 && old_obj == NULL) {
 			/* Create an array with key: nested */
 			old_obj = ucl_object_new_full (UCL_ARRAY, priority);
 			old_obj->key = nestkey;
@@ -1017,7 +1017,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 					parser->flags & UCL_PARSER_KEY_LOWERCASE);
 			parser->stack->obj->len ++;
 		}
-		else if (strcmp(target, "array") == 0 || ucl_object_type(old_obj) == UCL_ARRAY) {
+		else if (strcasecmp(target, "array") == 0 || ucl_object_type(old_obj) == UCL_ARRAY) {
 			if (ucl_object_type(old_obj) == UCL_ARRAY) {
 				/* Append to the existing array */
 				nest_obj = ucl_object_new_full (UCL_OBJECT, priority);
