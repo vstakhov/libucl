@@ -196,6 +196,7 @@ struct ucl_parser {
 	ucl_object_t *top_obj;
 	ucl_object_t *cur_obj;
 	ucl_object_t *trash_objs;
+	ucl_object_t *includepaths;
 	char *cur_file;
 	struct ucl_macro *macroes;
 	struct ucl_stack *stack;
@@ -223,13 +224,21 @@ size_t ucl_unescape_json_string (char *str, size_t len);
  * Handle include macro
  * @param data include data
  * @param len length of data
+ * @param args UCL object representing arguments to the macro
  * @param ud user data
- * @param err error ptr
  * @return
  */
 bool ucl_include_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, void* ud);
 
+/**
+ * Handle tryinclude macro
+ * @param data include data
+ * @param len length of data
+ * @param args UCL object representing arguments to the macro
+ * @param ud user data
+ * @return
+ */
 bool ucl_try_include_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, void* ud);
 
@@ -237,20 +246,30 @@ bool ucl_try_include_handler (const unsigned char *data, size_t len,
  * Handle includes macro
  * @param data include data
  * @param len length of data
+ * @param args UCL object representing arguments to the macro
  * @param ud user data
- * @param err error ptr
  * @return
  */
 bool ucl_includes_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, void* ud);
 
-void ucl_resolve_priority (struct ucl_parser *parser, ucl_hash_t *container,
-		ucl_object_t *old_obj, ucl_object_t *new_obj);
+/**
+ * Handle priority macro
+ * @param data include data
+ * @param len length of data
+ * @param args UCL object representing arguments to the macro
+ * @param ud user data
+ * @return
+ */
+bool ucl_priority_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud);
 
 size_t ucl_strlcpy (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_unsafe (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_tolower (char *dst, const char *src, size_t siz);
 
+char *ucl_strnstr (const char *s, const char *find, int len);
+char *ucl_strncasestr (const char *s, const char *find, int len);
 
 #ifdef __GNUC__
 static inline void

@@ -939,6 +939,16 @@ UCL_EXTERN bool ucl_parser_add_fd_priority (struct ucl_parser *parser,
 		int fd, unsigned priority);
 
 /**
+ * Provide a UCL_ARRAY of paths to search for include files. The object is
+ * copied so caller must unref the object.
+ * @param parser parser structure
+ * @param paths UCL_ARRAY of paths to search
+ * @return true if the path search array was replaced in the parser
+ */
+UCL_EXTERN bool ucl_set_include_path (struct ucl_parser *parser,
+		ucl_object_t *paths);
+
+/**
  * Get a top object for a parser (refcount is increased)
  * @param parser parser structure
  * @param err if *err is NULL it is set to parser error
