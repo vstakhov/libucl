@@ -474,9 +474,10 @@ static void
 ucl_emit_msgpack_elt (struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj, bool first, bool print_key)
 {
-	const struct ucl_emitter_functions *func = ctx->func;
+	ucl_object_iter_t it;
 	struct ucl_object_userdata *ud;
 	const char *ud_out;
+	const ucl_object_t *cur;
 
 	switch (obj->type) {
 	case UCL_INT:
@@ -501,8 +502,24 @@ ucl_emit_msgpack_elt (struct ucl_emitter_context *ctx,
 		ucl_emitter_print_null_msgpack (ctx);
 		break;
 	case UCL_OBJECT:
+		ucl_emitter_print_object_msgpack (ctx, obj->len);
+		it = ucl_object_iterate_new (obj);
+
+		while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
+			ucl_emit_msgpack_elt (ctx, cur, false, true);
+		}
+
+		ucl_object_iterate_free (it);
 		break;
 	case UCL_ARRAY:
+		ucl_emitter_print_object_msgpack (ctx, obj->len);
+		it = ucl_object_iterate_new (obj);
+
+		while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
+			ucl_emit_msgpack_elt (ctx, cur, false, false);
+		}
+
+		ucl_object_iterate_free (it);
 		break;
 	case UCL_USERDATA:
 		ud = (struct ucl_object_userdata *)obj;

@@ -250,3 +250,63 @@ ucl_emitter_print_key_msgpack (bool print_key, struct ucl_emitter_context *ctx,
 		ucl_emitter_print_string_msgpack (ctx, obj->key, obj->keylen);
 	}
 }
+
+void
+ucl_emitter_print_array_msgpack (struct ucl_emitter_context *ctx, size_t len)
+{
+	const struct ucl_emitter_functions *func = ctx->func;
+	const unsigned char fix_mask = 0x90, l16_ch = 0xdc, l32_ch = 0xdd;
+	unsigned char buf[5];
+	unsigned blen;
+
+	if (len <= 0xF) {
+		blen = 1;
+		buf[0] = (len | fix_mask) & 0xff;
+	}
+	else if (len <= 0xffff) {
+		uint16_t bl = TO_BE16 (len);
+
+		blen = 3;
+		buf[0] = l16_ch;
+		memcpy (&buf[1], &bl, sizeof (bl));
+	}
+	else {
+		uint32_t bl = TO_BE32 (len);
+
+		blen = 5;
+		buf[0] = l32_ch;
+		memcpy (&buf[1], &bl, sizeof (bl));
+	}
+
+	func->ucl_emitter_append_len (buf, blen, func->ud);
+}
+
+void
+ucl_emitter_print_object_msgpack (struct ucl_emitter_context *ctx, size_t len)
+{
+	const struct ucl_emitter_functions *func = ctx->func;
+	const unsigned char fix_mask = 0x80, l16_ch = 0xde, l32_ch = 0xdf;
+	unsigned char buf[5];
+	unsigned blen;
+
+	if (len <= 0xF) {
+		blen = 1;
+		buf[0] = (len | fix_mask) & 0xff;
+	}
+	else if (len <= 0xffff) {
+		uint16_t bl = TO_BE16 (len);
+
+		blen = 3;
+		buf[0] = l16_ch;
+		memcpy (&buf[1], &bl, sizeof (bl));
+	}
+	else {
+		uint32_t bl = TO_BE32 (len);
+
+		blen = 5;
+		buf[0] = l32_ch;
+		memcpy (&buf[1], &bl, sizeof (bl));
+	}
+
+	func->ucl_emitter_append_len (buf, blen, func->ud);
+}

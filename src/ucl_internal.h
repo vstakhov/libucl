@@ -450,6 +450,22 @@ void ucl_emitter_print_bool_msgpack (struct ucl_emitter_context *ctx,
  */
 void ucl_emitter_print_string_msgpack (struct ucl_emitter_context *ctx,
 		const char *s, size_t len);
+
+/**
+ * Print array preamble for msgpack
+ * @param ctx
+ * @param len
+ */
+void ucl_emitter_print_array_msgpack (struct ucl_emitter_context *ctx,
+		size_t len);
+
+/**
+ * Print object preamble for msgpack
+ * @param ctx
+ * @param len
+ */
+void ucl_emitter_print_object_msgpack (struct ucl_emitter_context *ctx,
+		size_t len);
 /**
  * Print NULL to the msgpack output
  * @param ctx
