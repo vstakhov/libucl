@@ -47,6 +47,7 @@ AC_CHECK_HEADERS_ONCE([libgen.h])
 AC_CHECK_HEADERS_ONCE([stdio.h])
 AC_CHECK_HEADERS_ONCE([float.h])
 AC_CHECK_HEADERS_ONCE([math.h])
+AC_CHECK_HEADERS_ONCE([endian.h sys/endian.h machine/endian.h])
 
 dnl Example of default-disabled feature
 AC_ARG_ENABLE([urls], AS_HELP_STRING([--enable-urls], 
