@@ -421,4 +421,48 @@ unsigned char * ucl_object_emit_single_json (const ucl_object_t *obj);
  */
 bool ucl_maybe_long_string (const ucl_object_t *obj);
 
+/**
+ * Print integer to the msgpack output
+ * @param ctx
+ * @param val
+ */
+void ucl_emitter_print_int_msgpack (struct ucl_emitter_context *ctx,
+		int64_t val);
+/**
+ * Print integer to the msgpack output
+ * @param ctx
+ * @param val
+ */
+void ucl_emitter_print_double_msgpack (struct ucl_emitter_context *ctx,
+		double val);
+/**
+ * Print double to the msgpack output
+ * @param ctx
+ * @param val
+ */
+void ucl_emitter_print_bool_msgpack (struct ucl_emitter_context *ctx,
+		bool val);
+/**
+ * Print string to the msgpack output
+ * @param ctx
+ * @param s
+ * @param len
+ */
+void ucl_emitter_print_string_msgpack (struct ucl_emitter_context *ctx,
+		const char *s, size_t len);
+/**
+ * Print NULL to the msgpack output
+ * @param ctx
+ */
+void ucl_emitter_print_null_msgpack (struct ucl_emitter_context *ctx);
+/**
+ * Print object's key if needed to the msgpakc output
+ * @param print_key
+ * @param ctx
+ * @param obj
+ */
+void ucl_emitter_print_key_msgpack (bool print_key,
+		struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj);
+
 #endif /* UCL_INTERNAL_H_ */
