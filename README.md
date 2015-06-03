@@ -263,7 +263,13 @@ all files that matches the specified pattern (normally the format of patterns is
 for your operating system). This option is meaningless for URL includes.
 * `url` (default: **true**) - allow URL includes.
 * `path` (default: empty) - A UCL_ARRAY of directories to search for the include file.
-Search ends after the first match, unless `glob` is true, then all matches are included.
+Search ends after the first patch, unless `glob` is true, then all matches are included.
+* `prefix` (default false) - Put included contents inside an object, instead
+of loading them into the root. If no `key` is provided, one is automatically generated based on each files basename()
+* `key` (default: <empty string>) - Key to load contents of include into. If
+the key already exists, it must be the correct type
+* `target` (default: object) - Specify if the `prefix` `key` should be an
+object or an array.
 * `priority` (default: 0) - specify priority for the include (see below).
 
 Priorities are used by UCL parser to manage the policy of objects rewriting during including other files
