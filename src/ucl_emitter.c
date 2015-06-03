@@ -62,6 +62,7 @@ UCL_EMIT_TYPE_OPS(json);
 UCL_EMIT_TYPE_OPS(json_compact);
 UCL_EMIT_TYPE_OPS(config);
 UCL_EMIT_TYPE_OPS(yaml);
+UCL_EMIT_TYPE_OPS(msgpack);
 
 #define UCL_EMIT_TYPE_CONTENT(type) {	\
 	.ucl_emitter_write_elt = ucl_emit_ ## type ## _elt,	\
@@ -71,12 +72,12 @@ UCL_EMIT_TYPE_OPS(yaml);
 	.ucl_emitter_end_array = ucl_emit_ ## type ##_end_array	\
 }
 
-
 const struct ucl_emitter_operations ucl_standartd_emitter_ops[] = {
 	[UCL_EMIT_JSON] = UCL_EMIT_TYPE_CONTENT(json),
 	[UCL_EMIT_JSON_COMPACT] = UCL_EMIT_TYPE_CONTENT(json_compact),
 	[UCL_EMIT_CONFIG] = UCL_EMIT_TYPE_CONTENT(config),
-	[UCL_EMIT_YAML] = UCL_EMIT_TYPE_CONTENT(yaml)
+	[UCL_EMIT_YAML] = UCL_EMIT_TYPE_CONTENT(yaml),
+	[UCL_EMIT_MSGPACK] = UCL_EMIT_TYPE_CONTENT(msgpack)
 };
 
 /*
@@ -468,6 +469,100 @@ UCL_EMIT_TYPE_IMPL(json, false)
 UCL_EMIT_TYPE_IMPL(json_compact, true)
 UCL_EMIT_TYPE_IMPL(config, false)
 UCL_EMIT_TYPE_IMPL(yaml, false)
+
+static void
+ucl_emit_msgpack_elt (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj, bool first, bool print_key)
+{
+	ucl_object_iter_t it;
+	struct ucl_object_userdata *ud;
+	const char *ud_out;
+	const ucl_object_t *cur;
+
+	switch (obj->type) {
+	case UCL_INT:
+		ucl_emitter_print_key_msgpack (print_key, ctx, obj);
+		ucl_emitter_print_int_msgpack (ctx, ucl_object_toint (obj));
+		break;
+	case UCL_FLOAT:
+	case UCL_TIME:
+		ucl_emitter_print_key_msgpack (print_key, ctx, obj);
+		ucl_emitter_print_double_msgpack (ctx, ucl_object_todouble (obj));
+		break;
+	case UCL_BOOLEAN:
+		ucl_emitter_print_key_msgpack (print_key, ctx, obj);
+		ucl_emitter_print_bool_msgpack (ctx, ucl_object_toboolean (obj));
+		break;
+	case UCL_STRING:
+		ucl_emitter_print_key_msgpack (print_key, ctx, obj);
+		ucl_emitter_print_string_msgpack (ctx, obj->value.sv, obj->len);
+		break;
+	case UCL_NULL:
+		ucl_emitter_print_key_msgpack (print_key, ctx, obj);
+		ucl_emitter_print_null_msgpack (ctx);
+		break;
+	case UCL_OBJECT:
+		ucl_emitter_print_object_msgpack (ctx, obj->len);
+		it = ucl_object_iterate_new (obj);
+
+		while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
+			ucl_emit_msgpack_elt (ctx, cur, false, true);
+		}
+
+		ucl_object_iterate_free (it);
+		break;
+	case UCL_ARRAY:
+		ucl_emitter_print_object_msgpack (ctx, obj->len);
+		it = ucl_object_iterate_new (obj);
+
+		while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
+			ucl_emit_msgpack_elt (ctx, cur, false, false);
+		}
+
+		ucl_object_iterate_free (it);
+		break;
+	case UCL_USERDATA:
+		ud = (struct ucl_object_userdata *)obj;
+		ucl_emitter_print_key_msgpack (print_key, ctx, obj);
+
+		if (ud->emitter) {
+			ud_out = ud->emitter (obj->value.ud);
+			if (ud_out == NULL) {
+				ud_out = "null";
+			}
+		}
+		ucl_emitter_print_string_msgpack (ctx, obj->value.sv, obj->len);
+		break;
+	}
+}
+
+static void
+ucl_emit_msgpack_start_obj (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj, bool print_key)
+{
+
+}
+
+static void
+ucl_emit_msgpack_start_array (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj, bool print_key)
+{
+
+}
+
+static void
+ucl_emit_msgpack_end_object (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj)
+{
+
+}
+
+static void
+ucl_emit_msgpack_end_array (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj)
+{
+
+}
 
 unsigned char *
 ucl_object_emit (const ucl_object_t *obj, enum ucl_emitter emit_type)

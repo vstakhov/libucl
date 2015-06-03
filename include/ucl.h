@@ -135,7 +135,9 @@ typedef enum ucl_emitter {
 	UCL_EMIT_JSON = 0, /**< Emit fine formatted JSON */
 	UCL_EMIT_JSON_COMPACT, /**< Emit compacted JSON */
 	UCL_EMIT_CONFIG, /**< Emit human readable config format */
-	UCL_EMIT_YAML /**< Emit embedded YAML format */
+	UCL_EMIT_YAML, /**< Emit embedded YAML format */
+	UCL_EMIT_MSGPACK, /**< Emit msgpack output */
+	UCL_EMIT_MAX /**< Unsupported emitter type */
 } ucl_emitter_t;
 
 /**
