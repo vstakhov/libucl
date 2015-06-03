@@ -88,24 +88,112 @@ void
 ucl_emitter_print_int_msgpack (struct ucl_emitter_context *ctx, int64_t val)
 {
 	const struct ucl_emitter_functions *func = ctx->func;
+	unsigned char buf[sizeof(uint64_t) + 1];
+	const unsigned char mask_positive = 0x7f, mask_negative = 0xe0,
+		uint8_ch = 0xcc, uint16_ch = 0xcd, uint32_ch = 0xce, uint64_ch = 0xcf,
+		int8_ch = 0xd0, int16_ch = 0xd1, int32_ch = 0xd2, int64_ch = 0xd3;
+	unsigned len;
 
+	if (val > 0) {
+		if (val <= 0x7f) {
+			/* Fixed num 7 bits */
+			len = 1;
+			buf[0] = mask_positive & val;
+		}
+		else if (val <= 0xff) {
+			len = 2;
+			buf[0] = uint8_ch;
+			buf[1] = val & 0xff;
+		}
+		else if (val <= 0xffff) {
+			uint16_t v = TO_BE16 (val);
 
+			len = 3;
+			buf[0] = uint16_ch;
+			memcpy (&buf[1], &v, sizeof (v));
+		}
+		else if (val <= 0xffffffff) {
+			uint32_t v = TO_BE32 (val);
+
+			len = 5;
+			buf[0] = uint32_ch;
+			memcpy (&buf[1], &v, sizeof (v));
+		}
+		else {
+			uint64_t v = TO_BE64 (val);
+
+			len = 9;
+			buf[0] = uint64_ch;
+			memcpy (&buf[1], &v, sizeof (v));
+		}
+	}
+	else {
+		uint64_t uval;
+		/* Bithack abs */
+		uval = ((val ^ (val >> 63)) - (val >> 63));
+
+		if (val >= -(1 << 5)) {
+			len = 1;
+			buf[0] = mask_negative | (uval & 0xff);
+		}
+		else if (uval <= 0xff) {
+			len = 2;
+			buf[0] = int8_ch;
+			buf[1] = (unsigned char)val;
+		}
+		else if (uval <= 0xffff) {
+			uint16_t v = TO_BE16 (val);
+
+			len = 3;
+			buf[0] = int16_ch;
+			memcpy (&buf[1], &v, sizeof (v));
+		}
+		else if (uval <= 0xffffffff) {
+			uint32_t v = TO_BE32 (val);
+
+			len = 5;
+			buf[0] = int32_ch;
+			memcpy (&buf[1], &v, sizeof (v));
+		}
+		else {
+			uint64_t v = TO_BE64 (val);
+
+			len = 9;
+			buf[0] = int64_ch;
+			memcpy (&buf[1], &v, sizeof (v));
+		}
+	}
+
+	func->ucl_emitter_append_len (buf, len, func->ud);
 }
 
 void
 ucl_emitter_print_double_msgpack (struct ucl_emitter_context *ctx, double val)
 {
 	const struct ucl_emitter_functions *func = ctx->func;
+	union {
+		double d;
+		uint64_t i;
+	} u;
+	const unsigned char dbl_ch = 0xcb;
+	unsigned char buf[sizeof(double) + 1];
 
+	/* Convert to big endian */
+	u.d = val;
+	u.i = TO_BE64 (u.i);
 
+	buf[0] = dbl_ch;
+	memcpy (&buf[1], &u.d, sizeof (double));
+	func->ucl_emitter_append_len (buf, sizeof (buf), func->ud);
 }
 
 void
 ucl_emitter_print_bool_msgpack (struct ucl_emitter_context *ctx, bool val)
 {
 	const struct ucl_emitter_functions *func = ctx->func;
+	const unsigned char true_ch = 0xc3, false_ch = 0xc2;
 
-
+	func->ucl_emitter_append_character (val ? true_ch : false_ch, 1, func->ud);
 }
 
 void
@@ -113,21 +201,52 @@ ucl_emitter_print_string_msgpack (struct ucl_emitter_context *ctx,
 		const char *s, size_t len)
 {
 	const struct ucl_emitter_functions *func = ctx->func;
+	const unsigned char fix_mask = 0xA0, l8_ch = 0xd9, l16_ch = 0xda, l32_ch = 0xdb;
+	unsigned char buf[5];
+	unsigned blen;
 
+	if (len <= 0x1F) {
+		blen = 1;
+		buf[0] = (len | fix_mask) & 0xff;
+	}
+	else if (len <= 0xff) {
+		blen = 2;
+		buf[0] = l8_ch;
+		buf[1] = len & 0xff;
+	}
+	else if (len <= 0xffff) {
+		uint16_t bl = TO_BE16 (len);
 
+		blen = 3;
+		buf[0] = l16_ch;
+		memcpy (&buf[1], &bl, sizeof (bl));
+	}
+	else {
+		uint32_t bl = TO_BE32 (len);
+
+		blen = 5;
+		buf[0] = l32_ch;
+		memcpy (&buf[1], &bl, sizeof (bl));
+	}
+
+	func->ucl_emitter_append_len (buf, blen, func->ud);
+	func->ucl_emitter_append_len (s, len, func->ud);
 }
 
 void
 ucl_emitter_print_null_msgpack (struct ucl_emitter_context *ctx)
 {
 	const struct ucl_emitter_functions *func = ctx->func;
+	const unsigned char nil = 0xc0;
 
-
+	func->ucl_emitter_append_character (nil, 1, func->ud);
 }
 
 void
 ucl_emitter_print_key_msgpack (bool print_key, struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj)
 {
-
+	if (print_key) {
+		ucl_emitter_print_string_msgpack (ctx, obj->key, obj->keylen);
+	}
 }
