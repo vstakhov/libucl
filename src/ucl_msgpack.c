@@ -74,7 +74,7 @@
 		(uint64_t)(0xff00000000000000ULL)) >> 56)))
 #endif
 
-#if __BYTE_ORDER__ == __LITTLE_ENDIAN__
+#if __BYTE_ORDER__ != __LITTLE_ENDIAN__
 #define TO_BE16 SWAP_LE_BE16
 #define TO_BE32 SWAP_LE_BE32
 #define TO_BE64 SWAP_LE_BE64
