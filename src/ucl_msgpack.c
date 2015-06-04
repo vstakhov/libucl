@@ -94,7 +94,7 @@ ucl_emitter_print_int_msgpack (struct ucl_emitter_context *ctx, int64_t val)
 		int8_ch = 0xd0, int16_ch = 0xd1, int32_ch = 0xd2, int64_ch = 0xd3;
 	unsigned len;
 
-	if (val > 0) {
+	if (val >= 0) {
 		if (val <= 0x7f) {
 			/* Fixed num 7 bits */
 			len = 1;
