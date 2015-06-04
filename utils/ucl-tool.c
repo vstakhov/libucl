@@ -45,7 +45,7 @@ void usage(const char *name, FILE *out) {
           "(default: standard output)\n");
   fprintf(out, "  --schema - specify schema file for validation\n");
   fprintf(out, "  --format - output format. Options: ucl (default), "
-          "json, compact_json, yaml\n");
+          "json, compact_json, yaml, msgpack\n");
 }
 
 int main(int argc, char **argv) {
@@ -86,6 +86,8 @@ int main(int argc, char **argv) {
         emitter = UCL_EMIT_YAML;
       } else if (strcmp(optarg, "compact_json") == 0) {
         emitter = UCL_EMIT_JSON_COMPACT;
+      } else if (strcmp(optarg, "msgpack") == 0) {
+        emitter = UCL_EMIT_MSGPACK;
       } else {
         fprintf(stderr, "Unknown output format: %s\n", optarg);
         exit(EXIT_FAILURE);
@@ -150,6 +152,17 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
   }
-  fprintf(out, "%s\n", ucl_object_emit(obj, emitter));
+
+  if (emitter != UCL_EMIT_MSGPACK) {
+    fprintf(out, "%s\n", ucl_object_emit(obj, emitter));
+  }
+  else {
+    size_t len;
+    unsigned char *res;
+
+    res = ucl_object_emit_len(obj, emitter, &len);
+    fwrite(res, 1, len, out);
+  }
+
   return 0;
 }
