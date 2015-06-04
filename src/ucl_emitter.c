@@ -567,16 +567,31 @@ ucl_emit_msgpack_end_array (struct ucl_emitter_context *ctx,
 unsigned char *
 ucl_object_emit (const ucl_object_t *obj, enum ucl_emitter emit_type)
 {
+	return ucl_object_emit_len (obj, emit_type, NULL);
+}
+
+unsigned char *
+ucl_object_emit_len (const ucl_object_t *obj, enum ucl_emitter emit_type,
+		size_t *outlen)
+{
 	unsigned char *res = NULL;
 	struct ucl_emitter_functions *func;
+	UT_string *s;
+
 	if (obj == NULL) {
 		return NULL;
 	}
 
 	func = ucl_object_emit_memory_funcs ((void **)&res);
+	s = func->ud;
 
 	if (func != NULL) {
 		ucl_object_emit_full (obj, emit_type, func);
+
+		if (outlen != NULL) {
+			*outlen = s->i;
+		}
+
 		ucl_object_emit_funcs_free (func);
 	}
 

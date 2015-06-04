@@ -1094,6 +1094,17 @@ UCL_EXTERN unsigned char *ucl_object_emit (const ucl_object_t *obj,
 		enum ucl_emitter emit_type);
 
 /**
+ * Emit object to a string that can contain `\0` inside
+ * @param obj object
+ * @param emit_type if type is #UCL_EMIT_JSON then emit json, if type is
+ * #UCL_EMIT_CONFIG then emit config like object
+ * @param len the resulting length
+ * @return dump of an object (must be freed after using) or NULL in case of error
+ */
+UCL_EXTERN unsigned char *ucl_object_emit_len (const ucl_object_t *obj,
+		enum ucl_emitter emit_type, size_t *len);
+
+/**
  * Emit object to a string
  * @param obj object
  * @param emit_type if type is #UCL_EMIT_JSON then emit json, if type is
