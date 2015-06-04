@@ -36,9 +36,16 @@
 #include <sys/endian.h>
 #elif defined(HAVE_MACHINE_ENDIAN_H)
 #include <machine/endian.h>
-#else
-#define __LITTLE_ENDIAN__ 4321
-#define __BYTE_ORDER__ __LITTLE_ENDIAN__
+#endif
+
+#if !defined(__LITTLE_ENDIAN__) && !defined(__BIG_ENDIAN__)
+	#if __BYTE_ORDER == __LITTLE_ENDIAN
+		#define __LITTLE_ENDIAN__
+	#elif __BYTE_ORDER == __BIG_ENDIAN
+		#define __BIG_ENDIAN__
+	#elif _WIN32
+		#define __LITTLE_ENDIAN__
+	#endif
 #endif
 
 #define SWAP_LE_BE16(val)	((uint16_t) ( 		\
@@ -74,7 +81,7 @@
 		(uint64_t)(0xff00000000000000ULL)) >> 56)))
 #endif
 
-#if __BYTE_ORDER__ != __LITTLE_ENDIAN__
+#ifdef __LITTLE_ENDIAN__
 #define TO_BE16 SWAP_LE_BE16
 #define TO_BE32 SWAP_LE_BE32
 #define TO_BE64 SWAP_LE_BE64
