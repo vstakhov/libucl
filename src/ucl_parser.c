@@ -981,6 +981,7 @@ ucl_parser_append_elt (struct ucl_parser *parser, ucl_hash_t *cont,
 		/* Implicit array */
 		top->flags |= UCL_OBJECT_MULTIVALUE;
 		DL_APPEND (top, elt);
+		parser->stack->obj->len ++;
 	}
 	else {
 		if ((top->flags & UCL_OBJECT_MULTIVALUE) != 0) {
