@@ -477,7 +477,7 @@ ucl_emit_msgpack_elt (struct ucl_emitter_context *ctx,
 	ucl_object_iter_t it;
 	struct ucl_object_userdata *ud;
 	const char *ud_out;
-	const ucl_object_t *cur;
+	const ucl_object_t *cur, *celt;
 
 	switch (obj->type) {
 	case UCL_INT:
@@ -512,7 +512,9 @@ ucl_emit_msgpack_elt (struct ucl_emitter_context *ctx,
 		it = ucl_object_iterate_new (obj);
 
 		while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
-			ucl_emit_msgpack_elt (ctx, cur, false, true);
+			LL_FOREACH (cur, celt) {
+				ucl_emit_msgpack_elt (ctx, celt, false, true);
+			}
 		}
 
 		ucl_object_iterate_free (it);
