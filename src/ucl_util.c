@@ -2366,6 +2366,11 @@ ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
 
 	if (vec == NULL) {
 		vec = UCL_ALLOC (sizeof (*vec));
+
+		if (vec == NULL) {
+			return false;
+		}
+
 		kv_init (*vec);
 		top->value.av = (void *)vec;
 	}
@@ -2443,6 +2448,10 @@ ucl_array_delete (ucl_object_t *top, ucl_object_t *elt)
 	ucl_object_t *ret = NULL;
 	unsigned i;
 
+	if (vec == NULL) {
+		return NULL;
+	}
+
 	for (i = 0; i < vec->n; i ++) {
 		if (kv_A (*vec, i) == elt) {
 			kv_del (ucl_object_t *, *vec, i);
@@ -2460,7 +2469,8 @@ ucl_array_head (const ucl_object_t *top)
 {
 	UCL_ARRAY_GET (vec, top);
 
-	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
+	if (vec == NULL || top == NULL || top->type != UCL_ARRAY ||
+			top->value.av == NULL) {
 		return NULL;
 	}
 
@@ -2528,6 +2538,10 @@ ucl_array_index_of (ucl_object_t *top, ucl_object_t *elt)
 {
 	UCL_ARRAY_GET (vec, top);
 	unsigned i;
+
+	if (vec == NULL) {
+		return (unsigned int)(-1);
+	}
 
 	for (i = 0; i < vec->n; i ++) {
 		if (kv_A (*vec, i) == elt) {
