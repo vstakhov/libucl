@@ -109,7 +109,7 @@ typedef unsigned char      BYTE;
 typedef unsigned short     U16;
 typedef unsigned int       U32;
 typedef   signed int       S32;
-typedef unsigned long long U64;
+typedef uint64_t U64;
 #endif
 
 #if defined(__GNUC__)  && !defined(XXH_USE_UNALIGNED_ACCESS)
@@ -160,7 +160,7 @@ typedef struct _U64_S
 #if defined(_MSC_VER)     // Visual Studio
 #  define XXH_swap32 _byteswap_ulong
 #  define XXH_swap64 _byteswap_uint64
-#elif GCC_VERSION >= 403
+#elif GCC_VERSION >= 403 || defined(__clang__)
 #  define XXH_swap32 __builtin_bswap32
 #  define XXH_swap64 __builtin_bswap64
 #else
@@ -468,7 +468,7 @@ FORCE_INLINE U64 XXH64_endian_align(const void* input, size_t len, U64 seed, XXH
 }
 
 
-unsigned long long XXH64 (const void* input, size_t len, unsigned long long seed)
+uint64_t XXH64 (const void* input, size_t len, uint64_t seed)
 {
 #if 0
     // Simple version, good for code maintenance, but unfortunately slow for small inputs
@@ -573,7 +573,7 @@ XXH_errorcode XXH32_reset(XXH32_state_t* state_in, U32 seed)
     return XXH_OK;
 }
 
-XXH_errorcode XXH64_reset(XXH64_state_t* state_in, unsigned long long seed)
+XXH_errorcode XXH64_reset(XXH64_state_t* state_in, uint64_t seed)
 {
     XXH_istate64_t* state = (XXH_istate64_t*) state_in;
     state->seed = seed;
@@ -928,7 +928,7 @@ FORCE_INLINE U64 XXH64_digest_endian (const XXH64_state_t* state_in, XXH_endiane
 }
 
 
-unsigned long long XXH64_digest (const XXH64_state_t* state_in)
+uint64_t XXH64_digest (const XXH64_state_t* state_in)
 {
     XXH_endianess endian_detected = (XXH_endianess)XXH_CPU_LITTLE_ENDIAN;
 

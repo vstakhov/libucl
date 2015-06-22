@@ -56,8 +56,8 @@ Q.Score is a measure of quality of the hash function.
 It depends on successfully passing SMHasher test set.
 10 is a perfect score.
 */
-
-#pragma once
+#ifndef LIBUCL_XXHASH_H
+#define LIBUCL_XXHASH_H
 
 #if defined (__cplusplus)
 extern "C" {
@@ -68,6 +68,7 @@ extern "C" {
    Includes
 *****************************/
 #include <stddef.h>   /* size_t */
+#include <stdint.h>
 
 
 /*****************************
@@ -82,7 +83,7 @@ typedef enum { XXH_OK=0, XXH_ERROR } XXH_errorcode;
 *****************************/
 
 unsigned int       XXH32 (const void* input, size_t length, unsigned seed);
-unsigned long long XXH64 (const void* input, size_t length, unsigned long long seed);
+uint64_t XXH64 (const void* input, size_t length, uint64_t seed);
 
 /*
 XXH32() :
@@ -100,8 +101,8 @@ XXH64() :
 /*****************************
    Advanced Hash Functions
 *****************************/
-typedef struct { long long ll[ 6]; } XXH32_state_t;
-typedef struct { long long ll[11]; } XXH64_state_t;
+typedef struct { int64_t ll[ 6]; } XXH32_state_t;
+typedef struct { int64_t ll[11]; } XXH64_state_t;
 
 /*
 These structures allow static allocation of XXH states.
@@ -132,9 +133,9 @@ XXH_errorcode XXH32_reset  (XXH32_state_t* statePtr, unsigned seed);
 XXH_errorcode XXH32_update (XXH32_state_t* statePtr, const void* input, size_t length);
 unsigned int  XXH32_digest (const XXH32_state_t* statePtr);
 
-XXH_errorcode      XXH64_reset  (XXH64_state_t* statePtr, unsigned long long seed);
+XXH_errorcode      XXH64_reset  (XXH64_state_t* statePtr, uint64_t seed);
 XXH_errorcode      XXH64_update (XXH64_state_t* statePtr, const void* input, size_t length);
-unsigned long long XXH64_digest (const XXH64_state_t* statePtr);
+uint64_t XXH64_digest (const XXH64_state_t* statePtr);
 
 /*
 These functions calculate the xxHash of an input provided in multiple smaller packets,
@@ -159,4 +160,6 @@ When you are done, don't forget to free XXH state space, using typically XXHnn_f
 
 #if defined (__cplusplus)
 }
+#endif
+
 #endif
