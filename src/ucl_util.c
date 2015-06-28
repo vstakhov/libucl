@@ -1441,6 +1441,142 @@ ucl_priority_handler (const unsigned char *data, size_t len,
 	return false;
 }
 
+/**
+ * Handle load macro
+ * @param data include data
+ * @param len length of data
+ * @param args UCL object representing arguments to the macro
+ * @param ud user data
+ * @return
+ */
+bool
+ucl_load_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud)
+{
+	struct ucl_parser *parser = ud;
+	const ucl_object_t *param;
+	ucl_object_t *obj, *old_obj;
+	ucl_object_iter_t it = NULL;
+	bool try_load, multiline, test;
+	const char *target, *prefix;
+	char *load_file, *tmp;
+	unsigned char *buf;
+	size_t buflen;
+	unsigned priority;
+	int64_t iv;
+	ucl_hash_t *container = NULL;
+	enum ucl_string_flags flags;
+
+	/* Default values */
+	try_load = false;
+	multiline = false;
+	test = false;
+	target = "string";
+	prefix = NULL;
+	load_file = NULL;
+	buf = NULL;
+	buflen = 0;
+	priority = 0;
+	obj = NULL;
+	old_obj = NULL;
+	flags = 0;
+
+	if (parser == NULL) {
+		return false;
+	}
+
+	/* Process arguments */
+	if (args != NULL && args->type == UCL_OBJECT) {
+		while ((param = ucl_iterate_object (args, &it, true)) != NULL) {
+			if (param->type == UCL_BOOLEAN) {
+				if (strncmp (param->key, "try", param->keylen) == 0) {
+					try_load = ucl_object_toboolean (param);
+				}
+				else if (strncmp (param->key, "multiline", param->keylen) == 0) {
+					multiline = ucl_object_toboolean (param);
+				}
+				else if (strncmp (param->key, "escape", param->keylen) == 0) {
+					test = ucl_object_toboolean (param);
+					if (test) {
+						flags |= UCL_STRING_ESCAPE;
+					}
+				}
+				else if (strncmp (param->key, "trim", param->keylen) == 0) {
+					test = ucl_object_toboolean (param);
+					if (test) {
+						flags |= UCL_STRING_TRIM;
+					}
+				}
+			}
+			else if (param->type == UCL_STRING) {
+				if (strncmp (param->key, "key", param->keylen) == 0) {
+					prefix = ucl_object_tostring (param);
+				}
+				else if (strncmp (param->key, "target", param->keylen) == 0) {
+					target = ucl_object_tostring (param);
+				}
+			}
+			else if (param->type == UCL_INT) {
+				if (strncmp (param->key, "priority", param->keylen) == 0) {
+					priority = ucl_object_toint (param);
+				}
+			}
+		}
+	}
+
+	if (prefix == NULL || strlen(prefix) == 0) {
+		ucl_create_err (&parser->err, "No Key specified in load macro");
+		return false;
+	}
+
+	if (len > 0) {
+		asprintf (&load_file, "%.*s", (int)len, data);
+		if (!ucl_fetch_file (load_file, &buf, &buflen, &parser->err, !try_load)) {
+			return (try_load || false);
+		}
+
+		container = parser->stack->obj->value.ov;
+		old_obj = __DECONST (ucl_object_t *, ucl_hash_search (container, prefix, strlen (prefix)));
+		if (old_obj != NULL) {
+			ucl_create_err (&parser->err, "Key %s already exists", prefix);
+			return false;
+		}
+
+		if (strcasecmp (target, "string") == 0) {
+			obj = ucl_object_fromstring_common (buf, buflen, flags);
+			ucl_copy_value_trash (obj);
+			if (multiline) {
+				obj->flags |= UCL_OBJECT_MULTILINE;
+			}
+		}
+		else if (strcasecmp (target, "int") == 0) {
+			asprintf(&tmp, "%.*s", (int)buflen, buf);
+			iv = strtoll(tmp, NULL, 10);
+			obj = ucl_object_fromint(iv);
+		}
+
+		if (buflen > 0) {
+			ucl_munmap (buf, buflen);
+		}
+
+		if (obj != NULL) {
+			obj->key = prefix;
+			obj->keylen = strlen (prefix);
+			ucl_copy_key_trash(obj);
+			obj->prev = obj;
+			obj->next = NULL;
+			ucl_object_set_priority (obj, priority);
+			container = ucl_hash_insert_object (container, obj,
+					parser->flags & UCL_PARSER_KEY_LOWERCASE);
+			parser->stack->obj->value.ov = container;
+		}
+		return true;
+	}
+
+	ucl_create_err (&parser->err, "Unable to parse load macro");
+	return false;
+}
+
 bool
 ucl_parser_set_filevars (struct ucl_parser *parser, const char *filename, bool need_expand)
 {
