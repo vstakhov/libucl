@@ -625,6 +625,19 @@ UCL_EXTERN const ucl_object_t* ucl_object_find_key (const ucl_object_t *obj,
 		const char *key);
 
 /**
+ * Return object identified by a key in the specified object, if the first key is
+ * not found then look for the next one. This process is repeated unless
+ * the next argument in the list is not NULL. So, `ucl_object_find_any_key(obj, key, NULL)`
+ * is equal to `ucl_object_find_key(obj, key)`
+ * @param obj object to get a key from (must be of type UCL_OBJECT)
+ * @param key key to search
+ * @param ... list of alternative keys to search (NULL terminated)
+ * @return object matching the specified key or NULL if key was not found
+ */
+UCL_EXTERN const ucl_object_t* ucl_object_find_any_key (const ucl_object_t *obj,
+		const char *key, ...);
+
+/**
  * Return object identified by a fixed size key in the specified object
  * @param obj object to get a key from (must be of type UCL_OBJECT)
  * @param key key to search

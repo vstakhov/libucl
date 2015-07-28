@@ -26,6 +26,7 @@
 #include "ucl_internal.h"
 #include "ucl_chartable.h"
 #include "kvec.h"
+#include <stdarg.h>
 
 #ifndef _WIN32
 #include <glob.h>
@@ -2153,10 +2154,45 @@ ucl_object_find_keyl (const ucl_object_t *obj, const char *key, size_t klen)
 const ucl_object_t *
 ucl_object_find_key (const ucl_object_t *obj, const char *key)
 {
-	if (key == NULL)
+	if (key == NULL) {
 		return NULL;
+	}
 
 	return ucl_object_find_keyl (obj, key, strlen (key));
+}
+
+const ucl_object_t*
+ucl_object_find_any_key (const ucl_object_t *obj,
+		const char *key, ...)
+{
+	va_list ap;
+	const ucl_object_t *ret = NULL;
+	const char *nk = NULL;
+
+	if (obj == NULL || key == NULL) {
+		return NULL;
+	}
+
+	ret = ucl_object_find_keyl (obj, key, strlen (key));
+
+	if (ret == NULL) {
+		va_start (ap, key);
+
+		while (ret == NULL) {
+			nk = va_arg (ap, const char *);
+
+			if (nk == NULL) {
+				break;
+			}
+			else {
+				ret = ucl_object_find_keyl (obj, nk, strlen (nk));
+			}
+		}
+
+		va_end (ap);
+	}
+
+	return ret;
 }
 
 const ucl_object_t*
