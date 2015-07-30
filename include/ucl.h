@@ -176,12 +176,13 @@ typedef enum ucl_string_flags {
  * Basic flags for an object
  */
 typedef enum ucl_object_flags {
-	UCL_OBJECT_ALLOCATED_KEY = 0x1, /**< An object has key allocated internally */
-	UCL_OBJECT_ALLOCATED_VALUE = 0x2, /**< An object has a string value allocated internally */
-	UCL_OBJECT_NEED_KEY_ESCAPE = 0x4, /**< The key of an object need to be escaped on output */
-	UCL_OBJECT_EPHEMERAL = 0x8, /**< Temporary object that does not need to be freed really */
-	UCL_OBJECT_MULTILINE = 0x10, /**< String should be displayed as multiline string */
-	UCL_OBJECT_MULTIVALUE = 0x20 /**< Object is a key with multiple values */
+	UCL_OBJECT_ALLOCATED_KEY = (1 << 0), /**< An object has key allocated internally */
+	UCL_OBJECT_ALLOCATED_VALUE = (1 << 1), /**< An object has a string value allocated internally */
+	UCL_OBJECT_NEED_KEY_ESCAPE = (1 << 2), /**< The key of an object need to be escaped on output */
+	UCL_OBJECT_EPHEMERAL = (1 << 3), /**< Temporary object that does not need to be freed really */
+	UCL_OBJECT_MULTILINE = (1 << 4), /**< String should be displayed as multiline string */
+	UCL_OBJECT_MULTIVALUE = (1 << 5), /**< Object is a key with multiple values */
+	UCL_OBJECT_INHERITED = (1 << 6) /**< Object has been inherited from another */
 } ucl_object_flags_t;
 
 /**

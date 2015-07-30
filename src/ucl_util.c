@@ -1583,8 +1583,9 @@ ucl_inherit_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, const ucl_object_t *ctx, void* ud)
 {
 	const ucl_object_t *parent, *cur;
-	ucl_object_t *target;
+	ucl_object_t *target, *copy;
 	ucl_object_iter_t it = NULL;
+	bool replace = false;
 	struct ucl_parser *parser = ud;
 
 	parent = ucl_object_find_keyl (ctx, data, len);
@@ -1604,9 +1605,24 @@ ucl_inherit_handler (const unsigned char *data, size_t len,
 
 	target = parser->stack->obj;
 
+	if (args && (cur = ucl_object_find_key (args, "replace")) != NULL) {
+		replace = ucl_object_toboolean (cur);
+	}
+
 	while ((cur = ucl_iterate_object (parent, &it, true))) {
-		ucl_object_insert_key (target, ucl_object_ref (cur), cur->key,
-				cur->keylen, false);
+		/* We do not replace existing keys */
+		if (!replace && ucl_object_find_keyl (target, cur->key, cur->keylen)) {
+			continue;
+		}
+
+		copy = ucl_object_copy (cur);
+
+		if (!replace) {
+			copy->flags |= UCL_OBJECT_INHERITED;
+		}
+
+		ucl_object_insert_key (target, copy, copy->key,
+				copy->keylen, false);
 	}
 
 	return true;
