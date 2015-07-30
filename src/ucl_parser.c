@@ -2133,6 +2133,7 @@ ucl_parser_new (int flags)
 	ucl_parser_register_macro (new, "includes", ucl_includes_handler, new);
 	ucl_parser_register_macro (new, "priority", ucl_priority_handler, new);
 	ucl_parser_register_macro (new, "load", ucl_load_handler, new);
+	ucl_parser_register_context_macro (new, "inherit", ucl_inherit_handler, new);
 
 	new->flags = flags;
 	new->includepaths = NULL;

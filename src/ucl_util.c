@@ -1579,6 +1579,40 @@ ucl_load_handler (const unsigned char *data, size_t len,
 }
 
 bool
+ucl_inherit_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, const ucl_object_t *ctx, void* ud)
+{
+	const ucl_object_t *parent, *cur;
+	ucl_object_t *target;
+	ucl_object_iter_t it = NULL;
+	struct ucl_parser *parser = ud;
+
+	parent = ucl_object_find_keyl (ctx, data, len);
+
+	/* Some sanity checks */
+	if (parent == NULL || ucl_object_type (parent) != UCL_OBJECT) {
+		ucl_create_err (&parser->err, "Unable to find inherited object %*.s",
+				(int)len, data);
+		return false;
+	}
+
+	if (parser->stack == NULL || parser->stack->obj == NULL ||
+			ucl_object_type (parser->stack->obj) != UCL_OBJECT) {
+		ucl_create_err (&parser->err, "Invalid inherit context");
+		return false;
+	}
+
+	target = parser->stack->obj;
+
+	while ((cur = ucl_iterate_object (parent, &it, true))) {
+		ucl_object_insert_key (target, ucl_object_ref (cur), cur->key,
+				cur->keylen, false);
+	}
+
+	return true;
+}
+
+bool
 ucl_parser_set_filevars (struct ucl_parser *parser, const char *filename, bool need_expand)
 {
 	char realbuf[PATH_MAX], *curdir;

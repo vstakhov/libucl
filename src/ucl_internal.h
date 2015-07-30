@@ -278,6 +278,17 @@ bool ucl_priority_handler (const unsigned char *data, size_t len,
  */
 bool ucl_load_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, void* ud);
+/**
+ * Handle inherit macro
+ * @param data include data
+ * @param len length of data
+ * @param args UCL object representing arguments to the macro
+ * @param ctx the current context object
+ * @param ud user data
+ * @return
+ */
+bool ucl_inherit_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, const ucl_object_t *ctx, void* ud);
 
 size_t ucl_strlcpy (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_unsafe (char *dst, const char *src, size_t siz);
