@@ -145,8 +145,12 @@ enum ucl_character_type {
 
 struct ucl_macro {
 	char *name;
-	ucl_macro_handler handler;
+	union {
+		ucl_macro_handler handler;
+		ucl_context_macro_handler context_handler;
+	} h;
 	void* ud;
+	bool is_context;
 	UT_hash_handle hh;
 };
 

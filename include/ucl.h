@@ -805,6 +805,21 @@ typedef bool (*ucl_macro_handler) (const unsigned char *data, size_t len,
 		const ucl_object_t *arguments,
 		void* ud);
 
+/**
+ * Context dependent macro handler for a parser
+ * @param data the content of macro
+ * @param len the length of content
+ * @param arguments arguments object
+ * @param context previously parsed context
+ * @param ud opaque user data
+ * @param err error pointer
+ * @return true if macro has been parsed
+ */
+typedef bool (*ucl_context_macro_handler) (const unsigned char *data, size_t len,
+		const ucl_object_t *arguments,
+		const ucl_object_t *context,
+		void* ud);
+
 /* Opaque parser */
 struct ucl_parser;
 
@@ -831,8 +846,21 @@ UCL_EXTERN bool ucl_parser_set_default_priority (struct ucl_parser *parser,
  * @param handler handler (it is called immediately after macro is parsed)
  * @param ud opaque user data for a handler
  */
-UCL_EXTERN void ucl_parser_register_macro (struct ucl_parser *parser, const char *macro,
+UCL_EXTERN void ucl_parser_register_macro (struct ucl_parser *parser,
+		const char *macro,
 		ucl_macro_handler handler, void* ud);
+
+/**
+ * Register new context dependent handler for a macro
+ * @param parser parser object
+ * @param macro macro name (without leading dot)
+ * @param handler handler (it is called immediately after macro is parsed)
+ * @param ud opaque user data for a handler
+ */
+UCL_EXTERN void ucl_parser_register_context_macro (struct ucl_parser *parser,
+		const char *macro,
+		ucl_context_macro_handler handler,
+		void* ud);
 
 /**
  * Handler to detect unregistered variables
