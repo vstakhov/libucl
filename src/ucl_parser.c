@@ -573,7 +573,9 @@ ucl_add_parser_stack (ucl_object_t *obj, struct ucl_parser *parser, bool is_arra
 		else {
 			obj->type = UCL_OBJECT;
 		}
-		obj->value.ov = ucl_hash_create (parser->flags & UCL_PARSER_KEY_LOWERCASE);
+		if (obj->value.ov == NULL) {
+			obj->value.ov = ucl_hash_create (parser->flags & UCL_PARSER_KEY_LOWERCASE);
+		}
 		parser->state = UCL_STATE_KEY;
 	}
 	else {
