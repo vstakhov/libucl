@@ -807,7 +807,8 @@ ucl_sig_check (const unsigned char *data, size_t datalen,
 static bool
 ucl_include_url (const unsigned char *data, size_t len,
 		struct ucl_parser *parser, bool check_signature, bool must_exist,
-		bool use_prefix, const char *prefix, const char *target, unsigned priority)
+		bool use_prefix, const char *prefix, const char *target,
+		unsigned priority, enum ucl_duplicate_strategy strat)
 {
 
 	bool res;
@@ -850,7 +851,7 @@ ucl_include_url (const unsigned char *data, size_t len,
 	prev_state = parser->state;
 	parser->state = UCL_STATE_INIT;
 
-	res = ucl_parser_add_chunk_priority (parser, buf, buflen, priority);
+	res = ucl_parser_add_chunk_full (parser, buf, buflen, priority, strat);
 	if (res == true) {
 		/* Remove chunk from the stack */
 		chunk = parser->chunks;
@@ -881,7 +882,7 @@ static bool
 ucl_include_file_single (const unsigned char *data, size_t len,
 		struct ucl_parser *parser, bool check_signature, bool must_exist,
 		bool use_prefix, const char *prefix, const char *target,
-		bool soft_fail, unsigned priority)
+		bool soft_fail, unsigned priority, enum ucl_duplicate_strategy strat)
 {
 	bool res;
 	struct ucl_chunk *chunk;
@@ -1076,7 +1077,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 		}
 	}
 
-	res = ucl_parser_add_chunk_priority (parser, buf, buflen, priority);
+	res = ucl_parser_add_chunk_full (parser, buf, buflen, priority, strat);
 	if (!res && !must_exist) {
 		/* Free error */
 		utstring_free (parser->err);
@@ -1146,7 +1147,8 @@ static bool
 ucl_include_file (const unsigned char *data, size_t len,
 		struct ucl_parser *parser, bool check_signature, bool must_exist,
 		bool allow_glob, bool use_prefix, const char *prefix,
-		const char *target, bool soft_fail, unsigned priority)
+		const char *target, bool soft_fail, unsigned priority,
+		enum ucl_duplicate_strategy strat)
 {
 	const unsigned char *p = data, *end = data + len;
 	bool need_glob = false;
@@ -1157,7 +1159,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 #ifndef _WIN32
 	if (!allow_glob) {
 		return ucl_include_file_single (data, len, parser, check_signature,
-			must_exist, use_prefix, prefix, target, soft_fail, priority);
+			must_exist, use_prefix, prefix, target, soft_fail, priority, strat);
 	}
 	else {
 		/* Check for special symbols in a filename */
@@ -1179,7 +1181,8 @@ ucl_include_file (const unsigned char *data, size_t len,
 			for (i = 0; i < globbuf.gl_pathc; i ++) {
 				if (!ucl_include_file_single ((unsigned char *)globbuf.gl_pathv[i],
 						strlen (globbuf.gl_pathv[i]), parser, check_signature,
-						must_exist, use_prefix, prefix, target, soft_fail, priority)) {
+						must_exist, use_prefix, prefix, target, soft_fail,
+						priority, strat)) {
 					if (soft_fail) {
 						continue;
 					}
@@ -1198,14 +1201,15 @@ ucl_include_file (const unsigned char *data, size_t len,
 		}
 		else {
 			return ucl_include_file_single (data, len, parser, check_signature,
-				must_exist, use_prefix, prefix, target, soft_fail, priority);
+				must_exist, use_prefix, prefix, target, soft_fail, priority,
+				strat);
 		}
 	}
 #else
 	/* Win32 compilers do not support globbing. Therefore, for Win32,
 	   treat allow_glob/need_glob as a NOOP and just return */
 	return ucl_include_file_single (data, len, parser, check_signature,
-		must_exist, use_prefix, prefix, target, soft_fail, priority);
+		must_exist, use_prefix, prefix, target, soft_fail, priority, strat);
 #endif
 	
 	return true;
@@ -1228,10 +1232,11 @@ ucl_include_common (const unsigned char *data, size_t len,
 		bool default_sign)
 {
 	bool try_load, allow_glob, allow_url, need_sign, use_prefix, search;
-	const char *prefix, *target;
+	const char *prefix, *target, *duplicate;
 	unsigned priority;
 	const ucl_object_t *param;
 	ucl_object_iter_t it = NULL, ip = NULL;
+	enum ucl_duplicate_strategy strat = UCL_DUPLICATE_APPEND;
 	char ipath[PATH_MAX];
 
 	/* Default values */
@@ -1272,6 +1277,22 @@ ucl_include_common (const unsigned char *data, size_t len,
 				else if (strncmp (param->key, "target", param->keylen) == 0) {
 					target = ucl_object_tostring (param);
 				}
+				else if (strncmp (param->key, "duplicate", param->keylen) == 0) {
+					duplicate = ucl_object_tostring (param);
+
+					if (strcmp (duplicate, "append") == 0) {
+						strat = UCL_DUPLICATE_APPEND;
+					}
+					else if (strcmp (duplicate, "merge") == 0) {
+						strat = UCL_DUPLICATE_MERGE;
+					}
+					else if (strcmp (duplicate, "rewrite") == 0) {
+						strat = UCL_DUPLICATE_REWRITE;
+					}
+					else if (strcmp (duplicate, "error") == 0) {
+						strat = UCL_DUPLICATE_ERROR;
+					}
+				}
 			}
 			else if (param->type == UCL_ARRAY) {
 				if (strncmp (param->key, "path", param->keylen) == 0) {
@@ -1290,19 +1311,21 @@ ucl_include_common (const unsigned char *data, size_t len,
 		if (allow_url && ucl_strnstr (data, "://", len) != NULL) {
 			/* Globbing is not used for URL's */
 			return ucl_include_url (data, len, parser, need_sign,
-					!try_load, use_prefix, prefix, target, priority);
+					!try_load, use_prefix, prefix, target, priority, strat);
 		}
 		else if (data != NULL) {
 			/* Try to load a file */
 			return ucl_include_file (data, len, parser, need_sign, !try_load,
-					allow_glob, use_prefix, prefix, target, false, priority);
+					allow_glob, use_prefix, prefix, target, false, priority,
+					strat);
 		}
 	}
 	else {
 		if (allow_url && ucl_strnstr (data, "://", len) != NULL) {
 			/* Globbing is not used for URL's */
 			return ucl_include_url (data, len, parser, need_sign,
-					!try_load, use_prefix, prefix, target, priority);
+					!try_load, use_prefix, prefix, target, priority,
+					strat);
 		}
 
 		ip = ucl_object_iterate_new (parser->includepaths);
@@ -1310,8 +1333,9 @@ ucl_include_common (const unsigned char *data, size_t len,
 			if (ucl_object_type(param) == UCL_STRING) {
 				snprintf (ipath, sizeof (ipath), "%s/%.*s", ucl_object_tostring(param),
 						(int)len, data);
-				if ((search = ucl_include_file (ipath, strlen (ipath), parser, need_sign,
-						!try_load, allow_glob, use_prefix, prefix, target, true, priority))) {
+				if ((search = ucl_include_file (ipath, strlen (ipath),
+						parser, need_sign, !try_load, allow_glob, use_prefix,
+						prefix, target, true, priority, strat))) {
 					if (!allow_glob) {
 						break;
 					}
