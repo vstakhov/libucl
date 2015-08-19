@@ -8,6 +8,7 @@ skey_append = "value";
 
 okey_merge = {
 	key = value;
+	source = original;
 }
 
 akey_merge = ["value"];

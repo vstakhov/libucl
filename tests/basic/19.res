@@ -14,7 +14,9 @@ akey_append [
 skey_append = "value";
 skey_append = "value4";
 okey_merge {
+    key = "value";
     key = "value1";
+    source = "original";
     key1 = "value2";
 }
 akey_merge [
