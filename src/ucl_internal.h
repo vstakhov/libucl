@@ -143,6 +143,13 @@ enum ucl_character_type {
 	UCL_CHARACTER_UCL_UNSAFE = 1 << 11
 };
 
+enum ucl_duplicate_strategy {
+	UCL_DUPLICATE_APPEND = 0,
+	UCL_DUPLICATE_MERGE,
+	UCL_DUPLICATE_REWRITE,
+	UCL_DUPLICATE_ERROR
+};
+
 struct ucl_macro {
 	char *name;
 	union {
@@ -168,6 +175,7 @@ struct ucl_chunk {
 	unsigned int line;
 	unsigned int column;
 	unsigned priority;
+	enum ucl_duplicate_strategy strategy;
 	struct ucl_chunk *next;
 };
 
@@ -506,5 +514,17 @@ void ucl_emitter_print_null_msgpack (struct ucl_emitter_context *ctx);
 void ucl_emitter_print_key_msgpack (bool print_key,
 		struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj);
+
+/**
+ * Full version of ucl_add_chunk with priority and duplicate strategy
+ * @param parser
+ * @param data
+ * @param len
+ * @param priority
+ * @return
+ */
+bool ucl_parser_add_chunk_full (struct ucl_parser *parser,
+		const unsigned char *data, size_t len, unsigned priority,
+		enum ucl_duplicate_strategy strat);
 
 #endif /* UCL_INTERNAL_H_ */
