@@ -561,8 +561,9 @@ ucl_copy_or_store_ptr (struct ucl_parser *parser,
  * @param level
  * @return
  */
-static inline ucl_object_t *
-ucl_add_parser_stack (ucl_object_t *obj, struct ucl_parser *parser, bool is_array, int level)
+ucl_object_t *
+ucl_parser_add_container (ucl_object_t *obj, struct ucl_parser *parser,
+		bool is_array, int level)
 {
 	struct ucl_stack *st;
 
@@ -1440,8 +1441,8 @@ ucl_parse_multiline_string (struct ucl_parser *parser,
 	return len;
 }
 
-static ucl_object_t*
-ucl_get_value_object (struct ucl_parser *parser)
+ucl_object_t*
+ucl_parser_get_container (struct ucl_parser *parser)
 {
 	ucl_object_t *t, *obj = NULL;
 
@@ -1453,7 +1454,12 @@ ucl_get_value_object (struct ucl_parser *parser)
 		/* Object must be allocated */
 		obj = ucl_object_new_full (UCL_NULL, parser->chunks->priority);
 		t = parser->stack->obj;
-		ucl_array_append (t, obj);
+
+		if (!ucl_array_append (t, obj)) {
+			ucl_object_unref (obj);
+			return NULL;
+		}
+
 		parser->cur_obj = obj;
 	}
 	else {
@@ -1504,7 +1510,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 				return false;
 			}
 
-			obj = ucl_get_value_object (parser);
+			obj = ucl_parser_get_container (parser);
 			str_len = chunk->pos - c - 2;
 			obj->type = UCL_STRING;
 			if ((str_len = ucl_copy_or_store_ptr (parser, c + 1,
@@ -1521,9 +1527,9 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			return true;
 			break;
 		case '{':
-			obj = ucl_get_value_object (parser);
+			obj = ucl_parser_get_container (parser);
 			/* We have a new object */
-			obj = ucl_add_parser_stack (obj, parser, false, parser->stack->level);
+			obj = ucl_parser_add_container (obj, parser, false, parser->stack->level);
 			if (obj == NULL) {
 				return false;
 			}
@@ -1533,9 +1539,9 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			return true;
 			break;
 		case '[':
-			obj = ucl_get_value_object (parser);
+			obj = ucl_parser_get_container (parser);
 			/* We have a new array */
-			obj = ucl_add_parser_stack (obj, parser, true, parser->stack->level);
+			obj = ucl_parser_add_container (obj, parser, true, parser->stack->level);
 			if (obj == NULL) {
 				return false;
 			}
@@ -1555,7 +1561,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			}
 			break;
 		case '<':
-			obj = ucl_get_value_object (parser);
+			obj = ucl_parser_get_container (parser);
 			/* We have something like multiline value, which must be <<[A-Z]+\n */
 			if (chunk->end - p > 3) {
 				if (memcmp (p, "<<", 2) == 0) {
@@ -1598,7 +1604,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 		default:
 parse_string:
 			if (obj == NULL) {
-				obj = ucl_get_value_object (parser);
+				obj = ucl_parser_get_container (parser);
 			}
 
 			/* Parse atom */
@@ -1959,10 +1965,10 @@ ucl_state_machine (struct ucl_parser *parser)
 
 	if (parser->top_obj == NULL) {
 		if (*chunk->pos == '[') {
-			obj = ucl_add_parser_stack (NULL, parser, true, 0);
+			obj = ucl_parser_add_container (NULL, parser, true, 0);
 		}
 		else {
-			obj = ucl_add_parser_stack (NULL, parser, false, 0);
+			obj = ucl_parser_add_container (NULL, parser, false, 0);
 		}
 		if (obj == NULL) {
 			return false;
@@ -2036,7 +2042,7 @@ ucl_state_machine (struct ucl_parser *parser)
 			else if (parser->state != UCL_STATE_MACRO_NAME) {
 				if (next_key && parser->stack->obj->type == UCL_OBJECT) {
 					/* Parse more keys and nest objects accordingly */
-					obj = ucl_add_parser_stack (parser->cur_obj, parser, false,
+					obj = ucl_parser_add_container (parser->cur_obj, parser, false,
 							parser->stack->level + 1);
 					if (obj == NULL) {
 						return false;

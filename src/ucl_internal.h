@@ -518,4 +518,22 @@ void ucl_emitter_print_key_msgpack (bool print_key,
 bool ucl_parser_process_object_element (struct ucl_parser *parser,
 		ucl_object_t *nobj);
 
+/**
+ * Create and append an object at the specified level
+ * @param parser
+ * @param is_array
+ * @param level
+ * @return
+ */
+ucl_object_t * ucl_parser_add_container (ucl_object_t *obj,
+		struct ucl_parser *parser,
+		bool is_array, int level);
+
+/**
+ * Returns container object for the parser
+ * @param parser
+ * @return
+ */
+ucl_object_t* ucl_parser_get_container (struct ucl_parser *parser);
+
 #endif /* UCL_INTERNAL_H_ */
