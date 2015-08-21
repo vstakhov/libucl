@@ -186,6 +186,24 @@ typedef enum ucl_object_flags {
 } ucl_object_flags_t;
 
 /**
+ * Duplicate policy types
+ */
+enum ucl_duplicate_strategy {
+	UCL_DUPLICATE_APPEND = 0, /**< Default policy to merge based on priorities */
+	UCL_DUPLICATE_MERGE,     /**< Merge new object with old one */
+	UCL_DUPLICATE_REWRITE,   /**< Rewrite old keys */
+	UCL_DUPLICATE_ERROR      /**< Stop parsing on duplicate found */
+};
+
+/**
+ * Input format type
+ */
+enum ucl_parse_type {
+	UCL_PARSE_UCL = 0, /**< Default ucl format */
+	UCL_PARSE_MSGPACK /**< Message pack input format */
+};
+
+/**
  * UCL object structure. Please mention that the most of fields should not be touched by
  * UCL users. In future, this structure may be converted to private one.
  */
@@ -915,6 +933,21 @@ UCL_EXTERN bool ucl_parser_add_chunk (struct ucl_parser *parser,
  */
 UCL_EXTERN bool ucl_parser_add_chunk_priority (struct ucl_parser *parser,
 		const unsigned char *data, size_t len, unsigned priority);
+
+/**
+ * Full version of ucl_add_chunk with priority and duplicate strategy
+ * @param parser parser structure
+ * @param data the pointer to the beginning of a chunk
+ * @param len the length of a chunk
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @param strat duplicates merging strategy
+ * @param parse_type input format
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_chunk_full (struct ucl_parser *parser,
+		const unsigned char *data, size_t len, unsigned priority,
+		enum ucl_duplicate_strategy strat, enum ucl_parse_type parse_type);
 
 /**
  * Load ucl object from a string

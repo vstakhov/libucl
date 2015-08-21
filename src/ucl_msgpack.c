@@ -85,10 +85,16 @@
 #define TO_BE16 SWAP_LE_BE16
 #define TO_BE32 SWAP_LE_BE32
 #define TO_BE64 SWAP_LE_BE64
+#define FROM_BE16 SWAP_LE_BE16
+#define FROM_BE32 SWAP_LE_BE32
+#define FROM_BE64 SWAP_LE_BE64
 #else
 #define TO_BE16(val) (uint16_t)(val)
 #define TO_BE32(val) (uint32_t)(val)
 #define TO_BE64(val) (uint64_t)(val)
+#define FROM_BE16(val) (uint16_t)(val)
+#define FROM_BE32(val) (uint32_t)(val)
+#define FROM_BE64(val) (uint64_t)(val)
 #endif
 
 void
