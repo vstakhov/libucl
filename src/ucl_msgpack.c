@@ -365,51 +365,340 @@ enum ucl_msgpack_format {
 	msgpack_invalid
 };
 
+typedef ssize_t (*ucl_msgpack_parse_function)(struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain);
+
+static ssize_t ucl_msgpack_parse_map (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain);
+static ssize_t ucl_msgpack_parse_array (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain);
+static ssize_t ucl_msgpack_parse_string (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain);
+static ssize_t ucl_msgpack_parse_int (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain);
+static ssize_t ucl_msgpack_parse_float (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain);
+static ssize_t ucl_msgpack_parse_bool (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain);
+static ssize_t ucl_msgpack_parse_null (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain);
+static ssize_t ucl_msgpack_parse_ignore (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain);
+
+#define MSGPACK_FLAG_FIXED (1 << 0)
+#define MSGPACK_FLAG_CONTAINER (1 << 1)
+
 /*
  * Search tree packed in array
  */
 struct ucl_msgpack_parser {
-	uint8_t prefix;
-	uint8_t prefixlen;
-	uint8_t fmt;
-	uint8_t len;
+	uint8_t prefix;						/* Prefix byte					*/
+	uint8_t prefixlen;					/* Length of prefix in bits		*/
+	uint8_t fmt;						/* The desired format 			*/
+	uint8_t len;						/* Length of the object
+										  (either length bytes
+										  or length of value in case
+										  of fixed objects 				*/
+	uint8_t flags;						/* Flags of the specified type	*/
+	ucl_msgpack_parse_function func;	/* Parser function				*/
 } parsers[] = {
-	{0x0, 1, msgpack_positive_fixint, 0},
-	{0xe0, 3, msgpack_negative_fixint, 0},
-	{0x80, 4, msgpack_fixmap, 0},
-	{0x90, 4, msgpack_fixarray, 0},
-	{0xa0, 3, msgpack_fixstr, 0},
-	{0xd9, 8, msgpack_str8, 1},
-	{0xc4, 8, msgpack_bin8, 1},
-	{0xc5, 8, msgpack_bin16, 2},
-	{0xc6, 8, msgpack_bin32, 4},
-	{0xcf, 8, msgpack_uint64, 0},
-	{0xd3, 8, msgpack_int64, 0},
-	{0xce, 8, msgpack_uint32, 0},
-	{0xd2, 8, msgpack_int32, 0},
-	{0xcb, 8, msgpack_float64, 0},
-	{0xca, 8, msgpack_float32, 0},
-	{0xc2, 8, msgpack_false, 0},
-	{0xc3, 8, msgpack_true, 0},
-	{0xcc, 8, msgpack_uint8, 0},
-	{0xcd, 8, msgpack_uint16, 0},
-	{0xd0, 8, msgpack_int8, 0},
-	{0xd1, 8, msgpack_int16, 0},
-	{0xc0, 8, msgpack_nil, 0},
-	{0xda, 8, msgpack_str16, 2},
-	{0xdb, 8, msgpack_str32, 4},
-	{0xdc, 8, msgpack_array16, 2},
-	{0xdd, 8, msgpack_array32, 4},
-	{0xde, 8, msgpack_map16, 2},
-	{0xdf, 8, msgpack_map32, 4},
-	{0xc7, 8, msgpack_ext8, 1},
-	{0xc8, 8, msgpack_ext16, 2},
-	{0xc9, 8, msgpack_ext32, 4},
-	{0xd4, 8, msgpack_fixext1, 0},
-	{0xd5, 8, msgpack_fixext2, 0},
-	{0xd6, 8, msgpack_fixext4, 0},
-	{0xd7, 8, msgpack_fixext8, 0},
-	{0xd8, 8, msgpack_fixext16, 0},
+		{
+				0x0,
+				1,
+				msgpack_positive_fixint,
+				0,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_int
+		},
+		{
+				0xe0,
+				3,
+				msgpack_negative_fixint,
+				0,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_int
+		},
+		{
+				0x80,
+				4,
+				msgpack_fixmap,
+				0,
+				MSGPACK_FLAG_FIXED|MSGPACK_FLAG_CONTAINER,
+				ucl_msgpack_parse_map
+		},
+		{
+				0x90,
+				4,
+				msgpack_fixarray,
+				0,
+				MSGPACK_FLAG_FIXED|MSGPACK_FLAG_CONTAINER,
+				ucl_msgpack_parse_array
+		},
+		{
+				0xa0,
+				3,
+				msgpack_fixstr,
+				0,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_string
+		},
+		{
+				0xd9,
+				8,
+				msgpack_str8,
+				1,
+				0,
+				ucl_msgpack_parse_string
+		},
+		{
+				0xc4,
+				8,
+				msgpack_bin8,
+				1,
+				0,
+				ucl_msgpack_parse_string
+		},
+		{
+				0xcf,
+				8,
+				msgpack_uint64,
+				8,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_int
+		},
+		{
+				0xd3,
+				8,
+				msgpack_int64,
+				8,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_int
+		},
+		{
+				0xce,
+				8,
+				msgpack_uint32,
+				4,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_int
+		},
+		{
+				0xd2,
+				8,
+				msgpack_int32,
+				4,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_int
+		},
+		{
+				0xcb,
+				8,
+				msgpack_float64,
+				8,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_float
+		},
+		{
+				0xca,
+				8,
+				msgpack_float32,
+				4,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_float
+		},
+		{
+				0xc2,
+				8,
+				msgpack_false,
+				1,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_bool
+		},
+		{
+				0xc3,
+				8,
+				msgpack_true,
+				1,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_bool
+		},
+		{
+				0xcc,
+				8,
+				msgpack_uint8,
+				1,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_int
+		},
+		{
+				0xcd,
+				8,
+				msgpack_uint16,
+				2,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_int
+		},
+		{
+				0xd0,
+				8,
+				msgpack_int8,
+				1,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_int
+		},
+		{
+				0xd1,
+				8,
+				msgpack_int16,
+				2,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_int
+		},
+		{
+				0xc0,
+				8,
+				msgpack_nil,
+				0,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_null
+		},
+		{
+				0xda,
+				8,
+				msgpack_str16,
+				2,
+				0,
+				ucl_msgpack_parse_string
+		},
+		{
+				0xdb,
+				8,
+				msgpack_str32,
+				4,
+				0,
+				ucl_msgpack_parse_string
+		},
+		{
+				0xc5,
+				8,
+				msgpack_bin16,
+				2,
+				0,
+				ucl_msgpack_parse_string
+		},
+		{
+				0xc6,
+				8,
+				msgpack_bin32,
+				4,
+				0,
+				ucl_msgpack_parse_string
+		},
+		{
+				0xdc,
+				8,
+				msgpack_array16,
+				2,
+				MSGPACK_FLAG_CONTAINER,
+				ucl_msgpack_parse_array
+		},
+		{
+				0xdd,
+				8,
+				msgpack_array32,
+				4,
+				MSGPACK_FLAG_CONTAINER,
+				ucl_msgpack_parse_array
+		},
+		{
+				0xde,
+				8,
+				msgpack_map16,
+				2,
+				MSGPACK_FLAG_CONTAINER,
+				ucl_msgpack_parse_map
+		},
+		{
+				0xdf,
+				8,
+				msgpack_map32,
+				4,
+				MSGPACK_FLAG_CONTAINER,
+				ucl_msgpack_parse_map
+		},
+		{
+				0xc7,
+				8,
+				msgpack_ext8,
+				1,
+				0,
+				ucl_msgpack_parse_ignore
+		},
+		{
+				0xc8,
+				8,
+				msgpack_ext16,
+				2,
+				0,
+				ucl_msgpack_parse_ignore
+		},
+		{
+				0xc9,
+				8,
+				msgpack_ext32,
+				4,
+				0,
+				ucl_msgpack_parse_ignore
+		},
+		{
+				0xd4,
+				8,
+				msgpack_fixext1,
+				1,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_ignore
+		},
+		{
+				0xd5,
+				8,
+				msgpack_fixext2,
+				2,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_ignore
+		},
+		{
+				0xd6,
+				8,
+				msgpack_fixext4,
+				4,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_ignore
+		},
+		{
+				0xd7,
+				8,
+				msgpack_fixext8,
+				8,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_ignore
+		},
+		{
+				0xd8,
+				8,
+				msgpack_fixext16,
+				16,
+				MSGPACK_FLAG_FIXED,
+				ucl_msgpack_parse_ignore
+		}
 };
 
 static bool
@@ -456,11 +745,75 @@ ucl_parse_msgpack (struct ucl_parser *parser)
 	 */
 
 	if (container == NULL) {
-		if ((*p & 0x80) != 0x80 && !(*p >= 0xdb && *p <= 0xdf)) {
+		if ((*p & 0x80) != 0x80 && !(*p >= 0xdc && *p <= 0xdf)) {
 			ucl_create_err (&parser->err, "bad top level object for msgpack");
 			return false;
 		}
 	}
 
 	return ucl_msgpack_consume (parser, container);
+}
+
+static ssize_t
+ucl_msgpack_parse_map (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain)
+{
+	return -1;
+}
+
+static ssize_t
+ucl_msgpack_parse_array (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain)
+{
+	return -1;
+}
+
+static ssize_t
+ucl_msgpack_parse_string (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain)
+{
+	return -1;
+}
+
+static ssize_t
+ucl_msgpack_parse_int (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain)
+{
+	return -1;
+}
+
+static ssize_t
+ucl_msgpack_parse_float (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain)
+{
+	return -1;
+}
+
+static ssize_t
+ucl_msgpack_parse_bool (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain)
+{
+	return -1;
+}
+
+static ssize_t
+ucl_msgpack_parse_null (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain)
+{
+	return -1;
+}
+
+static ssize_t
+ucl_msgpack_parse_ignore (struct ucl_parser *parser,
+		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		const unsigned char *pos, size_t remain)
+{
+	return -1;
 }
