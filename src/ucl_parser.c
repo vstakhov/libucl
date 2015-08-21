@@ -561,7 +561,7 @@ ucl_copy_or_store_ptr (struct ucl_parser *parser,
  * @param level
  * @return
  */
-ucl_object_t *
+static inline ucl_object_t *
 ucl_parser_add_container (ucl_object_t *obj, struct ucl_parser *parser,
 		bool is_array, int level)
 {
@@ -1441,7 +1441,7 @@ ucl_parse_multiline_string (struct ucl_parser *parser,
 	return len;
 }
 
-ucl_object_t*
+static inline ucl_object_t*
 ucl_parser_get_container (struct ucl_parser *parser)
 {
 	ucl_object_t *t, *obj = NULL;

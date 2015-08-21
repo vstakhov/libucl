@@ -323,3 +323,144 @@ ucl_emitter_print_object_msgpack (struct ucl_emitter_context *ctx, size_t len)
 
 	func->ucl_emitter_append_len (buf, blen, func->ud);
 }
+
+
+enum ucl_msgpack_format {
+	msgpack_positive_fixint = 0,
+	msgpack_fixmap,
+	msgpack_fixarray,
+	msgpack_fixstr,
+	msgpack_nil,
+	msgpack_false,
+	msgpack_true,
+	msgpack_bin8,
+	msgpack_bin16,
+	msgpack_bin32,
+	msgpack_ext8,
+	msgpack_ext16,
+	msgpack_ext32,
+	msgpack_float32,
+	msgpack_float64,
+	msgpack_uint8,
+	msgpack_uint16,
+	msgpack_uint32,
+	msgpack_uint64,
+	msgpack_int8,
+	msgpack_int16,
+	msgpack_int32,
+	msgpack_int64,
+	msgpack_fixext1,
+	msgpack_fixext2,
+	msgpack_fixext4,
+	msgpack_fixext8,
+	msgpack_fixext16,
+	msgpack_str8,
+	msgpack_str16,
+	msgpack_str32,
+	msgpack_array16,
+	msgpack_array32,
+	msgpack_map16,
+	msgpack_map32,
+	msgpack_negative_fixint,
+	msgpack_invalid
+};
+
+/*
+ * Search tree packed in array
+ */
+struct ucl_msgpack_parser {
+	uint8_t prefix;
+	uint8_t prefixlen;
+	uint8_t fmt;
+	uint8_t len;
+} parsers[] = {
+	{0x0, 1, msgpack_positive_fixint, 0},
+	{0xe0, 3, msgpack_negative_fixint, 0},
+	{0x80, 4, msgpack_fixmap, 0},
+	{0x90, 4, msgpack_fixarray, 0},
+	{0xa0, 3, msgpack_fixstr, 0},
+	{0xd9, 8, msgpack_str8, 1},
+	{0xc4, 8, msgpack_bin8, 1},
+	{0xc5, 8, msgpack_bin16, 2},
+	{0xc6, 8, msgpack_bin32, 4},
+	{0xcf, 8, msgpack_uint64, 0},
+	{0xd3, 8, msgpack_int64, 0},
+	{0xce, 8, msgpack_uint32, 0},
+	{0xd2, 8, msgpack_int32, 0},
+	{0xcb, 8, msgpack_float64, 0},
+	{0xca, 8, msgpack_float32, 0},
+	{0xc2, 8, msgpack_false, 0},
+	{0xc3, 8, msgpack_true, 0},
+	{0xcc, 8, msgpack_uint8, 0},
+	{0xcd, 8, msgpack_uint16, 0},
+	{0xd0, 8, msgpack_int8, 0},
+	{0xd1, 8, msgpack_int16, 0},
+	{0xc0, 8, msgpack_nil, 0},
+	{0xda, 8, msgpack_str16, 2},
+	{0xdb, 8, msgpack_str32, 4},
+	{0xdc, 8, msgpack_array16, 2},
+	{0xdd, 8, msgpack_array32, 4},
+	{0xde, 8, msgpack_map16, 2},
+	{0xdf, 8, msgpack_map32, 4},
+	{0xc7, 8, msgpack_ext8, 1},
+	{0xc8, 8, msgpack_ext16, 2},
+	{0xc9, 8, msgpack_ext32, 4},
+	{0xd4, 8, msgpack_fixext1, 0},
+	{0xd5, 8, msgpack_fixext2, 0},
+	{0xd6, 8, msgpack_fixext4, 0},
+	{0xd7, 8, msgpack_fixext8, 0},
+	{0xd8, 8, msgpack_fixext16, 0},
+};
+
+static bool
+ucl_msgpack_consume (struct ucl_parser *parser, ucl_object_t *container)
+{
+	const unsigned char *p, *end;
+	size_t remain;
+	enum {
+		read_type,
+		read_length,
+		read_value,
+		error_state
+	} state;
+
+	p = parser->chunks->begin;
+	remain = parser->chunks->remain;
+	end = p + remain;
+
+
+	return false;
+}
+
+bool
+ucl_parse_msgpack (struct ucl_parser *parser)
+{
+	ucl_object_t *container = NULL;
+	const unsigned char *p;
+
+	assert (parser != NULL);
+	assert (parser->chunks != NULL);
+	assert (parser->chunks->begin != NULL);
+	assert (parser->chunks->remain != 0);
+
+	p = parser->chunks->begin;
+
+	if (parser->stack) {
+		container = parser->stack->obj;
+	}
+
+	/*
+	 * When we start parsing message pack chunk, we must ensure that we
+	 * have either a valid container or the top object inside message pack is
+	 * of container type
+	 */
+
+	if (container == NULL) {
+		if ((*p & 0x80) != 0x80 && !(*p >= 0xdb && *p <= 0xdf)) {
+			ucl_create_err (&parser->err, "bad top level object for msgpack");
+			return false;
+		}
+	}
+
+	return ucl_msgpack_consume (parser, container);
+}
