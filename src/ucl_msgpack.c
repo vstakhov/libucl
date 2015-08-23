@@ -396,6 +396,8 @@ static ssize_t ucl_msgpack_parse_ignore (struct ucl_parser *parser,
 
 #define MSGPACK_FLAG_FIXED (1 << 0)
 #define MSGPACK_FLAG_CONTAINER (1 << 1)
+#define MSGPACK_FLAG_TYPEVALUE (1 << 2)
+#define MSGPACK_FLAG_EXT (1 << 3)
 
 /*
  * Search tree packed in array
@@ -412,11 +414,19 @@ struct ucl_msgpack_parser {
 	ucl_msgpack_parse_function func;	/* Parser function				*/
 } parsers[] = {
 	{
+			0xa0,
+			3,
+			msgpack_fixstr,
+			0,
+			MSGPACK_FLAG_FIXED,
+			ucl_msgpack_parse_string
+	},
+	{
 			0x0,
 			1,
 			msgpack_positive_fixint,
 			0,
-			MSGPACK_FLAG_FIXED,
+			MSGPACK_FLAG_FIXED|MSGPACK_FLAG_TYPEVALUE,
 			ucl_msgpack_parse_int
 	},
 	{
@@ -424,7 +434,7 @@ struct ucl_msgpack_parser {
 			3,
 			msgpack_negative_fixint,
 			0,
-			MSGPACK_FLAG_FIXED,
+			MSGPACK_FLAG_FIXED|MSGPACK_FLAG_TYPEVALUE,
 			ucl_msgpack_parse_int
 	},
 	{
@@ -442,14 +452,6 @@ struct ucl_msgpack_parser {
 			0,
 			MSGPACK_FLAG_FIXED|MSGPACK_FLAG_CONTAINER,
 			ucl_msgpack_parse_array
-	},
-	{
-			0xa0,
-			3,
-			msgpack_fixstr,
-			0,
-			MSGPACK_FLAG_FIXED,
-			ucl_msgpack_parse_string
 	},
 	{
 			0xd9,
@@ -520,7 +522,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_false,
 			1,
-			MSGPACK_FLAG_FIXED,
+			MSGPACK_FLAG_FIXED | MSGPACK_FLAG_TYPEVALUE,
 			ucl_msgpack_parse_bool
 	},
 	{
@@ -528,7 +530,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_true,
 			1,
-			MSGPACK_FLAG_FIXED,
+			MSGPACK_FLAG_FIXED | MSGPACK_FLAG_TYPEVALUE,
 			ucl_msgpack_parse_bool
 	},
 	{
@@ -568,7 +570,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_nil,
 			0,
-			MSGPACK_FLAG_FIXED,
+			MSGPACK_FLAG_FIXED | MSGPACK_FLAG_TYPEVALUE,
 			ucl_msgpack_parse_null
 	},
 	{
@@ -640,7 +642,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_ext8,
 			1,
-			0,
+			MSGPACK_FLAG_EXT,
 			ucl_msgpack_parse_ignore
 	},
 	{
@@ -648,7 +650,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_ext16,
 			2,
-			0,
+			MSGPACK_FLAG_EXT,
 			ucl_msgpack_parse_ignore
 	},
 	{
@@ -656,7 +658,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_ext32,
 			4,
-			0,
+			MSGPACK_FLAG_EXT,
 			ucl_msgpack_parse_ignore
 	},
 	{
@@ -664,7 +666,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_fixext1,
 			1,
-			MSGPACK_FLAG_FIXED,
+			MSGPACK_FLAG_FIXED | MSGPACK_FLAG_EXT,
 			ucl_msgpack_parse_ignore
 	},
 	{
@@ -672,7 +674,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_fixext2,
 			2,
-			MSGPACK_FLAG_FIXED,
+			MSGPACK_FLAG_FIXED | MSGPACK_FLAG_EXT,
 			ucl_msgpack_parse_ignore
 	},
 	{
@@ -680,7 +682,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_fixext4,
 			4,
-			MSGPACK_FLAG_FIXED,
+			MSGPACK_FLAG_FIXED | MSGPACK_FLAG_EXT,
 			ucl_msgpack_parse_ignore
 	},
 	{
@@ -688,7 +690,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_fixext8,
 			8,
-			MSGPACK_FLAG_FIXED,
+			MSGPACK_FLAG_FIXED | MSGPACK_FLAG_EXT,
 			ucl_msgpack_parse_ignore
 	},
 	{
@@ -696,10 +698,27 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_fixext16,
 			16,
-			MSGPACK_FLAG_FIXED,
+			MSGPACK_FLAG_FIXED | MSGPACK_FLAG_EXT,
 			ucl_msgpack_parse_ignore
 	}
 };
+
+static inline struct ucl_msgpack_parser *
+ucl_msgpack_get_parser_from_type (unsigned char t)
+{
+	unsigned int i, shift, mask;
+
+	for (i = 0; i < sizeof (parsers) / sizeof (parsers[0]); i ++) {
+		shift = CHAR_BIT - parsers[i].prefixlen;
+		mask = parsers[i].prefix >> shift;
+
+		if ((mask & (t >> shift)) == mask) {
+			return &parsers[i];
+		}
+	}
+
+	return NULL;
+}
 
 static bool
 ucl_msgpack_consume (struct ucl_parser *parser, ucl_object_t *container)
@@ -711,12 +730,88 @@ ucl_msgpack_consume (struct ucl_parser *parser, ucl_object_t *container)
 		read_length,
 		read_value,
 		error_state
-	} state;
+	} state = read_type;
+	struct ucl_msgpack_parser *obj_parser;
+	uint64_t len;
 
 	p = parser->chunks->begin;
 	remain = parser->chunks->remain;
 	end = p + remain;
 
+
+	while (p < end) {
+		switch (state) {
+		case read_type:
+			obj_parser = ucl_msgpack_get_parser_from_type (*p);
+
+			if (obj_parser == NULL) {
+				ucl_create_err (&parser->err, "unknown msgpack format: %x",
+						(unsigned int)*p);
+
+				return false;
+			}
+			/* Now check length sanity */
+			if (obj_parser->flags & MSGPACK_FLAG_FIXED) {
+				if (obj_parser->len == 0) {
+					/* We have an embedded size */
+					len = *p & ~obj_parser->prefix;
+				}
+				else {
+					if (remain < obj_parser->len) {
+						ucl_create_err (&parser->err, "not enough data remain to "
+								"read object's length: %u remain, %u needed",
+								(unsigned)remain, obj_parser->len);
+
+						return false;
+					}
+				}
+
+				if (!(obj_parser->flags & MSGPACK_FLAG_TYPEVALUE)) {
+					/* We must pass value as the second byte */
+					if (remain > 0) {
+						p ++;
+						remain --;
+					}
+				}
+			}
+			else {
+				/* Length is not embedded */
+				if (remain < obj_parser->len) {
+					ucl_create_err (&parser->err, "not enough data remain to "
+							"read object's length: %u remain, %u needed",
+							(unsigned)remain, obj_parser->len);
+
+					return false;
+				}
+
+				p ++;
+				remain --;
+
+				switch (obj_parser->len) {
+				case 1:
+					len = *p;
+					break;
+				case 2:
+					len = FROM_BE16 (p);
+					break;
+				case 4:
+					len = FROM_BE32 (p);
+					break;
+				case 8:
+					len = FROM_BE64 (p);
+					break;
+				default:
+					assert (0);
+					break;
+				}
+
+				p += obj_parser->len;
+				remain -= obj_parser->len;
+			}
+
+			break;
+		}
+	}
 
 	return false;
 }
