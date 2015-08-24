@@ -366,38 +366,41 @@ enum ucl_msgpack_format {
 };
 
 typedef ssize_t (*ucl_msgpack_parse_function)(struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain);
 
 static ssize_t ucl_msgpack_parse_map (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain);
 static ssize_t ucl_msgpack_parse_array (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain);
 static ssize_t ucl_msgpack_parse_string (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain);
 static ssize_t ucl_msgpack_parse_int (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain);
 static ssize_t ucl_msgpack_parse_float (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain);
 static ssize_t ucl_msgpack_parse_bool (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain);
 static ssize_t ucl_msgpack_parse_null (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain);
 static ssize_t ucl_msgpack_parse_ignore (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain);
 
 #define MSGPACK_FLAG_FIXED (1 << 0)
 #define MSGPACK_FLAG_CONTAINER (1 << 1)
 #define MSGPACK_FLAG_TYPEVALUE (1 << 2)
 #define MSGPACK_FLAG_EXT (1 << 3)
+#define MSGPACK_FLAG_ASSOC (1 << 4)
+#define MSGPACK_FLAG_KEY (1 << 5)
+#define MSGPACK_CONTAINER_BIT (1ULL << 62)
 
 /*
  * Search tree packed in array
@@ -418,7 +421,7 @@ struct ucl_msgpack_parser {
 			3,
 			msgpack_fixstr,
 			0,
-			MSGPACK_FLAG_FIXED,
+			MSGPACK_FLAG_FIXED|MSGPACK_FLAG_KEY,
 			ucl_msgpack_parse_string
 	},
 	{
@@ -442,7 +445,7 @@ struct ucl_msgpack_parser {
 			4,
 			msgpack_fixmap,
 			0,
-			MSGPACK_FLAG_FIXED|MSGPACK_FLAG_CONTAINER,
+			MSGPACK_FLAG_FIXED|MSGPACK_FLAG_CONTAINER|MSGPACK_FLAG_ASSOC,
 			ucl_msgpack_parse_map
 	},
 	{
@@ -458,7 +461,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_str8,
 			1,
-			0,
+			MSGPACK_FLAG_KEY,
 			ucl_msgpack_parse_string
 	},
 	{
@@ -466,7 +469,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_bin8,
 			1,
-			0,
+			MSGPACK_FLAG_KEY,
 			ucl_msgpack_parse_string
 	},
 	{
@@ -578,7 +581,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_str16,
 			2,
-			0,
+			MSGPACK_FLAG_KEY,
 			ucl_msgpack_parse_string
 	},
 	{
@@ -586,7 +589,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_str32,
 			4,
-			0,
+			MSGPACK_FLAG_KEY,
 			ucl_msgpack_parse_string
 	},
 	{
@@ -594,7 +597,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_bin16,
 			2,
-			0,
+			MSGPACK_FLAG_KEY,
 			ucl_msgpack_parse_string
 	},
 	{
@@ -602,7 +605,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_bin32,
 			4,
-			0,
+			MSGPACK_FLAG_KEY,
 			ucl_msgpack_parse_string
 	},
 	{
@@ -626,7 +629,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_map16,
 			2,
-			MSGPACK_FLAG_CONTAINER,
+			MSGPACK_FLAG_CONTAINER|MSGPACK_FLAG_ASSOC,
 			ucl_msgpack_parse_map
 	},
 	{
@@ -634,7 +637,7 @@ struct ucl_msgpack_parser {
 			8,
 			msgpack_map32,
 			4,
-			MSGPACK_FLAG_CONTAINER,
+			MSGPACK_FLAG_CONTAINER|MSGPACK_FLAG_ASSOC,
 			ucl_msgpack_parse_map
 	},
 	{
@@ -720,19 +723,133 @@ ucl_msgpack_get_parser_from_type (unsigned char t)
 	return NULL;
 }
 
+static inline struct ucl_stack *
+ucl_msgpack_get_container (struct ucl_parser *parser,
+		struct ucl_msgpack_parser *obj_parser, uint64_t len)
+{
+	struct ucl_stack *stack;
+
+	assert (obj_parser != NULL);
+
+	if (obj_parser->flags & MSGPACK_FLAG_CONTAINER) {
+		assert ((len & MSGPACK_CONTAINER_BIT) == 0);
+		/*
+		 * Insert new container to the stack
+		 */
+		if (parser->stack == NULL) {
+			parser->stack = calloc (1, sizeof (struct ucl_stack));
+
+			if (parser->stack == NULL) {
+				ucl_create_err (&parser->err, "no memory");
+				return NULL;
+			}
+		}
+		else {
+			stack = calloc (1, sizeof (struct ucl_stack));
+
+			if (stack == NULL) {
+				ucl_create_err (&parser->err, "no memory");
+				return NULL;
+			}
+
+			stack->next = parser->stack;
+			parser->stack = stack;
+		}
+
+		parser->stack->level = len | MSGPACK_CONTAINER_BIT;
+
+	}
+	else {
+		/*
+		 * Get the current stack top
+		 */
+		if (parser->stack) {
+			return parser->stack;
+		}
+		else {
+			ucl_create_err (&parser->err, "bad top level object for msgpack");
+			return NULL;
+		}
+	}
+
+	return parser->stack;
+}
+
+struct ucl_stack *
+ucl_msgpack_get_next_container (struct ucl_parser *parser)
+{
+	struct ucl_stack *cur = NULL;
+	uint64_t level;
+
+	cur = parser->stack;
+
+	if (cur == NULL) {
+		ucl_create_err (&parser->err, "extra data after end of msgpack container");
+		return NULL;
+	}
+
+	if (cur->level & MSGPACK_CONTAINER_BIT) {
+		level = cur->level & ~MSGPACK_CONTAINER_BIT;
+
+		assert (level > 0);
+		if (--level == 0) {
+			/* We need to switch to the previous container */
+			parser->stack = cur->next;
+			free (cur);
+
+			return ucl_msgpack_get_next_container (parser);
+		}
+	}
+
+	/*
+	 * For UCL containers we don't know length, so we just insert the whole
+	 * message pack blob into the top level container
+	 */
+
+	assert (cur->obj != NULL);
+
+	return cur;
+}
+
+#define CONSUME_RET do {									\
+	if (ret != -1) {										\
+		p += ret;											\
+		remain -= ret;										\
+		obj_parser = NULL;									\
+		len = 0;											\
+		assert (remain >= 0);								\
+	}														\
+	else {													\
+		return false;										\
+	}														\
+} while(0)
+
+#define GET_NEXT_STATE do {									\
+	container = ucl_msgpack_get_next_container (parser);	\
+	if (container == NULL) {								\
+		return false;										\
+	}														\
+	next_state = container->obj->type == UCL_OBJECT ? 		\
+					read_assoc_key : read_array_value;		\
+} while(0)
+
 static bool
-ucl_msgpack_consume (struct ucl_parser *parser, ucl_object_t *container)
+ucl_msgpack_consume (struct ucl_parser *parser)
 {
 	const unsigned char *p, *end;
-	size_t remain;
+	struct ucl_stack *container;
 	enum {
 		read_type,
-		read_length,
-		read_value,
+		start_assoc,
+		start_array,
+		read_assoc_key,
+		read_assoc_value,
+		read_array_value,
 		error_state
-	} state = read_type;
+	} state = read_type, next_state = error_state;
 	struct ucl_msgpack_parser *obj_parser;
 	uint64_t len;
+	ssize_t ret, remain;
 
 	p = parser->chunks->begin;
 	remain = parser->chunks->remain;
@@ -764,6 +881,8 @@ ucl_msgpack_consume (struct ucl_parser *parser, ucl_object_t *container)
 
 						return false;
 					}
+
+					len = obj_parser->len;
 				}
 
 				if (!(obj_parser->flags & MSGPACK_FLAG_TYPEVALUE)) {
@@ -809,11 +928,107 @@ ucl_msgpack_consume (struct ucl_parser *parser, ucl_object_t *container)
 				remain -= obj_parser->len;
 			}
 
+			if (obj_parser->flags & MSGPACK_FLAG_ASSOC) {
+				/* We have just read the new associative map */
+				state = start_assoc;
+			}
+			else if (obj_parser->flags & MSGPACK_FLAG_CONTAINER){
+				state = start_array;
+			}
+			else {
+				state = next_state;
+			}
+
 			break;
+		case start_assoc:
+			container = ucl_msgpack_get_container (parser, obj_parser, len);
+
+			if (container == NULL) {
+				return false;
+			}
+
+			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
+					p, remain);
+			CONSUME_RET;
+			state = read_type;
+			next_state = read_assoc_key;
+			break;
+
+		case start_array:
+			container = ucl_msgpack_get_container (parser, obj_parser, len);
+
+			if (container == NULL) {
+				return false;
+			}
+
+			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
+					p, remain);
+			CONSUME_RET;
+			state = read_type;
+			next_state = read_array_value;
+			break;
+
+		case read_array_value:
+			/*
+			 * p is now at the value start, len now contains length read and
+			 * obj_parser contains the corresponding specific parser
+			 */
+			container = ucl_msgpack_get_container (parser, obj_parser, len);
+
+			if (container == NULL) {
+				return false;
+			}
+
+			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
+					p, remain);
+			CONSUME_RET;
+			state = read_type;
+			GET_NEXT_STATE;
+			break;
+
+		case read_assoc_key:
+			/*
+			 * Keys must have string type for ucl msgpack
+			 */
+			if (!(obj_parser->flags & MSGPACK_FLAG_KEY)) {
+				ucl_create_err (&parser->err, "bad type for key: %u, expected "
+						"string", (unsigned)obj_parser->fmt);
+
+				return false;
+			}
+			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
+					p, remain);
+			CONSUME_RET;
+			state = read_type;
+			next_state = read_assoc_value;
+			break;
+
+		case read_assoc_value:
+			/*
+			 * p is now at the value start, len now contains length read and
+			 * obj_parser contains the corresponding specific parser
+			 */
+			container = ucl_msgpack_get_container (parser, obj_parser, len);
+
+			if (container == NULL) {
+				return false;
+			}
+
+			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
+					p, remain);
+			CONSUME_RET;
+			state = read_type;
+			GET_NEXT_STATE;
+			break;
+
+		case error_state:
+			ucl_create_err (&parser->err, "invalid state machine state");
+
+			return false;
 		}
 	}
 
-	return false;
+	return true;
 }
 
 bool
@@ -838,7 +1053,6 @@ ucl_parse_msgpack (struct ucl_parser *parser)
 	 * have either a valid container or the top object inside message pack is
 	 * of container type
 	 */
-
 	if (container == NULL) {
 		if ((*p & 0x80) != 0x80 && !(*p >= 0xdc && *p <= 0xdf)) {
 			ucl_create_err (&parser->err, "bad top level object for msgpack");
@@ -846,12 +1060,12 @@ ucl_parse_msgpack (struct ucl_parser *parser)
 		}
 	}
 
-	return ucl_msgpack_consume (parser, container);
+	return ucl_msgpack_consume (parser);
 }
 
 static ssize_t
 ucl_msgpack_parse_map (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
 	return -1;
@@ -859,7 +1073,7 @@ ucl_msgpack_parse_map (struct ucl_parser *parser,
 
 static ssize_t
 ucl_msgpack_parse_array (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
 	return -1;
@@ -867,7 +1081,7 @@ ucl_msgpack_parse_array (struct ucl_parser *parser,
 
 static ssize_t
 ucl_msgpack_parse_string (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
 	return -1;
@@ -875,7 +1089,7 @@ ucl_msgpack_parse_string (struct ucl_parser *parser,
 
 static ssize_t
 ucl_msgpack_parse_int (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
 	return -1;
@@ -883,7 +1097,7 @@ ucl_msgpack_parse_int (struct ucl_parser *parser,
 
 static ssize_t
 ucl_msgpack_parse_float (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
 	return -1;
@@ -891,7 +1105,7 @@ ucl_msgpack_parse_float (struct ucl_parser *parser,
 
 static ssize_t
 ucl_msgpack_parse_bool (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
 	return -1;
@@ -899,7 +1113,7 @@ ucl_msgpack_parse_bool (struct ucl_parser *parser,
 
 static ssize_t
 ucl_msgpack_parse_null (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
 	return -1;
@@ -907,7 +1121,7 @@ ucl_msgpack_parse_null (struct ucl_parser *parser,
 
 static ssize_t
 ucl_msgpack_parse_ignore (struct ucl_parser *parser,
-		ucl_object_t *container, size_t len, enum ucl_msgpack_format fmt,
+		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
 	return -1;

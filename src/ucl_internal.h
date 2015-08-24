@@ -157,7 +157,7 @@ struct ucl_macro {
 struct ucl_stack {
 	ucl_object_t *obj;
 	struct ucl_stack *next;
-	uint32_t level;
+	uint64_t level;
 };
 
 struct ucl_chunk {
