@@ -793,12 +793,15 @@ ucl_msgpack_is_container_finished (struct ucl_stack *container)
 	return false;
 }
 
-static void
-ucl_msgpack_insert_object (struct ucl_stack *container, const unsigned char *key,
+static bool
+ucl_msgpack_insert_object (struct ucl_parser *parser,
+		const unsigned char *key,
 		size_t keylen, ucl_object_t *obj)
 {
 	uint64_t level;
+	struct ucl_stack *container;
 
+	container = parser->stack;
 	assert (container != NULL);
 	assert (container->level > 0);
 	assert (obj != NULL);
@@ -808,16 +811,31 @@ ucl_msgpack_insert_object (struct ucl_stack *container, const unsigned char *key
 		ucl_array_append (container->obj, obj);
 	}
 	else if (container->obj->type == UCL_OBJECT) {
-		ucl_object_insert_key (container->obj, obj, key, keylen, false);
+		if (key == NULL || keylen == 0) {
+			ucl_create_err (&parser->err, "cannot insert object with no key");
+			return false;
+		}
+
+		obj->key = key;
+		obj->keylen = keylen;
+
+		if (!(parser->flags & UCL_PARSER_ZEROCOPY)) {
+			ucl_copy_key_trash (obj);
+		}
+
+		ucl_parser_process_object_element (parser, obj);
 	}
 	else {
-		assert (0);
+		ucl_create_err (&parser->err, "bad container type");
+		return false;
 	}
 
 	if (container->level & MSGPACK_CONTAINER_BIT) {
 		level = container->level & ~MSGPACK_CONTAINER_BIT;
 		container->level = (level - 1) | MSGPACK_CONTAINER_BIT;
 	}
+
+	return true;
 }
 
 static struct ucl_stack *
@@ -882,7 +900,7 @@ static bool
 ucl_msgpack_consume (struct ucl_parser *parser)
 {
 	const unsigned char *p, *end, *key = NULL;
-	struct ucl_stack *container, *prev_container;
+	struct ucl_stack *container;
 	enum {
 		read_type,
 		start_assoc,
@@ -895,8 +913,8 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 		error_state
 	} state = read_type, next_state = error_state;
 	struct ucl_msgpack_parser *obj_parser;
-	uint64_t len, keylen = 0;
-	ssize_t ret, remain;
+	uint64_t len;
+	ssize_t ret, remain, keylen = 0;
 
 	p = parser->chunks->begin;
 	remain = parser->chunks->remain;
@@ -988,7 +1006,13 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 
 			break;
 		case start_assoc:
-			prev_container = parser->stack;
+			parser->cur_obj = ucl_object_new_full (UCL_OBJECT,
+					parser->chunks->priority);
+			/* Insert to the previous level container */
+			if (!ucl_msgpack_insert_object (parser,
+					key, keylen, parser->cur_obj)) {
+				return false;
+			}
 			/* Get new container */
 			container = ucl_msgpack_get_container (parser, obj_parser, len);
 
@@ -996,13 +1020,6 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 				return false;
 			}
 
-			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
-					p, remain);
-			CONSUME_RET;
-
-			/* Insert to the previous level container */
-			ucl_msgpack_insert_object (prev_container,
-					key, keylen, parser->cur_obj);
 			key = NULL;
 			keylen = 0;
 
@@ -1017,7 +1034,13 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			break;
 
 		case start_array:
-			prev_container = parser->stack;
+			parser->cur_obj = ucl_object_new_full (UCL_ARRAY,
+					parser->chunks->priority);
+			/* Insert to the previous level container */
+			if (!ucl_msgpack_insert_object (parser,
+					key, keylen, parser->cur_obj)) {
+				return false;
+			}
 			/* Get new container */
 			container = ucl_msgpack_get_container (parser, obj_parser, len);
 
@@ -1025,15 +1048,9 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 				return false;
 			}
 
-			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
-					p, remain);
-			CONSUME_RET;
-
-			/* Insert to the previous level container */
-			ucl_msgpack_insert_object (prev_container,
-					key, keylen, parser->cur_obj);
 			key = NULL;
 			keylen = 0;
+
 
 			if (len > 0) {
 				state = read_type;
@@ -1062,7 +1079,10 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 
 
 			/* Insert value to the container and check if we have finished array */
-			ucl_msgpack_insert_object (container, NULL, 0, parser->cur_obj);
+			if (!ucl_msgpack_insert_object (parser, NULL, 0,
+					parser->cur_obj)) {
+				return false;
+			}
 
 			if (ucl_msgpack_is_container_finished (container)) {
 				state = finish_array_value;
@@ -1085,9 +1105,18 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 
 				return false;
 			}
-			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
-					p, remain);
-			CONSUME_RET;
+
+			key = p;
+			keylen = len;
+
+			if (keylen > remain || keylen == 0) {
+				ucl_create_err (&parser->err, "too long or too short key");
+				return false;
+			}
+
+			p += len;
+			remain -= len;
+
 			state = read_type;
 			next_state = read_assoc_value;
 			break;
@@ -1109,7 +1138,11 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 
 			assert (key != NULL && keylen > 0);
 
-			ucl_msgpack_insert_object (container, key, keylen, parser->cur_obj);
+			if (!ucl_msgpack_insert_object (parser, key, keylen,
+					parser->cur_obj)) {
+				return false;
+			}
+
 			key = NULL;
 			keylen = 0;
 
