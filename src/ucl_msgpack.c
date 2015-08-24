@@ -775,7 +775,52 @@ ucl_msgpack_get_container (struct ucl_parser *parser,
 	return parser->stack;
 }
 
-struct ucl_stack *
+static bool
+ucl_msgpack_is_container_finished (struct ucl_stack *container)
+{
+	uint64_t level;
+
+	assert (container != NULL);
+
+	if (container->level & MSGPACK_CONTAINER_BIT) {
+		level = container->level & ~MSGPACK_CONTAINER_BIT;
+
+		if (level == 0) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void
+ucl_msgpack_insert_object (struct ucl_stack *container, const unsigned char *key,
+		size_t keylen, ucl_object_t *obj)
+{
+	uint64_t level;
+
+	assert (container != NULL);
+	assert (container->level > 0);
+	assert (obj != NULL);
+	assert (container->obj != NULL);
+
+	if (container->obj->type == UCL_ARRAY) {
+		ucl_array_append (container->obj, obj);
+	}
+	else if (container->obj->type == UCL_OBJECT) {
+		ucl_object_insert_key (container->obj, obj, key, keylen, false);
+	}
+	else {
+		assert (0);
+	}
+
+	if (container->level & MSGPACK_CONTAINER_BIT) {
+		level = container->level & ~MSGPACK_CONTAINER_BIT;
+		container->level = (level - 1) | MSGPACK_CONTAINER_BIT;
+	}
+}
+
+static struct ucl_stack *
 ucl_msgpack_get_next_container (struct ucl_parser *parser)
 {
 	struct ucl_stack *cur = NULL;
@@ -836,19 +881,21 @@ ucl_msgpack_get_next_container (struct ucl_parser *parser)
 static bool
 ucl_msgpack_consume (struct ucl_parser *parser)
 {
-	const unsigned char *p, *end;
-	struct ucl_stack *container;
+	const unsigned char *p, *end, *key = NULL;
+	struct ucl_stack *container, *prev_container;
 	enum {
 		read_type,
 		start_assoc,
 		start_array,
 		read_assoc_key,
 		read_assoc_value,
+		finish_assoc_value,
 		read_array_value,
+		finish_array_value,
 		error_state
 	} state = read_type, next_state = error_state;
 	struct ucl_msgpack_parser *obj_parser;
-	uint64_t len;
+	uint64_t len, keylen = 0;
 	ssize_t ret, remain;
 
 	p = parser->chunks->begin;
@@ -941,6 +988,8 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 
 			break;
 		case start_assoc:
+			prev_container = parser->stack;
+			/* Get new container */
 			container = ucl_msgpack_get_container (parser, obj_parser, len);
 
 			if (container == NULL) {
@@ -950,11 +999,26 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
 					p, remain);
 			CONSUME_RET;
-			state = read_type;
-			next_state = read_assoc_key;
+
+			/* Insert to the previous level container */
+			ucl_msgpack_insert_object (prev_container,
+					key, keylen, parser->cur_obj);
+			key = NULL;
+			keylen = 0;
+
+			if (len > 0) {
+				state = read_type;
+				next_state = read_assoc_key;
+			}
+			else {
+				/* Empty object */
+				state = finish_assoc_value;
+			}
 			break;
 
 		case start_array:
+			prev_container = parser->stack;
+			/* Get new container */
 			container = ucl_msgpack_get_container (parser, obj_parser, len);
 
 			if (container == NULL) {
@@ -964,8 +1028,21 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
 					p, remain);
 			CONSUME_RET;
-			state = read_type;
-			next_state = read_array_value;
+
+			/* Insert to the previous level container */
+			ucl_msgpack_insert_object (prev_container,
+					key, keylen, parser->cur_obj);
+			key = NULL;
+			keylen = 0;
+
+			if (len > 0) {
+				state = read_type;
+				next_state = read_array_value;
+			}
+			else {
+				/* Empty array */
+				state = finish_array_value;
+			}
 			break;
 
 		case read_array_value:
@@ -973,7 +1050,7 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			 * p is now at the value start, len now contains length read and
 			 * obj_parser contains the corresponding specific parser
 			 */
-			container = ucl_msgpack_get_container (parser, obj_parser, len);
+			container = parser->stack;
 
 			if (container == NULL) {
 				return false;
@@ -982,8 +1059,20 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
 					p, remain);
 			CONSUME_RET;
-			state = read_type;
-			GET_NEXT_STATE;
+
+
+			/* Insert value to the container and check if we have finished array */
+			ucl_msgpack_insert_object (container, NULL, 0, parser->cur_obj);
+
+			if (ucl_msgpack_is_container_finished (container)) {
+				state = finish_array_value;
+			}
+			else {
+				/* Read more elements */
+				state = read_type;
+				next_state = read_array_value;
+			}
+
 			break;
 
 		case read_assoc_key:
@@ -1008,7 +1097,7 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			 * p is now at the value start, len now contains length read and
 			 * obj_parser contains the corresponding specific parser
 			 */
-			container = ucl_msgpack_get_container (parser, obj_parser, len);
+			container = parser->stack;
 
 			if (container == NULL) {
 				return false;
@@ -1017,8 +1106,27 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
 					p, remain);
 			CONSUME_RET;
-			state = read_type;
+
+			assert (key != NULL && keylen > 0);
+
+			ucl_msgpack_insert_object (container, key, keylen, parser->cur_obj);
+			key = NULL;
+			keylen = 0;
+
+			if (ucl_msgpack_is_container_finished (container)) {
+				state = finish_assoc_value;
+			}
+			else {
+				/* Read more elements */
+				state = read_type;
+				next_state = read_assoc_key;
+			}
+			break;
+
+		case finish_array_value:
+		case finish_assoc_value:
 			GET_NEXT_STATE;
+			state = read_type;
 			break;
 
 		case error_state:
@@ -1068,7 +1176,9 @@ ucl_msgpack_parse_map (struct ucl_parser *parser,
 		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
-	return -1;
+	container->obj = ucl_object_typed_new (UCL_OBJECT);
+
+	return 0;
 }
 
 static ssize_t
@@ -1076,7 +1186,10 @@ ucl_msgpack_parse_array (struct ucl_parser *parser,
 		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
-	return -1;
+	container->obj = ucl_object_typed_new (UCL_ARRAY);
+	parser->cur_obj = container->obj;
+
+	return 0;
 }
 
 static ssize_t
