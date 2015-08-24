@@ -2370,7 +2370,14 @@ ucl_parser_add_chunk_full (struct ucl_parser *parser, const unsigned char *data,
 					parser->recursion);
 			return false;
 		}
-		return ucl_state_machine (parser);
+
+		switch (parse_type) {
+		default:
+		case UCL_PARSE_UCL:
+			return ucl_state_machine (parser);
+		case UCL_PARSE_MSGPACK:
+			return ucl_parse_msgpack (parser);
+		}
 	}
 
 	ucl_create_err (&parser->err, "a parser is in an invalid state");

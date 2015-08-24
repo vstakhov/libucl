@@ -858,6 +858,7 @@ ucl_msgpack_get_next_container (struct ucl_parser *parser)
 		if (--level == 0) {
 			/* We need to switch to the previous container */
 			parser->stack = cur->next;
+			parser->cur_obj = cur->obj;
 			free (cur);
 
 			return ucl_msgpack_get_next_container (parser);
@@ -1177,6 +1178,7 @@ ucl_parse_msgpack (struct ucl_parser *parser)
 {
 	ucl_object_t *container = NULL;
 	const unsigned char *p;
+	bool ret;
 
 	assert (parser != NULL);
 	assert (parser->chunks != NULL);
@@ -1201,7 +1203,13 @@ ucl_parse_msgpack (struct ucl_parser *parser)
 		}
 	}
 
-	return ucl_msgpack_consume (parser);
+	ret = ucl_msgpack_consume (parser);
+
+	if (ret && parser->top_obj == NULL) {
+		parser->top_obj = parser->cur_obj;
+	}
+
+	return ret;
 }
 
 static ssize_t

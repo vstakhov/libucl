@@ -518,5 +518,11 @@ void ucl_emitter_print_key_msgpack (bool print_key,
 bool ucl_parser_process_object_element (struct ucl_parser *parser,
 		ucl_object_t *nobj);
 
+/**
+ * Parse msgpack chunk
+ * @param parser
+ * @return
+ */
+bool ucl_parse_msgpack (struct ucl_parser *parser);
 
 #endif /* UCL_INTERNAL_H_ */
