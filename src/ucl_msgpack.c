@@ -916,7 +916,7 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			}
 			/* Now check length sanity */
 			if (obj_parser->flags & MSGPACK_FLAG_FIXED) {
-				if (obj_parser->len == 0) {
+				if (obj_parser->len == 0 && (obj_parser->flags & MSGPACK_FLAG_CONTAINER)) {
 					/* We have an embedded size */
 					len = *p & ~obj_parser->prefix;
 				}
@@ -1197,7 +1197,23 @@ ucl_msgpack_parse_string (struct ucl_parser *parser,
 		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
-	return -1;
+	ucl_object_t *obj;
+
+	if (len < remain) {
+		return -1;
+	}
+
+	obj = ucl_object_new_full (UCL_STRING, parser->chunks->priority);
+	obj->value.sv = pos;
+	obj->len = len;
+
+	if (!(parser->flags & UCL_PARSER_ZEROCOPY)) {
+		ucl_copy_value_trash (obj);
+	}
+
+	parser->cur_obj = obj;
+
+	return len;
 }
 
 static ssize_t
@@ -1205,7 +1221,63 @@ ucl_msgpack_parse_int (struct ucl_parser *parser,
 		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
-	return -1;
+	ucl_object_t *obj;
+
+	if (len < remain) {
+		return -1;
+	}
+
+	obj = ucl_object_new_full (UCL_INT, parser->chunks->priority);
+
+	switch (fmt) {
+	case msgpack_positive_fixint:
+		obj->value.iv = (*pos & 0x7f);
+		len = 1;
+		break;
+	case msgpack_negative_fixint:
+		obj->value.iv = - (*pos & 0x1f);
+		len = 1;
+		break;
+	case msgpack_uint8:
+		obj->value.iv = (unsigned char)*pos;
+		len = 1;
+		break;
+	case msgpack_int8:
+		obj->value.iv = (signed char)*pos;
+		len = 1;
+		break;
+	case msgpack_int16:
+		obj->value.iv = FROM_BE16 (*(int16_t *)pos);
+		len = 2;
+		break;
+	case msgpack_uint16:
+		obj->value.iv = FROM_BE16 (*(uint16_t *)pos);
+		len = 2;
+		break;
+	case msgpack_int32:
+		obj->value.iv = FROM_BE32 (*(int32_t *)pos);
+		len = 4;
+		break;
+	case msgpack_uint32:
+		obj->value.iv = FROM_BE32 (*(uint32_t *)pos);
+		len = 4;
+		break;
+	case msgpack_int64:
+		obj->value.iv = FROM_BE64 (*(int64_t *)pos);
+		len = 8;
+		break;
+	case msgpack_uint64:
+		obj->value.iv = FROM_BE64 (*(uint64_t *)pos);
+		len = 8;
+		break;
+	default:
+		assert (0);
+		break;
+	}
+
+	parser->cur_obj = obj;
+
+	return len;
 }
 
 static ssize_t
@@ -1213,7 +1285,37 @@ ucl_msgpack_parse_float (struct ucl_parser *parser,
 		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
-	return -1;
+	ucl_object_t *obj;
+	union {
+		uint32_t i;
+		float f;
+	} d;
+
+	if (len < remain) {
+		return -1;
+	}
+
+	obj = ucl_object_new_full (UCL_FLOAT, parser->chunks->priority);
+
+	switch (fmt) {
+	case msgpack_float32:
+		d.i = FROM_BE32 (*(uint32_t *)pos);
+		/* XXX: can be slow */
+		obj->value.dv = d.f;
+		len = 4;
+		break;
+	case msgpack_float64:
+		obj->value.iv = FROM_BE64 (*(uint64_t *)pos);
+		len = 8;
+		break;
+	default:
+		assert (0);
+		break;
+	}
+
+	parser->cur_obj = obj;
+
+	return len;
 }
 
 static ssize_t
@@ -1221,7 +1323,29 @@ ucl_msgpack_parse_bool (struct ucl_parser *parser,
 		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
-	return -1;
+	ucl_object_t *obj;
+
+	if (len < remain) {
+		return -1;
+	}
+
+	obj = ucl_object_new_full (UCL_BOOLEAN, parser->chunks->priority);
+
+	switch (fmt) {
+	case msgpack_true:
+		obj->value.iv = true;
+		break;
+	case msgpack_false:
+		obj->value.iv = false;
+		break;
+	default:
+		assert (0);
+		break;
+	}
+
+	parser->cur_obj = obj;
+
+	return 1;
 }
 
 static ssize_t
@@ -1229,7 +1353,16 @@ ucl_msgpack_parse_null (struct ucl_parser *parser,
 		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
-	return -1;
+	ucl_object_t *obj;
+
+	if (len < remain) {
+		return -1;
+	}
+
+	obj = ucl_object_new_full (UCL_NULL, parser->chunks->priority);
+	parser->cur_obj = obj;
+
+	return 1;
 }
 
 static ssize_t
@@ -1237,5 +1370,35 @@ ucl_msgpack_parse_ignore (struct ucl_parser *parser,
 		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
-	return -1;
+	if (len < remain) {
+		return -1;
+	}
+
+	switch (fmt) {
+	case msgpack_fixext1:
+		len = 2;
+		break;
+	case msgpack_fixext2:
+		len = 3;
+		break;
+	case msgpack_fixext4:
+		len = 5;
+		break;
+	case msgpack_fixext8:
+		len = 9;
+		break;
+	case msgpack_fixext16:
+		len = 17;
+		break;
+	case msgpack_ext8:
+	case msgpack_ext16:
+	case msgpack_ext32:
+		len = len + 1;
+		break;
+	default:
+		ucl_create_err (&parser->err, "bad type: %x", (unsigned)fmt);
+		return -1;
+	}
+
+	return len;
 }
