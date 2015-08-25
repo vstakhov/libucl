@@ -93,9 +93,10 @@ main (int argc, char **argv)
 	int fd, i, j;
 	uint32_t sel;
 	ucl_object_t *obj, *elt;
-	size_t klen;
+	struct ucl_parser *parser;
+	size_t klen, elen;
 	const char *key;
-	char *emitted;
+	unsigned char *emitted, *emitted2;
 	FILE *out;
 	const char *fname_out = NULL;
 
@@ -136,16 +137,39 @@ main (int argc, char **argv)
 			ucl_object_insert_key (obj, elt, key, klen, true);
 		}
 
-		emitted = ucl_object_emit (obj, UCL_EMIT_MSGPACK);
+		emitted = ucl_object_emit_len (obj, UCL_EMIT_MSGPACK, &elen);
 
 		assert (emitted != NULL);
 
 		if (out) {
-			fprintf (out, "%s\n", emitted);
+			fprintf (out, "%*.s\n", (int)elen, emitted);
 
 			fclose (out);
 		}
 		ucl_object_unref (obj);
+
+		parser = ucl_parser_new (0);
+
+		if (!ucl_parser_add_chunk_full (parser, emitted, elen, 0,
+				UCL_DUPLICATE_APPEND, UCL_PARSE_MSGPACK)) {
+			fprintf (stderr, "error parsing input: %s",
+					ucl_parser_get_error (parser));
+			assert (0);
+		}
+
+		obj = ucl_parser_get_object (parser);
+		ucl_parser_free (parser);
+		assert (obj != NULL);
+
+		emitted2 = ucl_object_emit_len (obj, UCL_EMIT_MSGPACK, &elen);
+
+		assert (emitted2 != NULL);
+		ucl_object_unref (obj);
+
+		assert (memcmp (emitted, emitted2, elen) == 0);
+
+		free (emitted);
+		free (emitted2);
 	}
 
 	return 0;
