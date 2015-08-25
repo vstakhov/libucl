@@ -1,0 +1,284 @@
+/*
+ * Copyright (c) 2015, Vsevolod Stakhov
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *	 * Redistributions of source code must retain the above copyright
+ *	   notice, this list of conditions and the following disclaimer.
+ *	 * Redistributions in binary form must reproduce the above copyright
+ *	   notice, this list of conditions and the following disclaimer in the
+ *	   documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY AUTHOR ''AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL AUTHOR BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include "ucl.h"
+#include "ucl_internal.h"
+
+static const int niter = 1000;
+static const int ntests = 100;
+static const int nelt = 10;
+
+static int recursion = 0;
+
+typedef ucl_object_t* (*ucl_msgpack_test)(void);
+
+static ucl_object_t* ucl_test_integer (void);
+static ucl_object_t* ucl_test_string (void);
+static ucl_object_t* ucl_test_boolean (void);
+static ucl_object_t* ucl_test_map (void);
+static ucl_object_t* ucl_test_array (void);
+
+ucl_msgpack_test tests[] = {
+		ucl_test_integer,
+		ucl_test_string,
+		ucl_test_boolean,
+		ucl_test_map,
+		ucl_test_array,
+};
+
+#define NTESTS (sizeof(tests) / sizeof(tests[0]))
+
+typedef struct
+{
+	uint64_t state;
+	uint64_t inc;
+} pcg32_random_t;
+
+pcg32_random_t rng;
+
+/*
+ * From http://www.pcg-random.org/
+ */
+static uint32_t
+pcg32_random (void)
+{
+	uint64_t oldstate = rng.state;
+
+	rng.state = oldstate * 6364136223846793005ULL + (rng.inc | 1);
+	uint32_t xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
+	uint32_t rot = oldstate >> 59u;
+	return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+}
+
+static const char *
+random_key (size_t *lenptr)
+{
+	static char keybuf[512];
+	int keylen, i;
+
+	keylen = pcg32_random () % sizeof (keybuf);
+
+	for (i = 0; i < keylen; i ++) {
+		keybuf[i] = pcg32_random () & 0xFF;
+	}
+
+	*lenptr = keylen;
+	return keybuf;
+}
+
+int
+main (int argc, char **argv)
+{
+	int fd, i, j;
+	uint32_t sel;
+	ucl_object_t *obj, *elt;
+	size_t klen;
+	const char *key;
+	char *emitted;
+	FILE *out;
+	const char *fname_out = NULL;
+
+	switch (argc) {
+	case 2:
+		fname_out = argv[1];
+		break;
+	}
+
+	/* Seed prng */
+	fd = open ("/dev/urandom", O_RDONLY);
+	assert (fd != -1);
+	assert (read (fd, &rng, sizeof (rng)) == sizeof (rng));
+	close (fd);
+
+	for (i = 0; i < niter; i ++) {
+		if (fname_out != NULL) {
+			out = fopen (fname_out, "w");
+			if (out == NULL) {
+				exit (-errno);
+			}
+		}
+		else {
+			out = NULL;
+		}
+
+		/* Generate phase */
+		obj = ucl_object_typed_new (UCL_OBJECT);
+
+		for (j = 0; j < ntests; j ++) {
+			sel = pcg32_random () % NTESTS;
+
+			key = random_key (&klen);
+			recursion = 0;
+			elt = tests[sel]();
+			assert (elt != NULL);
+
+			ucl_object_insert_key (obj, elt, key, klen, true);
+		}
+
+		emitted = ucl_object_emit (obj, UCL_EMIT_MSGPACK);
+
+		assert (emitted != NULL);
+
+		if (out) {
+			fprintf (out, "%s\n", emitted);
+
+			fclose (out);
+		}
+		ucl_object_unref (obj);
+	}
+
+	return 0;
+}
+
+
+static ucl_object_t*
+ucl_test_integer (void)
+{
+	ucl_object_t *res;
+	int count, i;
+	uint64_t cur;
+
+	res = ucl_object_typed_new (UCL_ARRAY);
+	count = pcg32_random () % nelt;
+
+	for (i = 0; i < count; i ++) {
+		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
+		ucl_array_append (res, ucl_object_fromint (cur % 128));
+		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
+		ucl_array_append (res, ucl_object_fromint (-cur % 128));
+		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
+		ucl_array_append (res, ucl_object_fromint (cur % 65536));
+		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
+		ucl_array_append (res, ucl_object_fromint (cur % INT32_MAX));
+		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
+		ucl_array_append (res, ucl_object_fromint (cur));
+	}
+
+	return res;
+}
+
+static ucl_object_t*
+ucl_test_string (void)
+{
+	ucl_object_t *res;
+	int count, i;
+	uint32_t cur_len;
+	char *str;
+
+	res = ucl_object_typed_new (UCL_ARRAY);
+	count = pcg32_random () % nelt;
+
+	for (i = 0; i < count; i ++) {
+		cur_len = pcg32_random ();
+		str = malloc (cur_len % 128);
+		ucl_array_append (res, ucl_object_fromstring_common (str, cur_len % 128,
+				UCL_STRING_RAW));
+		free (str);
+		cur_len = pcg32_random ();
+		str = malloc (cur_len % 512);
+		ucl_array_append (res, ucl_object_fromstring_common (str, cur_len % 512,
+				UCL_STRING_RAW));
+		free (str);
+	}
+
+	return res;
+}
+
+static ucl_object_t*
+ucl_test_boolean (void)
+{
+	ucl_object_t *res;
+	int count, i;
+
+	res = ucl_object_typed_new (UCL_ARRAY);
+	count = pcg32_random () % nelt;
+
+	for (i = 0; i < count; i ++) {
+		ucl_array_append (res, ucl_object_frombool (pcg32_random () % 2));
+	}
+
+	return res;
+}
+
+static ucl_object_t*
+ucl_test_map (void)
+{
+	ucl_object_t *res, *cur;
+	int count, i;
+	uint32_t cur_len, sel;
+	size_t klen;
+	const char *key;
+
+	res = ucl_object_typed_new (UCL_OBJECT);
+	count = pcg32_random () % nelt;
+
+	recursion ++;
+
+	for (i = 0; i < count; i ++) {
+
+		if (recursion > 10) {
+			sel = pcg32_random () % (NTESTS - 2);
+		}
+		else {
+			sel = pcg32_random () % NTESTS;
+		}
+
+		key = random_key (&klen);
+		cur = tests[sel]();
+		assert (cur != NULL);
+
+		ucl_object_insert_key (res, cur, key, klen, true);
+	}
+
+	return res;
+}
+
+static ucl_object_t*
+ucl_test_array (void)
+{
+	ucl_object_t *res, *cur;
+	int count, i;
+	uint32_t cur_len, sel;
+
+	res = ucl_object_typed_new (UCL_ARRAY);
+	count = pcg32_random () % nelt;
+
+	recursion ++;
+
+	for (i = 0; i < count; i ++) {
+		if (recursion > 10) {
+			sel = pcg32_random () % (NTESTS - 2);
+		}
+		else {
+			sel = pcg32_random () % NTESTS;
+		}
+
+		cur = tests[sel]();
+		assert (cur != NULL);
+
+		ucl_array_append (res, cur);
+	}
+
+	return res;
+}
