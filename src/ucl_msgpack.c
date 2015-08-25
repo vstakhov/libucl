@@ -715,7 +715,7 @@ ucl_msgpack_get_parser_from_type (unsigned char t)
 		shift = CHAR_BIT - parsers[i].prefixlen;
 		mask = parsers[i].prefix >> shift;
 
-		if ((mask & (t >> shift)) == mask) {
+		if (mask == (t >> shift)) {
 			return &parsers[i];
 		}
 	}
@@ -880,10 +880,13 @@ ucl_msgpack_get_next_container (struct ucl_parser *parser)
 		p += ret;											\
 		remain -= ret;										\
 		obj_parser = NULL;									\
-		len = 0;											\
 		assert (remain >= 0);								\
 	}														\
 	else {													\
+		ucl_create_err (&parser->err,						\
+			"cannot parse type %d of len %u",				\
+			(int)obj_parser->fmt,							\
+			(unsigned)len);									\
 		return false;										\
 	}														\
 } while(0)
@@ -977,13 +980,13 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 					len = *p;
 					break;
 				case 2:
-					len = FROM_BE16 (p);
+					len = FROM_BE16 (*(uint16_t *)p);
 					break;
 				case 4:
-					len = FROM_BE32 (p);
+					len = FROM_BE32 (*(uint32_t *)p);
 					break;
 				case 8:
-					len = FROM_BE64 (p);
+					len = FROM_BE64 (*(uint64_t *)p);
 					break;
 				default:
 					assert (0);
@@ -1010,7 +1013,7 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			parser->cur_obj = ucl_object_new_full (UCL_OBJECT,
 					parser->chunks->priority);
 			/* Insert to the previous level container */
-			if (!ucl_msgpack_insert_object (parser,
+			if (parser->stack && !ucl_msgpack_insert_object (parser,
 					key, keylen, parser->cur_obj)) {
 				return false;
 			}
@@ -1021,6 +1024,9 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 				return false;
 			}
 
+			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
+					p, remain);
+			CONSUME_RET;
 			key = NULL;
 			keylen = 0;
 
@@ -1038,7 +1044,7 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			parser->cur_obj = ucl_object_new_full (UCL_ARRAY,
 					parser->chunks->priority);
 			/* Insert to the previous level container */
-			if (!ucl_msgpack_insert_object (parser,
+			if (parser->stack && !ucl_msgpack_insert_object (parser,
 					key, keylen, parser->cur_obj)) {
 				return false;
 			}
@@ -1049,9 +1055,11 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 				return false;
 			}
 
+			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
+								p, remain);
+			CONSUME_RET;
 			key = NULL;
 			keylen = 0;
-
 
 			if (len > 0) {
 				state = read_type;
@@ -1218,6 +1226,7 @@ ucl_msgpack_parse_map (struct ucl_parser *parser,
 		const unsigned char *pos, size_t remain)
 {
 	container->obj = ucl_object_typed_new (UCL_OBJECT);
+	parser->cur_obj = container->obj;
 
 	return 0;
 }
@@ -1240,7 +1249,7 @@ ucl_msgpack_parse_string (struct ucl_parser *parser,
 {
 	ucl_object_t *obj;
 
-	if (len < remain) {
+	if (len > remain) {
 		return -1;
 	}
 
@@ -1264,7 +1273,7 @@ ucl_msgpack_parse_int (struct ucl_parser *parser,
 {
 	ucl_object_t *obj;
 
-	if (len < remain) {
+	if (len > remain) {
 		return -1;
 	}
 
@@ -1332,7 +1341,7 @@ ucl_msgpack_parse_float (struct ucl_parser *parser,
 		float f;
 	} d;
 
-	if (len < remain) {
+	if (len > remain) {
 		return -1;
 	}
 
@@ -1366,7 +1375,7 @@ ucl_msgpack_parse_bool (struct ucl_parser *parser,
 {
 	ucl_object_t *obj;
 
-	if (len < remain) {
+	if (len > remain) {
 		return -1;
 	}
 
@@ -1396,7 +1405,7 @@ ucl_msgpack_parse_null (struct ucl_parser *parser,
 {
 	ucl_object_t *obj;
 
-	if (len < remain) {
+	if (len > remain) {
 		return -1;
 	}
 
@@ -1411,7 +1420,7 @@ ucl_msgpack_parse_ignore (struct ucl_parser *parser,
 		struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 		const unsigned char *pos, size_t remain)
 {
-	if (len < remain) {
+	if (len > remain) {
 		return -1;
 	}
 
