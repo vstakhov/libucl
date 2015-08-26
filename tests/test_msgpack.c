@@ -24,6 +24,7 @@
 
 #include "ucl.h"
 #include "ucl_internal.h"
+#include <ctype.h>
 
 static const int niter = 1000;
 static const int ntests = 100;
@@ -76,11 +77,16 @@ random_key (size_t *lenptr)
 {
 	static char keybuf[512];
 	int keylen, i;
+	char c;
 
-	keylen = pcg32_random () % sizeof (keybuf);
+	keylen = pcg32_random () % (sizeof (keybuf) - 1) + 1;
 
 	for (i = 0; i < keylen; i ++) {
-		keybuf[i] = pcg32_random () & 0xFF;
+		do {
+			c = pcg32_random () & 0xFF;
+		} while (!isgraph (c));
+
+		keybuf[i] = c;
 	}
 
 	*lenptr = keylen;
@@ -94,7 +100,7 @@ main (int argc, char **argv)
 	uint32_t sel;
 	ucl_object_t *obj, *elt;
 	struct ucl_parser *parser;
-	size_t klen, elen;
+	size_t klen, elen, elen2;
 	const char *key;
 	unsigned char *emitted, *emitted2;
 	FILE *out;
@@ -158,16 +164,16 @@ main (int argc, char **argv)
 		}
 
 		obj = ucl_parser_get_object (parser);
-		ucl_parser_free (parser);
 		assert (obj != NULL);
 
-		emitted2 = ucl_object_emit_len (obj, UCL_EMIT_MSGPACK, &elen);
+		emitted2 = ucl_object_emit_len (obj, UCL_EMIT_MSGPACK, &elen2);
 
 		assert (emitted2 != NULL);
-		ucl_object_unref (obj);
-
+		assert (elen2 == elen);
 		assert (memcmp (emitted, emitted2, elen) == 0);
 
+		ucl_parser_free (parser);
+		ucl_object_unref (obj);
 		free (emitted);
 		free (emitted2);
 	}
