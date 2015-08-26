@@ -145,9 +145,9 @@ ucl_emitter_print_int_msgpack (struct ucl_emitter_context *ctx, int64_t val)
 		/* Bithack abs */
 		uval = ((val ^ (val >> 63)) - (val >> 63));
 
-		if (val >= -(1 << 5)) {
+		if (val > -(1 << 5)) {
 			len = 1;
-			buf[0] = mask_negative | (uval & 0xff);
+			buf[0] = (mask_negative | uval) & 0xff;
 		}
 		else if (uval <= 0xff) {
 			len = 2;
