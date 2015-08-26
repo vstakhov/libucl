@@ -281,6 +281,12 @@ ucl_test_map (void)
 		assert (klen != 0);
 
 		ucl_object_insert_key (res, cur, key, klen, true);
+
+		/* Multi value key */
+		cur = tests[sel]();
+		assert (cur != NULL);
+
+		ucl_object_insert_key (res, cur, key, klen, true);
 	}
 
 	return res;
