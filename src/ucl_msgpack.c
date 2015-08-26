@@ -892,6 +892,8 @@ ucl_msgpack_get_next_container (struct ucl_parser *parser)
 #define GET_NEXT_STATE do {									\
 	container = ucl_msgpack_get_next_container (parser);	\
 	if (container == NULL) {								\
+		ucl_create_err (&parser->err,						\
+					"empty container");						\
 		return false;										\
 	}														\
 	next_state = container->obj->type == UCL_OBJECT ? 		\
@@ -1060,8 +1062,6 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			ret = obj_parser->func (parser, container, len, obj_parser->fmt,
 								p, remain);
 			CONSUME_RET;
-			key = NULL;
-			keylen = 0;
 
 			if (len > 0) {
 				state = read_type;

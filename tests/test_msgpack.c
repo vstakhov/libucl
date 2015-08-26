@@ -139,6 +139,7 @@ main (int argc, char **argv)
 			recursion = 0;
 			elt = tests[sel]();
 			assert (elt != NULL);
+			assert (klen != 0);
 
 			ucl_object_insert_key (obj, elt, key, klen, true);
 		}
@@ -277,6 +278,7 @@ ucl_test_map (void)
 		key = random_key (&klen);
 		cur = tests[sel]();
 		assert (cur != NULL);
+		assert (klen != 0);
 
 		ucl_object_insert_key (res, cur, key, klen, true);
 	}
