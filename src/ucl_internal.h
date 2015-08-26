@@ -305,6 +305,8 @@ ucl_create_err (UT_string **err, const char *fmt, ...)
 __attribute__ (( format( printf, 2, 3) ));
 #endif
 
+#undef UCL_FATAL_ERRORS
+
 static inline void
 ucl_create_err (UT_string **err, const char *fmt, ...)
 
@@ -316,6 +318,10 @@ ucl_create_err (UT_string **err, const char *fmt, ...)
 		utstring_printf_va (*err, fmt, ap);
 		va_end (ap);
 	}
+
+#ifdef UCL_FATAL_ERRORS
+	assert (0);
+#endif
 }
 
 /**
