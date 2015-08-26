@@ -706,6 +706,8 @@ struct ucl_msgpack_parser {
 	}
 };
 
+#undef MSGPACK_DEBUG_PARSER
+
 static inline struct ucl_msgpack_parser *
 ucl_msgpack_get_parser_from_type (unsigned char t)
 {
@@ -758,6 +760,15 @@ ucl_msgpack_get_container (struct ucl_parser *parser,
 
 		parser->stack->level = len | MSGPACK_CONTAINER_BIT;
 
+#ifdef MSGPACK_DEBUG_PARSER
+		stack = parser->stack;
+		while (stack) {
+			fprintf(stderr, "+");
+			stack = stack->next;
+		}
+
+		fprintf(stderr, "%s -> %d\n", obj_parser->flags & MSGPACK_FLAG_ASSOC ? "object" : "array", (int)len);
+#endif
 	}
 	else {
 		/*
@@ -859,6 +870,15 @@ ucl_msgpack_get_next_container (struct ucl_parser *parser)
 			parser->cur_obj = cur->obj;
 			free (cur);
 
+#ifdef MSGPACK_DEBUG_PARSER
+			cur = parser->stack;
+			while (cur) {
+				fprintf(stderr, "-");
+				cur = cur->next;
+			}
+			fprintf(stderr, "-%s -> %d\n", parser->cur_obj->type == UCL_OBJECT ? "object" : "array", (int)parser->cur_obj->len);
+#endif
+
 			return ucl_msgpack_get_next_container (parser);
 		}
 	}
@@ -905,7 +925,7 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 {
 	const unsigned char *p, *end, *key = NULL;
 	struct ucl_stack *container;
-	enum {
+	enum e_msgpack_parser_state {
 		read_type,
 		start_assoc,
 		start_array,
@@ -919,6 +939,10 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 	struct ucl_msgpack_parser *obj_parser;
 	uint64_t len;
 	ssize_t ret, remain, keylen = 0;
+#ifdef MSGPACK_DEBUG_PARSER
+	uint64_t i;
+	enum e_msgpack_parser_state hist[256];
+#endif
 
 	p = parser->chunks->begin;
 	remain = parser->chunks->remain;
@@ -926,6 +950,9 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 
 
 	while (p < end) {
+#ifdef MSGPACK_DEBUG_PARSER
+		hist[i++ % 256] = state;
+#endif
 		switch (state) {
 		case read_type:
 			obj_parser = ucl_msgpack_get_parser_from_type (*p);
