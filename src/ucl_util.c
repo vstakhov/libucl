@@ -2930,7 +2930,9 @@ ucl_object_tostring_safe (const ucl_object_t *obj, const char **target)
 
 	switch (obj->type) {
 	case UCL_STRING:
-		*target = ucl_copy_value_trash (obj);
+		if (!(obj->flags & UCL_OBJECT_BINARY)) {
+			*target = ucl_copy_value_trash (obj);
+		}
 		break;
 	default:
 		return false;
@@ -2951,7 +2953,12 @@ ucl_object_tostring (const ucl_object_t *obj)
 const char *
 ucl_object_tostring_forced (const ucl_object_t *obj)
 {
-	return ucl_copy_value_trash (obj);
+	/* TODO: For binary strings we might encode string here */
+	if (!(obj->flags & UCL_OBJECT_BINARY)) {
+		return ucl_copy_value_trash (obj);
+	}
+
+	return NULL;
 }
 
 bool

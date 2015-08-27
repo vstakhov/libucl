@@ -486,6 +486,15 @@ void ucl_emitter_print_string_msgpack (struct ucl_emitter_context *ctx,
 		const char *s, size_t len);
 
 /**
+ * Print binary string to the msgpack output
+ * @param ctx
+ * @param s
+ * @param len
+ */
+void ucl_emitter_print_binary_string_msgpack (struct ucl_emitter_context *ctx,
+		const char *s, size_t len);
+
+/**
  * Print array preamble for msgpack
  * @param ctx
  * @param len
