@@ -498,7 +498,14 @@ ucl_emit_msgpack_elt (struct ucl_emitter_context *ctx,
 
 	case UCL_STRING:
 		ucl_emitter_print_key_msgpack (print_key, ctx, obj);
-		ucl_emitter_print_string_msgpack (ctx, obj->value.sv, obj->len);
+
+		if (obj->flags & UCL_OBJECT_BINARY) {
+			ucl_emitter_print_binary_string_msgpack (ctx, obj->value.sv,
+					obj->len);
+		}
+		else {
+			ucl_emitter_print_string_msgpack (ctx, obj->value.sv, obj->len);
+		}
 		break;
 
 	case UCL_NULL:
