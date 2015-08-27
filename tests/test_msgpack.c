@@ -212,7 +212,7 @@ ucl_test_integer (void)
 static ucl_object_t*
 ucl_test_string (void)
 {
-	ucl_object_t *res;
+	ucl_object_t *res, *elt;
 	int count, i;
 	uint32_t cur_len;
 	char *str;
@@ -230,6 +230,20 @@ ucl_test_string (void)
 		str = malloc (cur_len % 512);
 		ucl_array_append (res, ucl_object_fromstring_common (str, cur_len % 512,
 				UCL_STRING_RAW));
+		free (str);
+		cur_len = pcg32_random ();
+		str = malloc (cur_len % 128);
+		elt = ucl_object_fromstring_common (str, cur_len % 128,
+				UCL_STRING_RAW);
+		elt->flags |= UCL_OBJECT_BINARY;
+		ucl_array_append (res, elt);
+		free (str);
+		cur_len = pcg32_random ();
+		str = malloc (cur_len % 512);
+		elt = ucl_object_fromstring_common (str, cur_len % 512,
+				UCL_STRING_RAW);
+		elt->flags |= UCL_OBJECT_BINARY;
+		ucl_array_append (res, elt);
 		free (str);
 	}
 
