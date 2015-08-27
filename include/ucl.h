@@ -182,7 +182,8 @@ typedef enum ucl_object_flags {
 	UCL_OBJECT_EPHEMERAL = (1 << 3), /**< Temporary object that does not need to be freed really */
 	UCL_OBJECT_MULTILINE = (1 << 4), /**< String should be displayed as multiline string */
 	UCL_OBJECT_MULTIVALUE = (1 << 5), /**< Object is a key with multiple values */
-	UCL_OBJECT_INHERITED = (1 << 6) /**< Object has been inherited from another */
+	UCL_OBJECT_INHERITED = (1 << 6), /**< Object has been inherited from another */
+	UCL_OBJECT_BINARY = (1 << 7) /**< Object contains raw binary data */
 } ucl_object_flags_t;
 
 /**
