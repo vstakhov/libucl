@@ -1,18 +1,21 @@
 PROJECT(libucl C)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6.0 FATAL_ERROR)
 
 SET(LIBUCL_VERSION_MAJOR 0)
 SET(LIBUCL_VERSION_MINOR 5)
 SET(LIBUCL_VERSION_PATCH 0)
 
-SET(LIBUCL_VERSION         "${LIBUCL_VERSION_MAJOR}.${LIBUCL_VERSION_MINOR}.${LIBUCL_VERSION_PATCH}")
+SET(LIBUCL_VERSION
+        "${LIBUCL_VERSION_MAJOR}.${LIBUCL_VERSION_MINOR}.${LIBUCL_VERSION_PATCH}")
 
 INCLUDE(CheckCCompilerFlag)
 INCLUDE(FindOpenSSL)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6.0 FATAL_ERROR)
 
 OPTION(ENABLE_URL_INCLUDE  "Enable urls in ucl includes (requires libcurl or libfetch) [default: OFF]" OFF)
 OPTION(ENABLE_URL_SIGN  "Enable signatures check in ucl includes (requires openssl) [default: OFF]" OFF)
 OPTION(BUILD_SHARED_LIBS "Build Shared Libraries [default: OFF]" OFF)
+OPTION(ENABLE_LUA "Enable lua support [default: OFF]" OFF)
+OPTION(ENABLE_LUAJIT "Enable luajit support [default: OFF]" OFF)
 
 IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	LIST(APPEND CMAKE_REQUIRED_LIBRARIES rt)
@@ -79,19 +82,21 @@ IF(ENABLE_URL_SIGN MATCHES "ON")
 	ENDIF(OPENSSL_FOUND)
 ENDIF(ENABLE_URL_SIGN MATCHES "ON")
 
-INCLUDE_DIRECTORIES("${CMAKE_CURRENT_SOURCE_DIR}/../src")
-INCLUDE_DIRECTORIES("${CMAKE_CURRENT_SOURCE_DIR}/../include")
-INCLUDE_DIRECTORIES("${CMAKE_CURRENT_SOURCE_DIR}/../uthash")
-INCLUDE_DIRECTORIES("${CMAKE_CURRENT_SOURCE_DIR}/../klib")
+INCLUDE_DIRECTORIES("src")
+INCLUDE_DIRECTORIES("include")
+INCLUDE_DIRECTORIES("uthash")
+INCLUDE_DIRECTORIES("klib")
 
-SET(UCLSRC            ../src/ucl_util.c
-                      ../src/ucl_parser.c
-                      ../src/ucl_emitter.c
-                      ../src/ucl_emitter_streamline.c
-                      ../src/ucl_emitter_utils.c
-                      ../src/ucl_hash.c
-                      ../src/ucl_schema.c
-                      ../src/xxhash.c)
+SET(UCLSRC src/ucl_util.c
+		src/ucl_parser.c
+		src/ucl_emitter.c
+		src/ucl_emitter_streamline.c
+		src/ucl_emitter_utils.c
+		src/ucl_hash.c
+		src/ucl_schema.c
+		src/ucl_msgpack.c
+		src/ucl_sexp.c
+		src/xxhash.c)
 
 
 SET (LIB_TYPE STATIC)
@@ -101,8 +106,8 @@ ENDIF (BUILD_SHARED_LIBS)
 ADD_LIBRARY(ucl ${LIB_TYPE} ${UCLSRC})
 SET_TARGET_PROPERTIES(ucl PROPERTIES VERSION ${LIBUCL_VERSION} SOVERSION ${LIBUCL_VERSION_MAJOR})
 
-IF(WITH_LUA)
-	SET(UCL_LUA_SRC ../lua/lua_ucl.c)
+IF(ENABLE_LUA MATCHES "ON")
+	SET(UCL_LUA_SRC lua/lua_ucl.c)
 	ADD_LIBRARY(lua-ucl ${LIB_TYPE} ${UCL_LUA_SRC})
 	IF(ENABLE_LUAJIT MATCHES "ON")
 		TARGET_LINK_LIBRARIES(lua-ucl "${LUAJIT_LIBRARY}")
@@ -111,7 +116,7 @@ IF(WITH_LUA)
 	ENDIF(ENABLE_LUAJIT MATCHES "ON")
 	TARGET_LINK_LIBRARIES(lua-ucl ucl)
 	SET_TARGET_PROPERTIES(lua-ucl PROPERTIES VERSION ${LIBUCL_VERSION} SOVERSION ${LIBUCL_VERSION_MAJOR})
-ENDIF(WITH_LUA)
+ENDIF()
 
 IF(HAVE_FETCH_H)
     TARGET_LINK_LIBRARIES(ucl fetch)
