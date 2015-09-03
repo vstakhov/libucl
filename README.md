@@ -21,7 +21,7 @@
 - [Performance](#performance)
 - [Conclusion](#conclusion)
 
-## Introduction
+## Introduction 
 
 This document describes the main features and principles of the configuration
 language called `UCL` - universal configuration language.

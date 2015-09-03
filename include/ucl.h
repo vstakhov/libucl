@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Vsevolod Stakhov
+/* Copyright (c) 2013-2015, Vsevolod Stakhov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -201,7 +201,8 @@ enum ucl_duplicate_strategy {
  */
 enum ucl_parse_type {
 	UCL_PARSE_UCL = 0, /**< Default ucl format */
-	UCL_PARSE_MSGPACK /**< Message pack input format */
+	UCL_PARSE_MSGPACK, /**< Message pack input format */
+	UCL_PARSE_CSEXP /**< Canonical S-expressions */
 };
 
 /**
@@ -214,7 +215,7 @@ typedef struct ucl_object_s {
 	 */
 	union {
 		int64_t iv;							/**< Int value of an object */
-		const char *sv;					/**< String value of an object */
+		const char *sv;						/**< String value of an object */
 		double dv;							/**< Double value of an object */
 		void *av;							/**< Array					*/
 		void *ov;							/**< Object					*/
