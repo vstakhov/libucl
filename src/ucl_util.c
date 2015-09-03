@@ -410,11 +410,24 @@ ucl_copy_value_trash (const ucl_object_t *obj)
 		if (obj->type == UCL_STRING) {
 
 			/* Special case for strings */
-			deconst->trash_stack[UCL_TRASH_VALUE] = malloc (obj->len + 1);
-			if (deconst->trash_stack[UCL_TRASH_VALUE] != NULL) {
-				memcpy (deconst->trash_stack[UCL_TRASH_VALUE], obj->value.sv, obj->len);
-				deconst->trash_stack[UCL_TRASH_VALUE][obj->len] = '\0';
-				deconst->value.sv = obj->trash_stack[UCL_TRASH_VALUE];
+			if (obj->flags & UCL_OBJECT_BINARY) {
+				deconst->trash_stack[UCL_TRASH_VALUE] = malloc (obj->len);
+				if (deconst->trash_stack[UCL_TRASH_VALUE] != NULL) {
+					memcpy (deconst->trash_stack[UCL_TRASH_VALUE],
+							obj->value.sv,
+							obj->len);
+					deconst->value.sv = obj->trash_stack[UCL_TRASH_VALUE];
+				}
+			}
+			else {
+				deconst->trash_stack[UCL_TRASH_VALUE] = malloc (obj->len + 1);
+				if (deconst->trash_stack[UCL_TRASH_VALUE] != NULL) {
+					memcpy (deconst->trash_stack[UCL_TRASH_VALUE],
+							obj->value.sv,
+							obj->len);
+					deconst->trash_stack[UCL_TRASH_VALUE][obj->len] = '\0';
+					deconst->value.sv = obj->trash_stack[UCL_TRASH_VALUE];
+				}
 			}
 		}
 		else {
@@ -424,6 +437,7 @@ ucl_copy_value_trash (const ucl_object_t *obj)
 		}
 		deconst->flags |= UCL_OBJECT_ALLOCATED_VALUE;
 	}
+	
 	return obj->trash_stack[UCL_TRASH_VALUE];
 }
 
