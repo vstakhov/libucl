@@ -69,6 +69,7 @@ func = "huh";
 #define PARSER_META "ucl.parser.meta"
 #define EMITTER_META "ucl.emitter.meta"
 #define NULL_META "null.emitter.meta"
+#define OBJECT_META "ucl.object.meta"
 
 static int ucl_object_lua_push_array (lua_State *L, const ucl_object_t *obj);
 static int ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj, bool allow_array);
@@ -461,6 +462,24 @@ ucl_object_lua_import (lua_State *L, int idx)
 }
 
 static int
+lua_ucl_to_string (lua_State *L, const ucl_object_t *obj, enum ucl_emitter type)
+{
+	unsigned char *result;
+
+	result = ucl_object_emit (obj, type);
+
+	if (result != NULL) {
+		lua_pushstring (L, (const char *)result);
+		free (result);
+	}
+	else {
+		lua_pushnil (L);
+	}
+
+	return 1;
+}
+
+static int
 lua_ucl_parser_init (lua_State *L)
 {
 	struct ucl_parser *parser, **pparser;
@@ -487,6 +506,12 @@ static struct ucl_parser *
 lua_ucl_parser_get (lua_State *L, int index)
 {
 	return *((struct ucl_parser **) luaL_checkudata(L, index, PARSER_META));
+}
+
+static ucl_object_t *
+lua_ucl_object_get (lua_State *L, int index)
+{
+	return *((ucl_object_t **) luaL_checkudata(L, index, OBJECT_META));
 }
 
 /***
@@ -595,6 +620,35 @@ lua_ucl_parser_get_object (lua_State *L)
 }
 
 /***
+ * @method parser:get_object_wrapped()
+ * Get top object from parser and export it to userdata object without
+ * unwrapping to lua.
+ * @return {ucl.object or nil} ucl object wrapped variable
+ */
+static int
+lua_ucl_parser_get_object_wrapped (lua_State *L)
+{
+	struct ucl_parser *parser;
+	ucl_object_t *obj, **pobj;
+	int ret = 1;
+
+	parser = lua_ucl_parser_get (L, 1);
+	obj = ucl_parser_get_object (parser);
+
+	if (obj != NULL) {
+		pobj = lua_newuserdata (L, sizeof (*pobj));
+		*pobj = obj;
+		luaL_getmetatable (L, OBJECT_META);
+		lua_setmetatable (L, -2);
+	}
+	else {
+		lua_pushnil (L);
+	}
+
+	return ret;
+}
+
+/***
  * @method parser:validate(schema)
  * Validates the top object in the parser against schema. Schema might be
  * another object or a string that represents file to load schema from.
@@ -678,6 +732,161 @@ lua_ucl_parser_gc (lua_State *L)
 	return 0;
 }
 
+/***
+ * @method object:unwrap()
+ * Unwraps opaque ucl object to the native lua object (performing copying)
+ * @return {variant} any lua object
+ */
+static int
+lua_ucl_object_unwrap (lua_State *L)
+{
+	ucl_object_t *obj;
+
+	obj = lua_ucl_object_get (L, 1);
+
+	if (obj) {
+		ucl_object_push_lua (L, obj, true);
+	}
+	else {
+		lua_pushnil (L);
+	}
+
+	return 1;
+}
+
+/***
+ * @method object:tostring(type)
+ * Unwraps opaque ucl object to string (json by default). Optionally you can
+ * specify output format:
+ *
+ * - `json` - fine printed json
+ * - `json-compact` - compacted json
+ * - `config` - fine printed configuration
+ * - `ucl` - same as `config`
+ * - `yaml` - embedded yaml
+ * @param {string} type optional
+ * @return {string} string representation of the opaque ucl object
+ */
+static int
+lua_ucl_object_tostring (lua_State *L)
+{
+	ucl_object_t *obj;
+	enum ucl_emitter format = UCL_EMIT_JSON_COMPACT;
+
+	obj = lua_ucl_object_get (L, 1);
+
+	if (obj) {
+		if (lua_gettop (L) > 1) {
+			if (lua_type (L, 2) == LUA_TSTRING) {
+				const char *strtype = lua_tostring (L, 2);
+
+				if (strcasecmp (strtype, "json") == 0) {
+					format = UCL_EMIT_JSON;
+				}
+				else if (strcasecmp (strtype, "json-compact") == 0) {
+					format = UCL_EMIT_JSON_COMPACT;
+				}
+				else if (strcasecmp (strtype, "yaml") == 0) {
+					format = UCL_EMIT_YAML;
+				}
+				else if (strcasecmp (strtype, "config") == 0 ||
+						strcasecmp (strtype, "ucl") == 0) {
+					format = UCL_EMIT_CONFIG;
+				}
+			}
+		}
+
+		return lua_ucl_to_string (L, obj, format);
+	}
+	else {
+		lua_pushnil (L);
+	}
+
+	return 1;
+}
+
+/***
+ * @method object:validate(schema, path)
+ * Validates the given ucl object using schema object represented as another
+ * opaque ucl object. You can also specify path in the form `#/path/def` to
+ * specify the specific schema element to perform validation.
+ *
+ * @param {ucl.object} schema schema object
+ * @param {string} path optional path for validation procedure
+ * @return {result,err} two values: boolean result and the corresponding error
+ */
+static int
+lua_ucl_object_validate (lua_State *L)
+{
+	ucl_object_t *obj, *schema;
+	const ucl_object_t *schema_elt;
+	bool res = false;
+	struct ucl_schema_error err;
+	const char *path = NULL;
+
+	obj = lua_ucl_object_get (L, 1);
+	schema = lua_ucl_object_get (L, 2);
+
+	if (schema && obj && ucl_object_type (schema) == UCL_OBJECT) {
+		if (lua_gettop (L) > 2 && lua_type (L, 3) == LUA_TSTRING) {
+			path = lua_tostring (L, 3);
+			if (path[0] == '#') {
+				path ++;
+			}
+		}
+
+		if (path) {
+			schema_elt = ucl_lookup_path_char (schema, path, '/');
+		}
+		else {
+			/* Use the top object */
+			schema_elt = schema;
+		}
+
+		if (schema_elt) {
+			res = ucl_object_validate (schema_elt, obj, &err);
+
+			if (res) {
+				lua_pushboolean (L, res);
+				lua_pushnil (L);
+			}
+			else {
+				lua_pushboolean (L, res);
+				lua_pushfstring (L, "validation error: %s", err.msg);
+			}
+		}
+		else {
+			lua_pushboolean (L, res);
+
+			if (path) {
+				lua_pushfstring (L, "cannot find the requested path: %s", path);
+			}
+			else {
+				/* Should not be reached */
+				lua_pushstring (L, "unknown error");
+			}
+		}
+	}
+	else {
+		lua_pushboolean (L, res);
+		lua_pushstring (L, "invalid object or schema");
+	}
+
+	return 2;
+}
+
+static int
+lua_ucl_object_gc (lua_State *L)
+{
+	ucl_object_t *obj;
+
+	obj = lua_ucl_object_get (L, 1);
+
+	ucl_object_unref (obj);
+
+	return 0;
+}
+
 static void
 lua_ucl_parser_mt (lua_State *L)
 {
@@ -698,28 +907,45 @@ lua_ucl_parser_mt (lua_State *L)
 	lua_pushcfunction (L, lua_ucl_parser_get_object);
 	lua_setfield (L, -2, "get_object");
 
+	lua_pushcfunction (L, lua_ucl_parser_get_object_wrapped);
+	lua_setfield (L, -2, "get_object_wrapped");
+
 	lua_pushcfunction (L, lua_ucl_parser_validate);
 	lua_setfield (L, -2, "validate");
 
 	lua_pop (L, 1);
 }
 
-static int
-lua_ucl_to_string (lua_State *L, const ucl_object_t *obj, enum ucl_emitter type)
+static void
+lua_ucl_object_mt (lua_State *L)
 {
-	unsigned char *result;
+	luaL_newmetatable (L, OBJECT_META);
 
-	result = ucl_object_emit (obj, type);
+	lua_pushvalue(L, -1);
+	lua_setfield(L, -2, "__index");
 
-	if (result != NULL) {
-		lua_pushstring (L, (const char *)result);
-		free (result);
-	}
-	else {
-		lua_pushnil (L);
-	}
+	lua_pushcfunction (L, lua_ucl_object_gc);
+	lua_setfield (L, -2, "__gc");
 
-	return 1;
+	lua_pushcfunction (L, lua_ucl_object_tostring);
+	lua_setfield (L, -2, "__tostring");
+
+	lua_pushcfunction (L, lua_ucl_object_tostring);
+	lua_setfield (L, -2, "tostring");
+
+	lua_pushcfunction (L, lua_ucl_object_unwrap);
+	lua_setfield (L, -2, "unwrap");
+
+	lua_pushcfunction (L, lua_ucl_object_unwrap);
+	lua_setfield (L, -2, "tolua");
+
+	lua_pushcfunction (L, lua_ucl_object_validate);
+	lua_setfield (L, -2, "validate");
+
+	lua_pushstring (L, OBJECT_META);
+	lua_setfield (L, -2, "class");
+
+	lua_pop (L, 1);
 }
 
 static int
@@ -865,6 +1091,7 @@ luaopen_ucl (lua_State *L)
 {
 	lua_ucl_parser_mt (L);
 	lua_ucl_null_mt (L);
+	lua_ucl_object_mt (L);
 
 	/* Create the refs weak table: */
 	lua_createtable (L, 0, 2);
