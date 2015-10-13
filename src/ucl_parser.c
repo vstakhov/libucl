@@ -1964,17 +1964,6 @@ ucl_state_machine (struct ucl_parser *parser)
 	bool next_key = false, end_of_object = false, ret;
 
 	if (parser->top_obj == NULL) {
-		if (*chunk->pos == '[') {
-			obj = ucl_parser_add_container (NULL, parser, true, 0);
-		}
-		else {
-			obj = ucl_parser_add_container (NULL, parser, false, 0);
-		}
-		if (obj == NULL) {
-			return false;
-		}
-		parser->top_obj = obj;
-		parser->cur_obj = obj;
 		parser->state = UCL_STATE_INIT;
 	}
 
@@ -1998,7 +1987,9 @@ ucl_state_machine (struct ucl_parser *parser)
 						UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 					ucl_chunk_skipc (chunk, p);
 				}
+
 				p = chunk->pos;
+
 				if (*p == '[') {
 					parser->state = UCL_STATE_VALUE;
 					ucl_chunk_skipc (chunk, p);
@@ -2009,6 +2000,23 @@ ucl_state_machine (struct ucl_parser *parser)
 						ucl_chunk_skipc (chunk, p);
 					}
 				}
+
+				if (parser->top_obj == NULL) {
+					if (parser->state == UCL_STATE_VALUE) {
+						obj = ucl_parser_add_container (NULL, parser, true, 0);
+					}
+					else {
+						obj = ucl_parser_add_container (NULL, parser, false, 0);
+					}
+
+					if (obj == NULL) {
+						return false;
+					}
+
+					parser->top_obj = obj;
+					parser->cur_obj = obj;
+				}
+
 			}
 			break;
 		case UCL_STATE_KEY:
