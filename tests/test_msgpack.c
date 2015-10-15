@@ -221,24 +221,28 @@ ucl_test_string (void)
 	count = pcg32_random () % nelt;
 
 	for (i = 0; i < count; i ++) {
-		cur_len = pcg32_random ();
+		while ((cur_len = pcg32_random ()) % 128 == 0);
+
 		str = malloc (cur_len % 128);
 		ucl_array_append (res, ucl_object_fromstring_common (str, cur_len % 128,
 				UCL_STRING_RAW));
 		free (str);
-		cur_len = pcg32_random ();
+
+		while ((cur_len = pcg32_random ()) % 512 == 0);
 		str = malloc (cur_len % 512);
 		ucl_array_append (res, ucl_object_fromstring_common (str, cur_len % 512,
 				UCL_STRING_RAW));
 		free (str);
-		cur_len = pcg32_random ();
+
+		while ((cur_len = pcg32_random ()) % 128 == 0);
 		str = malloc (cur_len % 128);
 		elt = ucl_object_fromstring_common (str, cur_len % 128,
 				UCL_STRING_RAW);
 		elt->flags |= UCL_OBJECT_BINARY;
 		ucl_array_append (res, elt);
 		free (str);
-		cur_len = pcg32_random ();
+
+		while ((cur_len = pcg32_random ()) % 512 == 0);
 		str = malloc (cur_len % 512);
 		elt = ucl_object_fromstring_common (str, cur_len % 512,
 				UCL_STRING_RAW);
