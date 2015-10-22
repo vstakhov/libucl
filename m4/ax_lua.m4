@@ -596,7 +596,7 @@ AC_DEFUN([AX_LUA_LIBS],
   AS_IF([test "x$LUA_LIB" != 'x'],
   [ dnl Check that LUA_LIBS works.
     _ax_lua_saved_libs=$LIBS
-    LIBS="$LIBS $LUA_LIB"
+    LIBS="$LUA_LIB $LIBS"
     AC_SEARCH_LIBS([lua_load], [],
       [_ax_found_lua_libs='yes'],
       [_ax_found_lua_libs='no'])
@@ -610,7 +610,7 @@ AC_DEFUN([AX_LUA_LIBS],
     _ax_lua_extra_libs=''
 
     _ax_lua_saved_libs=$LIBS
-    LIBS="$LIBS $LUA_LIB"
+    LIBS="$LUA_LIB $LIBS"
     AC_SEARCH_LIBS([exp], [m])
     AC_SEARCH_LIBS([dlopen], [dl])
     LIBS=$_ax_lua_saved_libs
@@ -625,7 +625,7 @@ AC_DEFUN([AX_LUA_LIBS],
 
     dnl Try to find the Lua libs.
     _ax_lua_saved_libs=$LIBS
-    LIBS="$LIBS $LUA_LIB"
+    LIBS="$LUA_LIB $LIBS"
     AC_SEARCH_LIBS([lua_load],
       [ lua$LUA_VERSION \
         lua$LUA_SHORT_VERSION \
