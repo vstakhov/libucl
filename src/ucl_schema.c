@@ -1013,3 +1013,12 @@ ucl_object_validate (const ucl_object_t *schema,
 {
 	return ucl_schema_validate (schema, obj, true, err, schema);
 }
+
+bool
+ucl_object_validate_root (const ucl_object_t *schema,
+		const ucl_object_t *obj,
+		const ucl_object_t *root,
+		struct ucl_schema_error *err)
+{
+	return ucl_schema_validate (schema, obj, true, err, root);
+}

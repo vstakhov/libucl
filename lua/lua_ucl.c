@@ -844,7 +844,7 @@ lua_ucl_object_validate (lua_State *L)
 		}
 
 		if (schema_elt) {
-			res = ucl_object_validate (schema_elt, obj, &err);
+			res = ucl_object_validate_root (schema_elt, obj, schema, &err);
 
 			if (res) {
 				lua_pushboolean (L, res);

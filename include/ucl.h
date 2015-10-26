@@ -1303,6 +1303,20 @@ struct ucl_schema_error {
 UCL_EXTERN bool ucl_object_validate (const ucl_object_t *schema,
 		const ucl_object_t *obj, struct ucl_schema_error *err);
 
+/**
+ * Validate object `obj` using schema object `schema` and root schema at `root`.
+ * @param schema schema object
+ * @param obj object to validate
+ * @param root root schema object
+ * @param err error pointer, if this parameter is not NULL and error has been
+ * occured, then `err` is filled with the exact error definition.
+ * @return true if `obj` is valid using `schema`
+ */
+UCL_EXTERN bool ucl_object_validate_root (const ucl_object_t *schema,
+		const ucl_object_t *obj,
+		const ucl_object_t *root,
+		struct ucl_schema_error *err);
+
 /** @} */
 
 #ifdef  __cplusplus
