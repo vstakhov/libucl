@@ -43,7 +43,8 @@
 static bool ucl_schema_validate (const ucl_object_t *schema,
 		const ucl_object_t *obj, bool try_array,
 		struct ucl_schema_error *err,
-		const ucl_object_t *root);
+		const ucl_object_t *root,
+		ucl_object_t *ext_ref);
 
 static bool
 ucl_string_to_type (const char *input, ucl_type_t *res)
@@ -160,7 +161,8 @@ ucl_schema_test_pattern (const ucl_object_t *obj, const char *pattern)
 static bool
 ucl_schema_validate_dependencies (const ucl_object_t *deps,
 		const ucl_object_t *obj, struct ucl_schema_error *err,
-		const ucl_object_t *root)
+		const ucl_object_t *root,
+		ucl_object_t *ext_ref)
 {
 	const ucl_object_t *elt, *cur, *cur_dep;
 	ucl_object_iter_t iter = NULL, piter;
@@ -183,7 +185,7 @@ ucl_schema_validate_dependencies (const ucl_object_t *deps,
 				}
 			}
 			else if (cur->type == UCL_OBJECT) {
-				ret = ucl_schema_validate (cur, obj, true, err, root);
+				ret = ucl_schema_validate (cur, obj, true, err, root, ext_ref);
 			}
 		}
 	}
@@ -197,7 +199,8 @@ ucl_schema_validate_dependencies (const ucl_object_t *deps,
 static bool
 ucl_schema_validate_object (const ucl_object_t *schema,
 		const ucl_object_t *obj, struct ucl_schema_error *err,
-		const ucl_object_t *root)
+		const ucl_object_t *root,
+		ucl_object_t *ext_ref)
 {
 	const ucl_object_t *elt, *prop, *found, *additional_schema = NULL,
 			*required = NULL, *pat, *pelt;
@@ -212,7 +215,8 @@ ucl_schema_validate_object (const ucl_object_t *schema,
 			while (ret && (prop = ucl_iterate_object (elt, &piter, true)) != NULL) {
 				found = ucl_object_find_key (obj, ucl_object_key (prop));
 				if (found) {
-					ret = ucl_schema_validate (prop, found, true, err, root);
+					ret = ucl_schema_validate (prop, found, true, err, root,
+							ext_ref);
 				}
 			}
 		}
@@ -270,13 +274,15 @@ ucl_schema_validate_object (const ucl_object_t *schema,
 			while (ret && (prop = ucl_iterate_object (elt, &piter, true)) != NULL) {
 				found = ucl_schema_test_pattern (obj, ucl_object_key (prop));
 				if (found) {
-					ret = ucl_schema_validate (prop, found, true, err, root);
+					ret = ucl_schema_validate (prop, found, true, err, root,
+							ext_ref);
 				}
 			}
 		}
 		else if (elt->type == UCL_OBJECT &&
 				strcmp (ucl_object_key (elt), "dependencies") == 0) {
-			ret = ucl_schema_validate_dependencies (elt, obj, err, root);
+			ret = ucl_schema_validate_dependencies (elt, obj, err, root,
+					ext_ref);
 		}
 	}
 
@@ -308,7 +314,8 @@ ucl_schema_validate_object (const ucl_object_t *schema,
 						break;
 					}
 					else if (additional_schema != NULL) {
-						if (!ucl_schema_validate (additional_schema, elt, true, err, root)) {
+						if (!ucl_schema_validate (additional_schema, elt,
+								true, err, root, ext_ref)) {
 							ret = false;
 							break;
 						}
@@ -518,7 +525,8 @@ ucl_schema_array_is_unique (const ucl_object_t *obj, struct ucl_schema_error *er
 static bool
 ucl_schema_validate_array (const ucl_object_t *schema,
 		const ucl_object_t *obj, struct ucl_schema_error *err,
-		const ucl_object_t *root)
+		const ucl_object_t *root,
+		ucl_object_t *ext_ref)
 {
 	const ucl_object_t *elt, *it, *found, *additional_schema = NULL,
 			*first_unvalidated = NULL;
@@ -533,7 +541,8 @@ ucl_schema_validate_array (const ucl_object_t *schema,
 				found = ucl_array_head (obj);
 				while (ret && (it = ucl_iterate_object (elt, &piter, true)) != NULL) {
 					if (found) {
-						ret = ucl_schema_validate (it, found, false, err, root);
+						ret = ucl_schema_validate (it, found, false, err,
+								root, ext_ref);
 						found = ucl_array_find_index (obj, ++idx);
 					}
 				}
@@ -545,7 +554,8 @@ ucl_schema_validate_array (const ucl_object_t *schema,
 			else if (elt->type == UCL_OBJECT) {
 				/* Validate all items using the specified schema */
 				while (ret && (it = ucl_iterate_object (obj, &piter, true)) != NULL) {
-					ret = ucl_schema_validate (elt, it, false, err, root);
+					ret = ucl_schema_validate (elt, it, false, err, root,
+							ext_ref);
 				}
 			}
 			else {
@@ -612,7 +622,7 @@ ucl_schema_validate_array (const ucl_object_t *schema,
 					elt = ucl_array_find_index (obj, idx);
 					while (elt) {
 						if (!ucl_schema_validate (additional_schema, elt, false,
-								err, root)) {
+								err, root, ext_ref)) {
 							ret = false;
 							break;
 						}
@@ -771,11 +781,16 @@ ucl_schema_resolve_ref_component (const ucl_object_t *cur,
  */
 static const ucl_object_t *
 ucl_schema_resolve_ref (const ucl_object_t *root, const char *ref,
-		struct ucl_schema_error *err)
+		struct ucl_schema_error *err, ucl_object_t *ext_ref)
 {
-	const char *p, *c;
-	const ucl_object_t *res = NULL;
-
+	UT_string *url_err = NULL;
+	struct ucl_parser *parser;
+	const ucl_object_t *res = NULL, *ext_obj = NULL;
+	ucl_object_t *url_obj;
+	const char *p, *c, *hash_ptr = NULL;
+	char *url_copy = NULL;
+	unsigned char *url_buf;
+	size_t url_buflen;
 
 	if (ref[0] != '#') {
 		ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, root,
@@ -789,13 +804,57 @@ ucl_schema_resolve_ref (const ucl_object_t *root, const char *ref,
 		return root;
 	}
 	else {
-		ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, root,
-				"reference %s is invalid, not started with #/", ref);
-		return NULL;
+		hash_ptr = strrchr (ref, '#');
+
+		if (hash_ptr) {
+			url_copy = malloc (hash_ptr - ref + 1);
+
+			if (url_copy == NULL) {
+				ucl_schema_create_error (err, UCL_SCHEMA_INTERNAL_ERROR, root,
+						"cannot allocate memory");
+				return NULL;
+			}
+
+			ucl_strlcpy (url_copy, ref, hash_ptr - ref + 1);
+			p = url_copy;
+		}
+		else {
+			/* Full URL */
+			p = ref;
+		}
+
+		ext_obj = ucl_object_find_key (ext_ref, p);
+
+		if (ext_obj == NULL) {
+			if (!ucl_fetch_url (p, &url_buf, &url_buflen, &url_err)) {
+				free (url_copy);
+				ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, root,
+						"cannot fetch reference %s: %s", p,
+						url_err != NULL ? utstring_body (url_err) : "unknown");
+				return NULL;
+			}
+
+			parser = ucl_parser_new (0);
+
+			if (!ucl_parser_add_chunk (parser, url_buf, url_buflen)) {
+				free (url_copy);
+				ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, root,
+						"cannot fetch reference %s: %s", p,
+						ucl_parser_get_error (parser));
+				ucl_parser_free (parser);
+				return NULL;
+			}
+
+			url_obj = ucl_parser_get_object (parser);
+			ext_obj = url_obj;
+			ucl_object_insert_key (ext_ref, url_obj, p, 0, true);
+			free (url_buf);
+			free (url_copy);
+		}
 	}
 
 	c = p;
-	res = root;
+	res = ext_obj != NULL ? ext_obj : root;
 
 	while (*p != '\0') {
 		if (*p == '/') {
@@ -878,7 +937,8 @@ static bool
 ucl_schema_validate (const ucl_object_t *schema,
 		const ucl_object_t *obj, bool try_array,
 		struct ucl_schema_error *err,
-		const ucl_object_t *root)
+		const ucl_object_t *root,
+		ucl_object_t *external_refs)
 {
 	const ucl_object_t *elt, *cur;
 	ucl_object_iter_t iter = NULL;
@@ -886,7 +946,8 @@ ucl_schema_validate (const ucl_object_t *schema,
 
 	if (schema->type != UCL_OBJECT) {
 		ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, schema,
-				"schema is %s instead of object", ucl_object_type_to_string (schema->type));
+				"schema is %s instead of object",
+				ucl_object_type_to_string (schema->type));
 		return false;
 	}
 
@@ -898,7 +959,7 @@ ucl_schema_validate (const ucl_object_t *schema,
 			return false;
 		}
 		LL_FOREACH (obj, cur) {
-			if (!ucl_schema_validate (schema, cur, false, err, root)) {
+			if (!ucl_schema_validate (schema, cur, false, err, root, external_refs)) {
 				return false;
 			}
 		}
@@ -916,7 +977,7 @@ ucl_schema_validate (const ucl_object_t *schema,
 	if (elt != NULL && elt->type == UCL_ARRAY) {
 		iter = NULL;
 		while ((cur = ucl_iterate_object (elt, &iter, true)) != NULL) {
-			ret = ucl_schema_validate (cur, obj, true, err, root);
+			ret = ucl_schema_validate (cur, obj, true, err, root, external_refs);
 			if (!ret) {
 				return false;
 			}
@@ -927,7 +988,7 @@ ucl_schema_validate (const ucl_object_t *schema,
 	if (elt != NULL && elt->type == UCL_ARRAY) {
 		iter = NULL;
 		while ((cur = ucl_iterate_object (elt, &iter, true)) != NULL) {
-			ret = ucl_schema_validate (cur, obj, true, err, root);
+			ret = ucl_schema_validate (cur, obj, true, err, root, external_refs);
 			if (ret) {
 				break;
 			}
@@ -947,9 +1008,9 @@ ucl_schema_validate (const ucl_object_t *schema,
 		ret = false;
 		while ((cur = ucl_iterate_object (elt, &iter, true)) != NULL) {
 			if (!ret) {
-				ret = ucl_schema_validate (cur, obj, true, err, root);
+				ret = ucl_schema_validate (cur, obj, true, err, root, external_refs);
 			}
-			else if (ucl_schema_validate (cur, obj, true, err, root)) {
+			else if (ucl_schema_validate (cur, obj, true, err, root, external_refs)) {
 				ret = false;
 				break;
 			}
@@ -961,7 +1022,7 @@ ucl_schema_validate (const ucl_object_t *schema,
 
 	elt = ucl_object_find_key (schema, "not");
 	if (elt != NULL && elt->type == UCL_OBJECT) {
-		if (ucl_schema_validate (elt, obj, true, err, root)) {
+		if (ucl_schema_validate (elt, obj, true, err, root, external_refs)) {
 			return false;
 		}
 		else {
@@ -972,11 +1033,13 @@ ucl_schema_validate (const ucl_object_t *schema,
 
 	elt = ucl_object_find_key (schema, "$ref");
 	if (elt != NULL) {
-		cur = ucl_schema_resolve_ref (root, ucl_object_tostring (elt), err);
+		cur = ucl_schema_resolve_ref (root, ucl_object_tostring (elt),
+				err, external_refs);
+
 		if (cur == NULL) {
 			return false;
 		}
-		if (!ucl_schema_validate (cur, obj, try_array, err, root)) {
+		if (!ucl_schema_validate (cur, obj, try_array, err, root, external_refs)) {
 			return false;
 		}
 	}
@@ -988,10 +1051,10 @@ ucl_schema_validate (const ucl_object_t *schema,
 
 	switch (obj->type) {
 	case UCL_OBJECT:
-		return ucl_schema_validate_object (schema, obj, err, root);
+		return ucl_schema_validate_object (schema, obj, err, root, external_refs);
 		break;
 	case UCL_ARRAY:
-		return ucl_schema_validate_array (schema, obj, err, root);
+		return ucl_schema_validate_array (schema, obj, err, root, external_refs);
 		break;
 	case UCL_INT:
 	case UCL_FLOAT:
@@ -1011,7 +1074,14 @@ bool
 ucl_object_validate (const ucl_object_t *schema,
 		const ucl_object_t *obj, struct ucl_schema_error *err)
 {
-	return ucl_schema_validate (schema, obj, true, err, schema);
+	ucl_object_t *ext_refs;
+	bool ret;
+
+	ext_refs = ucl_object_typed_new (UCL_OBJECT);
+	ret = ucl_schema_validate (schema, obj, true, err, schema, ext_refs);
+	ucl_object_unref (ext_refs);
+
+	return ret;
 }
 
 bool
@@ -1020,5 +1090,12 @@ ucl_object_validate_root (const ucl_object_t *schema,
 		const ucl_object_t *root,
 		struct ucl_schema_error *err)
 {
-	return ucl_schema_validate (schema, obj, true, err, root);
+	ucl_object_t *ext_refs;
+	bool ret;
+
+	ext_refs = ucl_object_typed_new (UCL_OBJECT);
+	ret = ucl_schema_validate (schema, obj, true, err, root, ext_refs);
+	ucl_object_unref (ext_refs);
+
+	return ret;
 }

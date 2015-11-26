@@ -1280,6 +1280,9 @@ enum ucl_schema_error_code {
 	UCL_SCHEMA_MISSING_PROPERTY,/**< one or more missing properties */
 	UCL_SCHEMA_CONSTRAINT,      /**< constraint found */
 	UCL_SCHEMA_MISSING_DEPENDENCY, /**< missing dependency */
+	UCL_SCHEMA_EXTERNAL_REF_MISSING, /**< cannot fetch external ref */
+	UCL_SCHEMA_EXTERNAL_REF_INVALID, /**< invalid external ref */
+	UCL_SCHEMA_INTERNAL_ERROR, /**< something bad happened */
 	UCL_SCHEMA_UNKNOWN          /**< generic error */
 };
 
