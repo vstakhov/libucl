@@ -855,7 +855,7 @@ ucl_schema_resolve_ref (const ucl_object_t *root, const char *ref,
 
 	res = ext_obj != NULL ? ext_obj : root;
 	*nroot = res;
-	
+
 	if (*p == '/') {
 		p++;
 	}
