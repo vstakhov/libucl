@@ -125,7 +125,6 @@
             }
         ]
     },
-/*
     {
         "description": "remote ref, containing refs itself",
         "schema": {"$ref": "http://json-schema.org/draft-04/schema#"},
@@ -142,5 +141,4 @@
             }
         ]
     }
-*/
 ]
