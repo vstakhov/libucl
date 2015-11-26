@@ -1320,6 +1320,23 @@ UCL_EXTERN bool ucl_object_validate_root (const ucl_object_t *schema,
 		const ucl_object_t *root,
 		struct ucl_schema_error *err);
 
+/**
+ * Validate object `obj` using schema object `schema` and root schema at `root`
+ * using some external references provided.
+ * @param schema schema object
+ * @param obj object to validate
+ * @param root root schema object
+ * @param ext_refs external references (might be modified during validation)
+ * @param err error pointer, if this parameter is not NULL and error has been
+ * occured, then `err` is filled with the exact error definition.
+ * @return true if `obj` is valid using `schema`
+ */
+UCL_EXTERN bool ucl_object_validate_root_ext (const ucl_object_t *schema,
+		const ucl_object_t *obj,
+		const ucl_object_t *root,
+		ucl_object_t *ext_refs,
+		struct ucl_schema_error *err);
+
 /** @} */
 
 #ifdef  __cplusplus

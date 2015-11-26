@@ -1085,14 +1085,7 @@ bool
 ucl_object_validate (const ucl_object_t *schema,
 		const ucl_object_t *obj, struct ucl_schema_error *err)
 {
-	ucl_object_t *ext_refs;
-	bool ret;
-
-	ext_refs = ucl_object_typed_new (UCL_OBJECT);
-	ret = ucl_schema_validate (schema, obj, true, err, schema, ext_refs);
-	ucl_object_unref (ext_refs);
-
-	return ret;
+	return ucl_object_validate_root_ext (schema, obj, schema, NULL, err);
 }
 
 bool
@@ -1101,12 +1094,28 @@ ucl_object_validate_root (const ucl_object_t *schema,
 		const ucl_object_t *root,
 		struct ucl_schema_error *err)
 {
-	ucl_object_t *ext_refs;
-	bool ret;
+	return ucl_object_validate_root_ext (schema, obj, root, NULL, err);
+}
 
-	ext_refs = ucl_object_typed_new (UCL_OBJECT);
+bool
+ucl_object_validate_root_ext (const ucl_object_t *schema,
+		const ucl_object_t *obj,
+		const ucl_object_t *root,
+		ucl_object_t *ext_refs,
+		struct ucl_schema_error *err)
+{
+	bool ret, need_unref = false;
+
+	if (ext_refs == NULL) {
+		ext_refs = ucl_object_typed_new (UCL_OBJECT);
+		need_unref = true;
+	}
+
 	ret = ucl_schema_validate (schema, obj, true, err, root, ext_refs);
-	ucl_object_unref (ext_refs);
+
+	if (need_unref) {
+		ucl_object_unref (ext_refs);
+	}
 
 	return ret;
 }

@@ -29,6 +29,7 @@
 #include "ucl_internal.h"
 #include "lua_ucl.h"
 #include <strings.h>
+#include <zconf.h>
 
 /***
  * @module ucl
@@ -514,6 +515,17 @@ lua_ucl_object_get (lua_State *L, int index)
 	return *((ucl_object_t **) luaL_checkudata(L, index, OBJECT_META));
 }
 
+static void
+lua_ucl_push_opaque (lua_State *L, ucl_object_t *obj)
+{
+	ucl_object_t **pobj;
+
+	pobj = lua_newuserdata (L, sizeof (*pobj));
+	*pobj = obj;
+	luaL_getmetatable (L, OBJECT_META);
+	lua_setmetatable (L, -2);
+}
+
 /***
  * @method parser:parse_file(name)
  * Parse UCL object from file.
@@ -629,17 +641,14 @@ static int
 lua_ucl_parser_get_object_wrapped (lua_State *L)
 {
 	struct ucl_parser *parser;
-	ucl_object_t *obj, **pobj;
+	ucl_object_t *obj;
 	int ret = 1;
 
 	parser = lua_ucl_parser_get (L, 1);
 	obj = ucl_parser_get_object (parser);
 
 	if (obj != NULL) {
-		pobj = lua_newuserdata (L, sizeof (*pobj));
-		*pobj = obj;
-		luaL_getmetatable (L, OBJECT_META);
-		lua_setmetatable (L, -2);
+		lua_ucl_push_opaque (L, obj);
 	}
 	else {
 		lua_pushnil (L);
@@ -806,19 +815,21 @@ lua_ucl_object_tostring (lua_State *L)
 }
 
 /***
- * @method object:validate(schema, path)
+ * @method object:validate(schema[, path[, ext_refs]])
  * Validates the given ucl object using schema object represented as another
  * opaque ucl object. You can also specify path in the form `#/path/def` to
  * specify the specific schema element to perform validation.
  *
  * @param {ucl.object} schema schema object
  * @param {string} path optional path for validation procedure
- * @return {result,err} two values: boolean result and the corresponding error
+ * @return {result,err} two values: boolean result and the corresponding
+ * error, if `ext_refs` are also specified, then they are returned as opaque
+ * ucl object as {result,err,ext_refs}
  */
 static int
 lua_ucl_object_validate (lua_State *L)
 {
-	ucl_object_t *obj, *schema;
+	ucl_object_t *obj, *schema, *ext_refs = NULL;
 	const ucl_object_t *schema_elt;
 	bool res = false;
 	struct ucl_schema_error err;
@@ -828,10 +839,25 @@ lua_ucl_object_validate (lua_State *L)
 	schema = lua_ucl_object_get (L, 2);
 
 	if (schema && obj && ucl_object_type (schema) == UCL_OBJECT) {
-		if (lua_gettop (L) > 2 && lua_type (L, 3) == LUA_TSTRING) {
-			path = lua_tostring (L, 3);
-			if (path[0] == '#') {
-				path ++;
+		if (lua_gettop (L) > 2) {
+			if (lua_type (L, 3) == LUA_TSTRING) {
+				path = lua_tostring (L, 3);
+				if (path[0] == '#') {
+					path++;
+				}
+			}
+			else if (lua_type (L, 3) == LUA_TUSERDATA || lua_type (L, 3) ==
+						LUA_TTABLE) {
+				/* External refs */
+				ext_refs = lua_ucl_object_get (L, 3);
+			}
+
+			if (lua_gettop (L) > 3) {
+				if (lua_type (L, 4) == LUA_TUSERDATA || lua_type (L, 4) ==
+						LUA_TTABLE) {
+					/* External refs */
+					ext_refs = lua_ucl_object_get (L, 4);
+				}
 			}
 		}
 
@@ -844,15 +870,24 @@ lua_ucl_object_validate (lua_State *L)
 		}
 
 		if (schema_elt) {
-			res = ucl_object_validate_root (schema_elt, obj, schema, &err);
+			res = ucl_object_validate_root_ext (schema_elt, obj, schema,
+					ext_refs, &err);
 
 			if (res) {
 				lua_pushboolean (L, res);
 				lua_pushnil (L);
+
+				if (ext_refs) {
+					lua_ucl_push_opaque (L, ext_refs);
+				}
 			}
 			else {
 				lua_pushboolean (L, res);
 				lua_pushfstring (L, "validation error: %s", err.msg);
+
+				if (ext_refs) {
+					lua_ucl_push_opaque (L, ext_refs);
+				}
 			}
 		}
 		else {
@@ -865,11 +900,21 @@ lua_ucl_object_validate (lua_State *L)
 				/* Should not be reached */
 				lua_pushstring (L, "unknown error");
 			}
+			if (ext_refs) {
+				lua_ucl_push_opaque (L, ext_refs);
+			}
 		}
 	}
 	else {
 		lua_pushboolean (L, res);
 		lua_pushstring (L, "invalid object or schema");
+		if (ext_refs) {
+			lua_ucl_push_opaque (L, ext_refs);
+		}
+	}
+
+	if (ext_refs) {
+		return 3;
 	}
 
 	return 2;
