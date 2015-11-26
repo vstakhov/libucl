@@ -534,7 +534,8 @@ void ucl_emitter_print_key_msgpack (bool print_key,
 bool ucl_fetch_url (const unsigned char *url,
 		unsigned char **buf,
 		size_t *buflen,
-		UT_string **err);
+		UT_string **err,
+		bool must_exist);
 
 /**
  * Add new element to an object using the current merge strategy and priority

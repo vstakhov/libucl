@@ -781,7 +781,8 @@ ucl_schema_resolve_ref_component (const ucl_object_t *cur,
  */
 static const ucl_object_t *
 ucl_schema_resolve_ref (const ucl_object_t *root, const char *ref,
-		struct ucl_schema_error *err, ucl_object_t *ext_ref)
+		struct ucl_schema_error *err, ucl_object_t *ext_ref,
+		ucl_object_t const ** nroot)
 {
 	UT_string *url_err = NULL;
 	struct ucl_parser *parser;
@@ -793,17 +794,6 @@ ucl_schema_resolve_ref (const ucl_object_t *root, const char *ref,
 	size_t url_buflen;
 
 	if (ref[0] != '#') {
-		ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, root,
-				"reference %s is invalid, not started with #", ref);
-		return NULL;
-	}
-	if (ref[1] == '/') {
-		p = &ref[2];
-	}
-	else if (ref[1] == '\0') {
-		return root;
-	}
-	else {
 		hash_ptr = strrchr (ref, '#');
 
 		if (hash_ptr) {
@@ -826,7 +816,7 @@ ucl_schema_resolve_ref (const ucl_object_t *root, const char *ref,
 		ext_obj = ucl_object_find_key (ext_ref, p);
 
 		if (ext_obj == NULL) {
-			if (!ucl_fetch_url (p, &url_buf, &url_buflen, &url_err)) {
+			if (!ucl_fetch_url (p, &url_buf, &url_buflen, &url_err, true)) {
 				free (url_copy);
 				ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, root,
 						"cannot fetch reference %s: %s", p,
@@ -851,10 +841,29 @@ ucl_schema_resolve_ref (const ucl_object_t *root, const char *ref,
 			free (url_buf);
 			free (url_copy);
 		}
+
+		if (hash_ptr) {
+			p = hash_ptr + 1;
+		}
+		else {
+			p = "";
+		}
+	}
+	else {
+		p = ref + 1;
+	}
+
+	res = ext_obj != NULL ? ext_obj : root;
+	*nroot = res;
+	
+	if (*p == '/') {
+		p++;
+	}
+	else if (*p == '\0') {
+		return res;
 	}
 
 	c = p;
-	res = ext_obj != NULL ? ext_obj : root;
 
 	while (*p != '\0') {
 		if (*p == '/') {
@@ -940,7 +949,7 @@ ucl_schema_validate (const ucl_object_t *schema,
 		const ucl_object_t *root,
 		ucl_object_t *external_refs)
 {
-	const ucl_object_t *elt, *cur;
+	const ucl_object_t *elt, *cur, *ref_root;
 	ucl_object_iter_t iter = NULL;
 	bool ret;
 
@@ -1033,13 +1042,15 @@ ucl_schema_validate (const ucl_object_t *schema,
 
 	elt = ucl_object_find_key (schema, "$ref");
 	if (elt != NULL) {
+		ref_root = root;
 		cur = ucl_schema_resolve_ref (root, ucl_object_tostring (elt),
-				err, external_refs);
+				err, external_refs, &ref_root);
 
 		if (cur == NULL) {
 			return false;
 		}
-		if (!ucl_schema_validate (cur, obj, try_array, err, root, external_refs)) {
+		if (!ucl_schema_validate (cur, obj, try_array, err, ref_root,
+				external_refs)) {
 			return false;
 		}
 	}

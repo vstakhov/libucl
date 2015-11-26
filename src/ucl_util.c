@@ -630,7 +630,7 @@ ucl_curl_write_callback (void* contents, size_t size, size_t nmemb, void* ud)
  */
 bool
 ucl_fetch_url (const unsigned char *url, unsigned char **buf, size_t *buflen,
-		UT_string **err)
+		UT_string **err, bool must_exist)
 {
 
 #ifdef HAVE_FETCH_H
@@ -690,8 +690,8 @@ ucl_fetch_url (const unsigned char *url, unsigned char **buf, size_t *buflen,
 		return false;
 	}
 	curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, ucl_curl_write_callback);
-	cbdata.buf = *buf;
-	cbdata.buflen = *buflen;
+	cbdata.buf = NULL;
+	cbdata.buflen = 0;
 	curl_easy_setopt (curl, CURLOPT_WRITEDATA, &cbdata);
 
 	if ((r = curl_easy_perform (curl)) != CURLE_OK) {
@@ -739,7 +739,7 @@ ucl_fetch_file (const unsigned char *filename, unsigned char **buf, size_t *bufl
 	}
 	if (st.st_size == 0) {
 		/* Do not map empty files */
-		*buf = "";
+		*buf = NULL;
 		*buflen = 0;
 	}
 	else {
@@ -847,7 +847,7 @@ ucl_include_url (const unsigned char *data, size_t len,
 
 	snprintf (urlbuf, sizeof (urlbuf), "%.*s", (int)len, data);
 
-	if (!ucl_fetch_url (urlbuf, &buf, &buflen, &parser->err)) {
+	if (!ucl_fetch_url (urlbuf, &buf, &buflen, &parser->err, params->must_exist)) {
 		return !params->must_exist;
 	}
 
