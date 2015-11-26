@@ -4,5 +4,9 @@ compiler:
   - clang
   - gcc
 
+before_script:
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq autoconf libcurl4-openssl-dev automake libtool
+
 script:
-  - ./autogen.sh && ./configure && make && make check
+  - ./autogen.sh && ./configure --enable-urls && make && make check
