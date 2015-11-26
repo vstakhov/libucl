@@ -524,6 +524,19 @@ void ucl_emitter_print_key_msgpack (bool print_key,
 		const ucl_object_t *obj);
 
 /**
+ * Fetch URL into a buffer
+ * @param url url to fetch
+ * @param buf pointer to buffer (must be freed by callee)
+ * @param buflen pointer to buffer length
+ * @param err pointer to error argument
+ * @param must_exist fail if cannot find a url
+ */
+bool ucl_fetch_url (const unsigned char *url,
+		unsigned char **buf,
+		size_t *buflen,
+		UT_string **err);
+
+/**
  * Add new element to an object using the current merge strategy and priority
  * @param parser
  * @param nobj

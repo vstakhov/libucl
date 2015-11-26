@@ -437,7 +437,7 @@ ucl_copy_value_trash (const ucl_object_t *obj)
 		}
 		deconst->flags |= UCL_OBJECT_ALLOCATED_VALUE;
 	}
-	
+
 	return obj->trash_stack[UCL_TRASH_VALUE];
 }
 
@@ -628,9 +628,9 @@ ucl_curl_write_callback (void* contents, size_t size, size_t nmemb, void* ud)
  * @param buflen target length
  * @return
  */
-static bool
+bool
 ucl_fetch_url (const unsigned char *url, unsigned char **buf, size_t *buflen,
-		UT_string **err, bool must_exist)
+		UT_string **err)
 {
 
 #ifdef HAVE_FETCH_H
@@ -847,8 +847,8 @@ ucl_include_url (const unsigned char *data, size_t len,
 
 	snprintf (urlbuf, sizeof (urlbuf), "%.*s", (int)len, data);
 
-	if (!ucl_fetch_url (urlbuf, &buf, &buflen, &parser->err, params->must_exist)) {
-		return (!params->must_exist || false);
+	if (!ucl_fetch_url (urlbuf, &buf, &buflen, &parser->err)) {
+		return !params->must_exist;
 	}
 
 	if (params->check_signature) {
@@ -1232,7 +1232,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 	   treat allow_glob/need_glob as a NOOP and just return */
 	return ucl_include_file_single (data, len, parser, params);
 #endif
-	
+
 	return true;
 }
 
