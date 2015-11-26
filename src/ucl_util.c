@@ -1252,7 +1252,7 @@ ucl_include_common (const unsigned char *data, size_t len,
 		bool default_try,
 		bool default_sign)
 {
-	bool allow_url, search;
+	bool allow_url = false, search = false;
 	const char *duplicate;
 	const ucl_object_t *param;
 	ucl_object_iter_t it = NULL, ip = NULL;
@@ -1270,8 +1270,6 @@ ucl_include_common (const unsigned char *data, size_t len,
 	params.parse_type = UCL_PARSE_UCL;
 	params.strat = UCL_DUPLICATE_APPEND;
 	params.must_exist = !default_try;
-
-	search = false;
 
 	/* Process arguments */
 	if (args != NULL && args->type == UCL_OBJECT) {
