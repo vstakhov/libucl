@@ -816,12 +816,32 @@ ucl_schema_resolve_ref (const ucl_object_t *root, const char *ref,
 		ext_obj = ucl_object_find_key (ext_ref, p);
 
 		if (ext_obj == NULL) {
-			if (!ucl_fetch_url (p, &url_buf, &url_buflen, &url_err, true)) {
-				free (url_copy);
-				ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, root,
-						"cannot fetch reference %s: %s", p,
-						url_err != NULL ? utstring_body (url_err) : "unknown");
-				return NULL;
+			if (ucl_strnstr (p, "://", strlen (p)) != NULL) {
+				if (!ucl_fetch_url (p, &url_buf, &url_buflen, &url_err, true)) {
+					free (url_copy);
+					ucl_schema_create_error (err,
+							UCL_SCHEMA_INVALID_SCHEMA,
+							root,
+							"cannot fetch reference %s: %s",
+							p,
+							url_err != NULL ? utstring_body (url_err)
+											: "unknown");
+					return NULL;
+				}
+			}
+			else {
+				if (!ucl_fetch_file (p, &url_buf, &url_buflen, &url_err,
+						true)) {
+					free (url_copy);
+					ucl_schema_create_error (err,
+							UCL_SCHEMA_INVALID_SCHEMA,
+							root,
+							"cannot fetch reference %s: %s",
+							p,
+							url_err != NULL ? utstring_body (url_err)
+											: "unknown");
+					return NULL;
+				}
 			}
 
 			parser = ucl_parser_new (0);

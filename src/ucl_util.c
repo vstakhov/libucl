@@ -723,7 +723,7 @@ ucl_fetch_url (const unsigned char *url, unsigned char **buf, size_t *buflen,
  * @param buflen target length
  * @return
  */
-static bool
+bool
 ucl_fetch_file (const unsigned char *filename, unsigned char **buf, size_t *buflen,
 		UT_string **err, bool must_exist)
 {

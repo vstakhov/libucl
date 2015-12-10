@@ -538,6 +538,20 @@ bool ucl_fetch_url (const unsigned char *url,
 		bool must_exist);
 
 /**
+ * Fetch a file and save results to the memory buffer
+ * @param filename filename to fetch
+ * @param len length of filename
+ * @param buf target buffer
+ * @param buflen target length
+ * @return
+ */
+bool ucl_fetch_file (const unsigned char *filename,
+		unsigned char **buf,
+		size_t *buflen,
+		UT_string **err,
+		bool must_exist);
+
+/**
  * Add new element to an object using the current merge strategy and priority
  * @param parser
  * @param nobj
