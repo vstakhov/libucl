@@ -46,71 +46,6 @@ static bool ucl_schema_validate (const ucl_object_t *schema,
 		const ucl_object_t *root,
 		ucl_object_t *ext_ref);
 
-static bool
-ucl_string_to_type (const char *input, ucl_type_t *res)
-{
-	if (strcasecmp (input, "object") == 0) {
-		*res = UCL_OBJECT;
-	}
-	else if (strcasecmp (input, "array") == 0) {
-		*res = UCL_ARRAY;
-	}
-	else if (strcasecmp (input, "integer") == 0) {
-		*res = UCL_INT;
-	}
-	else if (strcasecmp (input, "number") == 0) {
-		*res = UCL_FLOAT;
-	}
-	else if (strcasecmp (input, "string") == 0) {
-		*res = UCL_STRING;
-	}
-	else if (strcasecmp (input, "boolean") == 0) {
-		*res = UCL_BOOLEAN;
-	}
-	else if (strcasecmp (input, "null") == 0) {
-		*res = UCL_NULL;
-	}
-	else {
-		return false;
-	}
-
-	return true;
-}
-
-static const char *
-ucl_object_type_to_string (ucl_type_t type)
-{
-	const char *res = "unknown";
-
-	switch (type) {
-	case UCL_OBJECT:
-		res = "object";
-		break;
-	case UCL_ARRAY:
-		res = "array";
-		break;
-	case UCL_INT:
-		res = "integer";
-		break;
-	case UCL_FLOAT:
-	case UCL_TIME:
-		res = "number";
-		break;
-	case UCL_STRING:
-		res = "string";
-		break;
-	case UCL_BOOLEAN:
-		res = "boolean";
-		break;
-	case UCL_NULL:
-	case UCL_USERDATA:
-		res = "null";
-		break;
-	}
-
-	return res;
-}
-
 /*
  * Create validation error
  */
@@ -667,7 +602,7 @@ ucl_schema_type_is_allowed (const ucl_object_t *type, const ucl_object_t *obj,
 	}
 	else if (type->type == UCL_STRING) {
 		type_str = ucl_object_tostring (type);
-		if (!ucl_string_to_type (type_str, &t)) {
+		if (!ucl_object_string_to_type (type_str, &t)) {
 			ucl_schema_create_error (err, UCL_SCHEMA_INVALID_SCHEMA, type,
 					"Type attribute is invalid in schema");
 			return false;

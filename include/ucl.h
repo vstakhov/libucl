@@ -306,6 +306,21 @@ UCL_EXTERN ucl_object_t * ucl_object_copy (const ucl_object_t *other)
 UCL_EXTERN ucl_type_t ucl_object_type (const ucl_object_t *obj);
 
 /**
+ * Converts ucl object type to its string representation
+ * @param type type of object
+ * @return constant string describing type
+ */
+UCL_EXTERN const char * ucl_object_type_to_string (ucl_type_t type);
+
+/**
+ * Converts string that represents ucl type to real ucl type enum
+ * @param input C string with name of type
+ * @param res resulting target
+ * @return true if `input` is a name of type stored in `res`
+ */
+UCL_EXTERN bool ucl_object_string_to_type (const char *input, ucl_type_t *res);
+
+/**
  * Convert any string to an ucl object making the specified transformations
  * @param str fixed size or NULL terminated string
  * @param len length (if len is zero, than str is treated as NULL terminated)

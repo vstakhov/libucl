@@ -3253,3 +3253,73 @@ ucl_object_set_priority (ucl_object_t *obj,
 		obj->flags = priority;
 	}
 }
+
+bool
+ucl_object_string_to_type (const char *input, ucl_type_t *res)
+{
+	if (strcasecmp (input, "object") == 0) {
+		*res = UCL_OBJECT;
+	}
+	else if (strcasecmp (input, "array") == 0) {
+		*res = UCL_ARRAY;
+	}
+	else if (strcasecmp (input, "integer") == 0) {
+		*res = UCL_INT;
+	}
+	else if (strcasecmp (input, "number") == 0) {
+		*res = UCL_FLOAT;
+	}
+	else if (strcasecmp (input, "string") == 0) {
+		*res = UCL_STRING;
+	}
+	else if (strcasecmp (input, "boolean") == 0) {
+		*res = UCL_BOOLEAN;
+	}
+	else if (strcasecmp (input, "null") == 0) {
+		*res = UCL_NULL;
+	}
+	else if (strcasecmp (input, "userdata") == 0) {
+		*res = UCL_USERDATA;
+	}
+	else {
+		return false;
+	}
+
+	return true;
+}
+
+const char *
+ucl_object_type_to_string (ucl_type_t type)
+{
+	const char *res = "unknown";
+
+	switch (type) {
+	case UCL_OBJECT:
+		res = "object";
+		break;
+	case UCL_ARRAY:
+		res = "array";
+		break;
+	case UCL_INT:
+		res = "integer";
+		break;
+	case UCL_FLOAT:
+	case UCL_TIME:
+		res = "number";
+		break;
+	case UCL_STRING:
+		res = "string";
+		break;
+	case UCL_BOOLEAN:
+		res = "boolean";
+		break;
+	case UCL_USERDATA:
+		res = "userdata";
+		break;
+	case UCL_NULL:
+		res = "null";
+		break;
+	}
+
+	return res;
+}
