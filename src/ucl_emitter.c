@@ -362,7 +362,7 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 	const struct ucl_emitter_functions *func = ctx->func;
 	bool flag;
 	struct ucl_object_userdata *ud;
-	const ucl_object_t *comment = NULL;
+	const ucl_object_t *comment = NULL, *cur_comment;
 	const char *ud_out = "";
 
 	if (ctx->id != UCL_EMIT_CONFIG && !first) {
@@ -445,8 +445,11 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 				sizeof (obj));
 
 		if (comment) {
-			func->ucl_emitter_append_len (comment->value.sv, comment->len,
-					func->ud);
+			DL_FOREACH (comment, cur_comment) {
+				func->ucl_emitter_append_len (comment->value.sv, comment->len,
+						func->ud);
+				func->ucl_emitter_append_character ('\n', 1, func->ud);
+			}
 		}
 	}
 }

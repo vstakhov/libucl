@@ -92,7 +92,13 @@ ucl_set_err (struct ucl_parser *parser, int code, const char *str, UT_string **e
 static void
 ucl_save_comment (struct ucl_parser *parser, const char *begin, size_t len)
 {
-	ucl_object_t *obj = parser->cur_obj, *nobj, *found;
+	ucl_object_t *obj, *nobj, *found;
+
+	obj = parser->cur_obj;
+
+	if (obj == NULL && parser->stack) {
+		obj = parser->stack->obj;
+	}
 
 	if (len > 0 && begin != NULL && obj != NULL) {
 		found = (ucl_object_t *)ucl_object_find_keyl (parser->comments,
@@ -102,11 +108,11 @@ ucl_save_comment (struct ucl_parser *parser, const char *begin, size_t len)
 
 		if (found) {
 			/* We need to append data to an existing object */
-			DL_APPEND (found, obj);
+			DL_APPEND (found, nobj);
 		}
 		else {
-			ucl_object_insert_key (parser->comments, nobj, (const char *)nobj,
-					sizeof (nobj), true);
+			ucl_object_insert_key (parser->comments, nobj, (const char *)obj,
+					sizeof (obj), true);
 		}
 	}
 }
@@ -136,8 +142,11 @@ start:
 				if (*p == '\n') {
 					if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
 						ucl_save_comment (parser, beg, p - beg);
+						beg = NULL;
 					}
+
 					ucl_chunk_skipc (chunk, p);
+
 					goto start;
 				}
 				ucl_chunk_skipc (chunk, p);
@@ -164,6 +173,7 @@ start:
 							if (comments_nested == 0) {
 								if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
 									ucl_save_comment (parser, beg, p - beg);
+									beg = NULL;
 								}
 
 								ucl_chunk_skipc (chunk, p);
@@ -179,6 +189,7 @@ start:
 						continue;
 					}
 				}
+
 				ucl_chunk_skipc (chunk, p);
 			}
 			if (comments_nested != 0) {
@@ -187,6 +198,10 @@ start:
 				return false;
 			}
 		}
+	}
+
+	if (beg && p > beg && (parser->flags & UCL_PARSER_SAVE_COMMENTS)) {
+		ucl_save_comment (parser, beg, p - beg);
 	}
 
 	return true;

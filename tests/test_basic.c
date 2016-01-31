@@ -87,7 +87,7 @@ main (int argc, char **argv)
 		flags |= UCL_PARSER_SAVE_COMMENTS;
 	}
 
-	parser = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
+	parser = ucl_parser_new (flags);
 	ucl_parser_register_variable (parser, "ABI", "unknown");
 
 	if (fname_in != NULL) {
@@ -161,6 +161,10 @@ main (int argc, char **argv)
 			ucl_object_emit_funcs_free (func);
 		}
 	}
+
+#if 0
+	fprintf (out, "%s\n****\n", emitted);
+#endif
 
 	ucl_parser_free (parser);
 	ucl_object_unref (obj);
