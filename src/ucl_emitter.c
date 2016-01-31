@@ -362,6 +362,7 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 	const struct ucl_emitter_functions *func = ctx->func;
 	bool flag;
 	struct ucl_object_userdata *ud;
+	const ucl_object_t *comment;
 	const char *ud_out = "";
 
 	if (ctx->id != UCL_EMIT_CONFIG && !first) {
@@ -437,6 +438,16 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		ucl_elt_string_write_json (ud_out, strlen (ud_out), ctx);
 		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
+	}
+
+	if (ctx->comments && ctx->id == UCL_EMIT_CONFIG) {
+		comment = ucl_object_find_keyl (ctx->comments, (const char *)obj,
+				sizeof (obj));
+
+		if (comment) {
+			func->ucl_emitter_append_len (comment->value.sv, comment->len,
+					func->ud);
+		}
 	}
 }
 
@@ -608,7 +619,7 @@ ucl_object_emit_len (const ucl_object_t *obj, enum ucl_emitter emit_type,
 	s = func->ud;
 
 	if (func != NULL) {
-		ucl_object_emit_full (obj, emit_type, func);
+		ucl_object_emit_full (obj, emit_type, func, NULL);
 
 		if (outlen != NULL) {
 			*outlen = s->i;
@@ -622,7 +633,8 @@ ucl_object_emit_len (const ucl_object_t *obj, enum ucl_emitter emit_type,
 
 bool
 ucl_object_emit_full (const ucl_object_t *obj, enum ucl_emitter emit_type,
-		struct ucl_emitter_functions *emitter)
+		struct ucl_emitter_functions *emitter,
+		const ucl_object_t *comments)
 {
 	const struct ucl_emitter_context *ctx;
 	struct ucl_emitter_context my_ctx;
@@ -634,6 +646,7 @@ ucl_object_emit_full (const ucl_object_t *obj, enum ucl_emitter emit_type,
 		my_ctx.func = emitter;
 		my_ctx.indent = 0;
 		my_ctx.top = obj;
+		my_ctx.comments = comments;
 
 		my_ctx.ops->ucl_emitter_write_elt (&my_ctx, obj, true, false);
 		res = true;

@@ -1190,6 +1190,8 @@ struct ucl_emitter_context {
 	unsigned int indent;
 	/** Top level object */
 	const ucl_object_t *top;
+	/** Optional comments */
+	const ucl_object_t *comments;
 	/** The rest of context */
 	unsigned char data[1];
 };
@@ -1221,11 +1223,13 @@ UCL_EXTERN unsigned char *ucl_object_emit_len (const ucl_object_t *obj,
  * @param emit_type if type is #UCL_EMIT_JSON then emit json, if type is
  * #UCL_EMIT_CONFIG then emit config like object
  * @param emitter a set of emitter functions
+ * @param comments optional comments for the parser
  * @return dump of an object (must be freed after using) or NULL in case of error
  */
 UCL_EXTERN bool ucl_object_emit_full (const ucl_object_t *obj,
 		enum ucl_emitter emit_type,
-		struct ucl_emitter_functions *emitter);
+		struct ucl_emitter_functions *emitter,
+		const ucl_object_t *comments);
 
 /**
  * Start streamlined UCL object emitter
