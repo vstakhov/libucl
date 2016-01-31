@@ -89,6 +89,28 @@ ucl_set_err (struct ucl_parser *parser, int code, const char *str, UT_string **e
 	parser->err_code = code;
 }
 
+static void
+ucl_save_comment (struct ucl_parser *parser, const char *begin, size_t len)
+{
+	ucl_object_t *obj = parser->cur_obj, *nobj, *found;
+
+	if (len > 0 && begin != NULL && obj != NULL) {
+		found = (ucl_object_t *)ucl_hash_search (parser->comments,
+				(const char *)obj,
+				sizeof (obj));
+		nobj = ucl_object_fromlstring (begin, len);
+
+		if (found) {
+			/* We need to append data to an existing object */
+			DL_APPEND (found, obj);
+		}
+		else {
+			ucl_hash_insert (parser->comments, nobj, (const char *)nobj,
+					sizeof (nobj));
+		}
+	}
+}
+
 /**
  * Skip all comments from the current pos resolving nested and multiline comments
  * @param parser
@@ -98,7 +120,7 @@ static bool
 ucl_skip_comments (struct ucl_parser *parser)
 {
 	struct ucl_chunk *chunk = parser->chunks;
-	const unsigned char *p;
+	const unsigned char *p, *beg = NULL;
 	int comments_nested = 0;
 	bool quoted = false;
 
@@ -108,8 +130,13 @@ start:
 	if (chunk->remain > 0 && *p == '#') {
 		if (parser->state != UCL_STATE_SCOMMENT &&
 				parser->state != UCL_STATE_MCOMMENT) {
+			beg = p;
+
 			while (p < chunk->end) {
 				if (*p == '\n') {
+					if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
+						ucl_save_comment (parser, beg, p - beg);
+					}
 					ucl_chunk_skipc (chunk, p);
 					goto start;
 				}
@@ -119,6 +146,7 @@ start:
 	}
 	else if (chunk->remain >= 2 && *p == '/') {
 		if (p[1] == '*') {
+			beg = p;
 			ucl_chunk_skipc (chunk, p);
 			comments_nested ++;
 			ucl_chunk_skipc (chunk, p);
@@ -134,6 +162,10 @@ start:
 						if (*p == '/') {
 							comments_nested --;
 							if (comments_nested == 0) {
+								if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
+									ucl_save_comment (parser, beg, p - beg);
+								}
+
 								ucl_chunk_skipc (chunk, p);
 								goto start;
 							}
@@ -2226,6 +2258,10 @@ ucl_parser_new (int flags)
 
 	new->flags = flags;
 	new->includepaths = NULL;
+
+	if (flags & UCL_PARSER_SAVE_COMMENTS) {
+		new->comments = ucl_hash_create (false);
+	}
 
 	/* Initial assumption about filevars */
 	ucl_parser_set_filevars (new, NULL, false);

@@ -236,7 +236,7 @@ ucl_object_free_internal (ucl_object_t *obj, bool allow_rec, ucl_object_dtor dto
 		}
 		else if (obj->type == UCL_OBJECT) {
 			if (obj->value.ov != NULL) {
-				ucl_hash_destroy (obj->value.ov, (ucl_hash_free_func *)dtor);
+				ucl_hash_destroy (obj->value.ov, (ucl_hash_free_func)dtor);
 			}
 			obj->value.ov = NULL;
 		}
@@ -502,6 +502,10 @@ ucl_parser_free (struct ucl_parser *parser)
 
 	if (parser->cur_file) {
 		free (parser->cur_file);
+	}
+
+	if (parser->comments) {
+		ucl_hash_destroy (parser->comments, (ucl_hash_free_func)ucl_object_unref);
 	}
 
 	UCL_FREE (sizeof (struct ucl_parser), parser);

@@ -151,7 +151,9 @@ typedef enum ucl_parser_flags {
 	UCL_PARSER_KEY_LOWERCASE = 0x1, /**< Convert all keys to lower case */
 	UCL_PARSER_ZEROCOPY = 0x2, /**< Parse input in zero-copy mode if possible */
 	UCL_PARSER_NO_TIME = 0x4, /**< Do not parse time and treat time values as strings */
-	UCL_PARSER_NO_IMPLICIT_ARRAYS = 0x8 /** Create explicit arrays instead of implicit ones */
+	UCL_PARSER_NO_IMPLICIT_ARRAYS = 0x8, /** Create explicit arrays instead of implicit ones */
+	UCL_PARSER_SAVE_COMMENTS = 0x16, /** Save comments in the parser context */
+	UCL_PARSER_DISABLE_MACRO = 0x32 /** Treat macros as comments */
 } ucl_parser_flags_t;
 
 /**
