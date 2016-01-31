@@ -95,7 +95,7 @@ ucl_save_comment (struct ucl_parser *parser, const char *begin, size_t len)
 	ucl_object_t *obj = parser->cur_obj, *nobj, *found;
 
 	if (len > 0 && begin != NULL && obj != NULL) {
-		found = (ucl_object_t *)ucl_hash_search (parser->comments,
+		found = (ucl_object_t *)ucl_object_find_keyl (parser->comments,
 				(const char *)obj,
 				sizeof (obj));
 		nobj = ucl_object_fromlstring (begin, len);
@@ -105,8 +105,8 @@ ucl_save_comment (struct ucl_parser *parser, const char *begin, size_t len)
 			DL_APPEND (found, obj);
 		}
 		else {
-			ucl_hash_insert (parser->comments, nobj, (const char *)nobj,
-					sizeof (nobj));
+			ucl_object_insert_key (parser->comments, nobj, (const char *)nobj,
+					sizeof (nobj), true);
 		}
 	}
 }
@@ -2240,33 +2240,33 @@ ucl_state_machine (struct ucl_parser *parser)
 struct ucl_parser*
 ucl_parser_new (int flags)
 {
-	struct ucl_parser *new;
+	struct ucl_parser *parser;
 
-	new = UCL_ALLOC (sizeof (struct ucl_parser));
-	if (new == NULL) {
+	parser = UCL_ALLOC (sizeof (struct ucl_parser));
+	if (parser == NULL) {
 		return NULL;
 	}
 
-	memset (new, 0, sizeof (struct ucl_parser));
+	memset (parser, 0, sizeof (struct ucl_parser));
 
-	ucl_parser_register_macro (new, "include", ucl_include_handler, new);
-	ucl_parser_register_macro (new, "try_include", ucl_try_include_handler, new);
-	ucl_parser_register_macro (new, "includes", ucl_includes_handler, new);
-	ucl_parser_register_macro (new, "priority", ucl_priority_handler, new);
-	ucl_parser_register_macro (new, "load", ucl_load_handler, new);
-	ucl_parser_register_context_macro (new, "inherit", ucl_inherit_handler, new);
+	ucl_parser_register_macro (parser, "include", ucl_include_handler, parser);
+	ucl_parser_register_macro (parser, "try_include", ucl_try_include_handler, parser);
+	ucl_parser_register_macro (parser, "includes", ucl_includes_handler, parser);
+	ucl_parser_register_macro (parser, "priority", ucl_priority_handler, parser);
+	ucl_parser_register_macro (parser, "load", ucl_load_handler, parser);
+	ucl_parser_register_context_macro (parser, "inherit", ucl_inherit_handler, parser);
 
-	new->flags = flags;
-	new->includepaths = NULL;
+	parser->flags = flags;
+	parser->includepaths = NULL;
 
 	if (flags & UCL_PARSER_SAVE_COMMENTS) {
-		new->comments = ucl_hash_create (false);
+		parser->comments = ucl_object_typed_new (UCL_OBJECT);
 	}
 
 	/* Initial assumption about filevars */
-	ucl_parser_set_filevars (new, NULL, false);
+	ucl_parser_set_filevars (parser, NULL, false);
 
-	return new;
+	return parser;
 }
 
 bool

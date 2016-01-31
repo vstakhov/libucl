@@ -505,7 +505,7 @@ ucl_parser_free (struct ucl_parser *parser)
 	}
 
 	if (parser->comments) {
-		ucl_hash_destroy (parser->comments, (ucl_hash_free_func)ucl_object_unref);
+		ucl_object_unref (parser->comments);
 	}
 
 	UCL_FREE (sizeof (struct ucl_parser), parser);
@@ -3326,4 +3326,26 @@ ucl_object_type_to_string (ucl_type_t type)
 	}
 
 	return res;
+}
+
+const ucl_object_t *
+ucl_parser_get_comments (struct ucl_parser *parser)
+{
+	if (parser && parser->comments) {
+		return parser->comments;
+	}
+
+	return NULL;
+}
+
+const ucl_object_t *
+ucl_comments_find (const ucl_object_t *comments,
+		const ucl_object_t *srch)
+{
+	if (comments && srch) {
+		return ucl_object_find_keyl (comments, (const char *)srch,
+				sizeof (srch));
+	}
+
+	return NULL;
 }

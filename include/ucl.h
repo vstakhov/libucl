@@ -1093,6 +1093,23 @@ UCL_EXTERN void ucl_parser_clear_error(struct ucl_parser *parser);
 UCL_EXTERN void ucl_parser_free (struct ucl_parser *parser);
 
 /**
+ * Get constant opaque pointer to comments structure for this parser. Increase
+ * refcount to prevent this object to be destroyed on parser's destruction
+ * @param parser parser structure
+ * @return ucl comments pointer or NULL
+ */
+UCL_EXTERN const ucl_object_t * ucl_parser_get_comments (struct ucl_parser *parser);
+
+/**
+ * Utility function to find a comment object for the specified object in the input
+ * @param comments comments object
+ * @param srch search object
+ * @return string comment enclosed in ucl_object_t
+ */
+UCL_EXTERN const ucl_object_t * ucl_comments_find (const ucl_object_t *comments,
+		const ucl_object_t *srch);
+
+/**
  * Add new public key to parser for signatures check
  * @param parser parser object
  * @param key PEM representation of a key
