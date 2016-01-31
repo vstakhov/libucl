@@ -362,7 +362,7 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 	const struct ucl_emitter_functions *func = ctx->func;
 	bool flag;
 	struct ucl_object_userdata *ud;
-	const ucl_object_t *comment;
+	const ucl_object_t *comment = NULL;
 	const char *ud_out = "";
 
 	if (ctx->id != UCL_EMIT_CONFIG && !first) {

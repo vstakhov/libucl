@@ -147,13 +147,13 @@ typedef enum ucl_emitter {
  * UCL still has to perform copying implicitly.
  */
 typedef enum ucl_parser_flags {
-	UCL_PARSER_DEFAULT = 0x0,       /**< No special flags */
-	UCL_PARSER_KEY_LOWERCASE = 0x1, /**< Convert all keys to lower case */
-	UCL_PARSER_ZEROCOPY = 0x2, /**< Parse input in zero-copy mode if possible */
-	UCL_PARSER_NO_TIME = 0x4, /**< Do not parse time and treat time values as strings */
-	UCL_PARSER_NO_IMPLICIT_ARRAYS = 0x8, /** Create explicit arrays instead of implicit ones */
-	UCL_PARSER_SAVE_COMMENTS = 0x16, /** Save comments in the parser context */
-	UCL_PARSER_DISABLE_MACRO = 0x32 /** Treat macros as comments */
+	UCL_PARSER_DEFAULT = 0,       /**< No special flags */
+	UCL_PARSER_KEY_LOWERCASE = (1 << 0), /**< Convert all keys to lower case */
+	UCL_PARSER_ZEROCOPY = (1 << 1), /**< Parse input in zero-copy mode if possible */
+	UCL_PARSER_NO_TIME = (1 << 2), /**< Do not parse time and treat time values as strings */
+	UCL_PARSER_NO_IMPLICIT_ARRAYS = (1 << 3), /** Create explicit arrays instead of implicit ones */
+	UCL_PARSER_SAVE_COMMENTS = (1 << 4), /** Save comments in the parser context */
+	UCL_PARSER_DISABLE_MACRO = (1 << 5) /** Treat macros as comments */
 } ucl_parser_flags_t;
 
 /**
@@ -161,17 +161,17 @@ typedef enum ucl_parser_flags {
  */
 typedef enum ucl_string_flags {
 	UCL_STRING_RAW = 0x0,     /**< Treat string as is */
-	UCL_STRING_ESCAPE = 0x1,  /**< Perform JSON escape */
-	UCL_STRING_TRIM = 0x2,    /**< Trim leading and trailing whitespaces */
-	UCL_STRING_PARSE_BOOLEAN = 0x4,    /**< Parse passed string and detect boolean */
-	UCL_STRING_PARSE_INT = 0x8,    /**< Parse passed string and detect integer number */
-	UCL_STRING_PARSE_DOUBLE = 0x10,    /**< Parse passed string and detect integer or float number */
-	UCL_STRING_PARSE_TIME = 0x20, /**< Parse time strings */
+	UCL_STRING_ESCAPE = (1 << 0),  /**< Perform JSON escape */
+	UCL_STRING_TRIM = (1 << 1),    /**< Trim leading and trailing whitespaces */
+	UCL_STRING_PARSE_BOOLEAN = (1 << 2),    /**< Parse passed string and detect boolean */
+	UCL_STRING_PARSE_INT = (1 << 3),    /**< Parse passed string and detect integer number */
+	UCL_STRING_PARSE_DOUBLE = (1 << 4),    /**< Parse passed string and detect integer or float number */
+	UCL_STRING_PARSE_TIME = (1 << 5), /**< Parse time strings */
 	UCL_STRING_PARSE_NUMBER =  UCL_STRING_PARSE_INT|UCL_STRING_PARSE_DOUBLE|UCL_STRING_PARSE_TIME,  /**<
 									Parse passed string and detect number */
 	UCL_STRING_PARSE =  UCL_STRING_PARSE_BOOLEAN|UCL_STRING_PARSE_NUMBER,   /**<
 									Parse passed string (and detect booleans and numbers) */
-	UCL_STRING_PARSE_BYTES = 0x40  /**< Treat numbers as bytes */
+	UCL_STRING_PARSE_BYTES = (1 << 6)  /**< Treat numbers as bytes */
 } ucl_string_flags_t;
 
 /**

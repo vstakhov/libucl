@@ -29,20 +29,24 @@ main (int argc, char **argv)
 {
 	char *inbuf;
 	struct ucl_parser *parser = NULL, *parser2 = NULL;
-	ucl_object_t *obj;
+	ucl_object_t *obj, *comments;
 	ssize_t bufsize, r;
 	FILE *in, *out;
 	unsigned char *emitted = NULL;
 	const char *fname_in = NULL, *fname_out = NULL;
-	int ret = 0, opt, json = 0, compact = 0, yaml = 0;
+	int ret = 0, opt, json = 0, compact = 0, yaml = 0, save_comments = 0, flags;
+	struct ucl_emitter_functions *func;
 
-	while ((opt = getopt(argc, argv, "jcy")) != -1) {
+	while ((opt = getopt(argc, argv, "jcyC")) != -1) {
 		switch (opt) {
 		case 'j':
 			json = 1;
 			break;
 		case 'c':
 			compact = 1;
+			break;
+		case 'C':
+			save_comments = 1;
 			break;
 		case 'y':
 			yaml = 1;
@@ -76,6 +80,13 @@ main (int argc, char **argv)
 	else {
 		in = stdin;
 	}
+
+	flags = UCL_PARSER_KEY_LOWERCASE;
+
+	if (save_comments) {
+		flags |= UCL_PARSER_SAVE_COMMENTS;
+	}
+
 	parser = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
 	ucl_parser_register_variable (parser, "ABI", "unknown");
 
@@ -118,12 +129,17 @@ main (int argc, char **argv)
 	}
 
 	if (ucl_parser_get_error (parser) != NULL) {
-		fprintf (out, "Error occurred: %s\n", ucl_parser_get_error(parser));
+		fprintf (out, "Error occurred (phase 1): %s\n",
+						ucl_parser_get_error(parser));
 		ret = 1;
 		goto end;
 	}
 
 	obj = ucl_parser_get_object (parser);
+
+	if (save_comments) {
+		comments = ucl_object_ref (ucl_parser_get_comments (parser));
+	}
 
 	if (json) {
 		if (compact) {
@@ -137,16 +153,23 @@ main (int argc, char **argv)
 		emitted = ucl_object_emit (obj, UCL_EMIT_YAML);
 	}
 	else {
-		emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
+		emitted = NULL;
+		func = ucl_object_emit_memory_funcs ((void **)&emitted);
+
+		if (func != NULL) {
+			ucl_object_emit_full (obj, UCL_EMIT_CONFIG, func, comments);
+			ucl_object_emit_funcs_free (func);
+		}
 	}
 
 	ucl_parser_free (parser);
 	ucl_object_unref (obj);
-	parser2 = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
+	parser2 = ucl_parser_new (flags);
 	ucl_parser_add_string (parser2, (const char *)emitted, 0);
 
 	if (ucl_parser_get_error(parser2) != NULL) {
-		fprintf (out, "Error occurred: %s\n", ucl_parser_get_error(parser2));
+		fprintf (out, "Error occurred (phase 2): %s\n",
+				ucl_parser_get_error(parser2));
 		fprintf (out, "%s\n", emitted);
 		ret = 1;
 		goto end;
@@ -155,8 +178,17 @@ main (int argc, char **argv)
 	if (emitted != NULL) {
 		free (emitted);
 	}
+	if (comments) {
+		ucl_object_unref (comments);
+		comments = NULL;
+	}
+
+	if (save_comments) {
+		comments = ucl_object_ref (ucl_parser_get_comments (parser2));
+	}
 
 	obj = ucl_parser_get_object (parser2);
+
 	if (json) {
 		if (compact) {
 			emitted = ucl_object_emit (obj, UCL_EMIT_JSON_COMPACT);
@@ -169,7 +201,13 @@ main (int argc, char **argv)
 		emitted = ucl_object_emit (obj, UCL_EMIT_YAML);
 	}
 	else {
-		emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
+		emitted = NULL;
+		func = ucl_object_emit_memory_funcs ((void **)&emitted);
+
+		if (func != NULL) {
+			ucl_object_emit_full (obj, UCL_EMIT_CONFIG, func, comments);
+			ucl_object_emit_funcs_free (func);
+		}
 	}
 
 	fprintf (out, "%s\n", emitted);
@@ -181,6 +219,9 @@ end:
 	}
 	if (parser2 != NULL) {
 		ucl_parser_free (parser2);
+	}
+	if (comments) {
+		ucl_object_unref (comments);
 	}
 	if (inbuf != NULL) {
 		free (inbuf);
