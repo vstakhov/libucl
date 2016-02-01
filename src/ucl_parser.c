@@ -95,7 +95,7 @@ ucl_save_comment (struct ucl_parser *parser, const char *begin, size_t len)
 	ucl_object_t *nobj;
 
 	if (len > 0 && begin != NULL) {
-		nobj = ucl_object_fromlstring (begin, len);
+		nobj = ucl_object_fromstring_common (begin, len, 0);
 
 		if (parser->last_comment) {
 			/* We need to append data to an existing object */
@@ -172,7 +172,7 @@ start:
 							comments_nested --;
 							if (comments_nested == 0) {
 								if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
-									ucl_save_comment (parser, beg, p - beg);
+									ucl_save_comment (parser, beg, p - beg + 1);
 									beg = NULL;
 								}
 
