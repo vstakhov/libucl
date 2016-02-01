@@ -92,28 +92,28 @@ ucl_set_err (struct ucl_parser *parser, int code, const char *str, UT_string **e
 static void
 ucl_save_comment (struct ucl_parser *parser, const char *begin, size_t len)
 {
-	ucl_object_t *obj, *nobj, *found;
+	ucl_object_t *nobj;
 
-	obj = parser->cur_obj;
-
-	if (obj == NULL && parser->stack) {
-		obj = parser->stack->obj;
-	}
-
-	if (len > 0 && begin != NULL && obj != NULL) {
-		found = (ucl_object_t *)ucl_object_find_keyl (parser->comments,
-				(const char *)obj,
-				sizeof (obj));
+	if (len > 0 && begin != NULL) {
 		nobj = ucl_object_fromlstring (begin, len);
 
-		if (found) {
+		if (parser->last_comment) {
 			/* We need to append data to an existing object */
-			DL_APPEND (found, nobj);
+			DL_APPEND (parser->last_comment, nobj);
 		}
 		else {
-			ucl_object_insert_key (parser->comments, nobj, (const char *)obj,
-					sizeof (obj), true);
+			parser->last_comment = nobj;
 		}
+	}
+}
+
+static void
+ucl_attach_comment (struct ucl_parser *parser, ucl_object_t *obj)
+{
+	if (parser->last_comment) {
+		ucl_object_insert_key (parser->comments, parser->last_comment,
+				(const char *)&obj, sizeof (void *), true);
+		parser->last_comment = NULL;
 	}
 }
 
@@ -1139,6 +1139,7 @@ ucl_parser_process_object_element (struct ucl_parser *parser, ucl_object_t *nobj
 
 	parser->stack->obj->value.ov = container;
 	parser->cur_obj = nobj;
+	ucl_attach_comment (parser, nobj);
 
 	return true;
 }
@@ -1508,6 +1509,7 @@ ucl_parser_get_container (struct ucl_parser *parser)
 		}
 
 		parser->cur_obj = obj;
+		ucl_attach_comment (parser, obj);
 	}
 	else {
 		/* Object has been already allocated */
@@ -2241,11 +2243,19 @@ ucl_state_machine (struct ucl_parser *parser)
 			}
 			break;
 		default:
-			/* TODO: add all states */
 			ucl_set_err (parser, UCL_EINTERNAL,
 					"internal error: parser is in an unknown state", &parser->err);
 			parser->state = UCL_STATE_ERROR;
 			return false;
+		}
+	}
+
+	if (parser->last_comment) {
+		if (parser->cur_obj) {
+			ucl_attach_comment (parser, parser->cur_obj);
+		}
+		else {
+			ucl_attach_comment (parser, parser->top_obj);
 		}
 	}
 

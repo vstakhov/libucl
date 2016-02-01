@@ -380,6 +380,19 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 
 	ucl_add_tabs (func, ctx->indent, compact);
 
+	if (ctx->comments && ctx->id == UCL_EMIT_CONFIG) {
+		comment = ucl_object_find_keyl (ctx->comments, (const char *)&obj,
+				sizeof (void *));
+
+		if (comment) {
+			DL_FOREACH (comment, cur_comment) {
+				func->ucl_emitter_append_len (comment->value.sv, comment->len,
+						func->ud);
+				func->ucl_emitter_append_character ('\n', 1, func->ud);
+			}
+		}
+	}
+
 	switch (obj->type) {
 	case UCL_INT:
 		ucl_emitter_print_key (print_key, ctx, obj, compact);
@@ -438,19 +451,6 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		ucl_elt_string_write_json (ud_out, strlen (ud_out), ctx);
 		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
-	}
-
-	if (ctx->comments && ctx->id == UCL_EMIT_CONFIG) {
-		comment = ucl_object_find_keyl (ctx->comments, (const char *)obj,
-				sizeof (obj));
-
-		if (comment) {
-			DL_FOREACH (comment, cur_comment) {
-				func->ucl_emitter_append_len (comment->value.sv, comment->len,
-						func->ud);
-				func->ucl_emitter_append_character ('\n', 1, func->ud);
-			}
-		}
 	}
 }
 

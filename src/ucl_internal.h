@@ -212,6 +212,7 @@ struct ucl_parser {
 	ucl_variable_handler var_handler;
 	void *var_data;
 	ucl_object_t *comments;
+	ucl_object_t *last_comment;
 	UT_string *err;
 };
 

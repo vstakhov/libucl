@@ -3343,8 +3343,8 @@ ucl_comments_find (const ucl_object_t *comments,
 		const ucl_object_t *srch)
 {
 	if (comments && srch) {
-		return ucl_object_find_keyl (comments, (const char *)srch,
-				sizeof (srch));
+		return ucl_object_find_keyl (comments, (const char *)&srch,
+				sizeof (void *));
 	}
 
 	return NULL;
