@@ -34,10 +34,12 @@ main (int argc, char **argv)
 	FILE *in, *out;
 	unsigned char *emitted = NULL;
 	const char *fname_in = NULL, *fname_out = NULL;
-	int ret = 0, opt, json = 0, compact = 0, yaml = 0, save_comments = 0, flags;
+	int ret = 0, opt, json = 0, compact = 0, yaml = 0,
+			save_comments = 0, skip_macro = 0,
+			flags;
 	struct ucl_emitter_functions *func;
 
-	while ((opt = getopt(argc, argv, "jcyC")) != -1) {
+	while ((opt = getopt(argc, argv, "jcyCM")) != -1) {
 		switch (opt) {
 		case 'j':
 			json = 1;
@@ -50,6 +52,9 @@ main (int argc, char **argv)
 			break;
 		case 'y':
 			yaml = 1;
+			break;
+		case 'M':
+			skip_macro = true;
 			break;
 		default: /* '?' */
 			fprintf (stderr, "Usage: %s [-jcy] [in] [out]\n",
@@ -85,6 +90,10 @@ main (int argc, char **argv)
 
 	if (save_comments) {
 		flags |= UCL_PARSER_SAVE_COMMENTS;
+	}
+
+	if (skip_macro) {
+		flags |= UCL_PARSER_DISABLE_MACRO;
 	}
 
 	parser = ucl_parser_new (flags);
