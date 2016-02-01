@@ -29,7 +29,7 @@ main (int argc, char **argv)
 {
 	char *inbuf;
 	struct ucl_parser *parser = NULL, *parser2 = NULL;
-	ucl_object_t *obj, *comments;
+	ucl_object_t *obj, *comments = NULL;
 	ssize_t bufsize, r;
 	FILE *in, *out;
 	unsigned char *emitted = NULL;
