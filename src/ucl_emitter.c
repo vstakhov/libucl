@@ -386,9 +386,11 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 
 		if (comment) {
 			DL_FOREACH (comment, cur_comment) {
-				func->ucl_emitter_append_len (comment->value.sv, comment->len,
+				func->ucl_emitter_append_len (cur_comment->value.sv,
+						cur_comment->len,
 						func->ud);
 				func->ucl_emitter_append_character ('\n', 1, func->ud);
+				ucl_add_tabs (func, ctx->indent, compact);
 			}
 		}
 	}
