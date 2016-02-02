@@ -385,12 +385,16 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 				sizeof (void *));
 
 		if (comment) {
-			DL_FOREACH (comment, cur_comment) {
-				func->ucl_emitter_append_len (cur_comment->value.sv,
-						cur_comment->len,
-						func->ud);
-				func->ucl_emitter_append_character ('\n', 1, func->ud);
-				ucl_add_tabs (func, ctx->indent, compact);
+			if (!(comment->flags & UCL_OBJECT_INHERITED)) {
+				DL_FOREACH (comment, cur_comment) {
+					func->ucl_emitter_append_len (cur_comment->value.sv,
+							cur_comment->len,
+							func->ud);
+					func->ucl_emitter_append_character ('\n', 1, func->ud);
+					ucl_add_tabs (func, ctx->indent, compact);
+				}
+
+				comment = NULL;
 			}
 		}
 	}
@@ -453,6 +457,19 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		ucl_elt_string_write_json (ud_out, strlen (ud_out), ctx);
 		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
+	}
+
+	if (comment) {
+		DL_FOREACH (comment, cur_comment) {
+			func->ucl_emitter_append_len (cur_comment->value.sv,
+					cur_comment->len,
+					func->ud);
+			func->ucl_emitter_append_character ('\n', 1, func->ud);
+
+			if (cur_comment->next) {
+				ucl_add_tabs (func, ctx->indent, compact);
+			}
+		}
 	}
 }
 

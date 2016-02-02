@@ -108,11 +108,16 @@ ucl_save_comment (struct ucl_parser *parser, const char *begin, size_t len)
 }
 
 static void
-ucl_attach_comment (struct ucl_parser *parser, ucl_object_t *obj)
+ucl_attach_comment (struct ucl_parser *parser, ucl_object_t *obj, bool before)
 {
 	if (parser->last_comment) {
 		ucl_object_insert_key (parser->comments, parser->last_comment,
 				(const char *)&obj, sizeof (void *), true);
+
+		if (before) {
+			parser->last_comment->flags |= UCL_OBJECT_INHERITED;
+		}
+
 		parser->last_comment = NULL;
 	}
 }
@@ -642,12 +647,14 @@ ucl_parser_add_container (ucl_object_t *obj, struct ucl_parser *parser,
 	}
 
 	st = UCL_ALLOC (sizeof (struct ucl_stack));
+
 	if (st == NULL) {
 		ucl_set_err (parser, UCL_EINTERNAL, "cannot allocate memory for an object",
 				&parser->err);
 		ucl_object_unref (obj);
 		return NULL;
 	}
+
 	st->obj = obj;
 	st->level = level;
 	LL_PREPEND (parser->stack, st);
@@ -1144,7 +1151,7 @@ ucl_parser_process_object_element (struct ucl_parser *parser, ucl_object_t *nobj
 
 	parser->stack->obj->value.ov = container;
 	parser->cur_obj = nobj;
-	ucl_attach_comment (parser, nobj);
+	ucl_attach_comment (parser, nobj, false);
 
 	return true;
 }
@@ -1517,7 +1524,7 @@ ucl_parser_get_container (struct ucl_parser *parser)
 		}
 
 		parser->cur_obj = obj;
-		ucl_attach_comment (parser, obj);
+		ucl_attach_comment (parser, obj, false);
 	}
 	else {
 		/* Object has been already allocated */
@@ -1764,12 +1771,19 @@ ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 					parser->stack = st->next;
 					UCL_FREE (sizeof (struct ucl_stack), st);
 
+					if (parser->cur_obj) {
+						ucl_attach_comment (parser, parser->cur_obj, true);
+					}
+
 					while (parser->stack != NULL) {
 						st = parser->stack;
+
 						if (st->next == NULL || st->next->level == st->level) {
 							break;
 						}
+
 						parser->stack = st->next;
+						parser->cur_obj = st->obj;
 						UCL_FREE (sizeof (struct ucl_stack), st);
 					}
 				}
@@ -2383,13 +2397,13 @@ ucl_state_machine (struct ucl_parser *parser)
 
 	if (parser->last_comment) {
 		if (parser->cur_obj) {
-			ucl_attach_comment (parser, parser->cur_obj);
+			ucl_attach_comment (parser, parser->cur_obj, true);
 		}
-		else if (parser->stack->obj) {
-			ucl_attach_comment (parser, parser->stack->obj);
+		else if (parser->stack && parser->stack->obj) {
+			ucl_attach_comment (parser, parser->stack->obj, true);
 		}
 		else if (parser->top_obj) {
-			ucl_attach_comment (parser, parser->top_obj);
+			ucl_attach_comment (parser, parser->top_obj, true);
 		}
 		else {
 			ucl_object_unref (parser->last_comment);
