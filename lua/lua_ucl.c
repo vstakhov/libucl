@@ -893,13 +893,8 @@ lua_ucl_object_validate (lua_State *L)
 		else {
 			lua_pushboolean (L, res);
 
-			if (path) {
-				lua_pushfstring (L, "cannot find the requested path: %s", path);
-			}
-			else {
-				/* Should not be reached */
-				lua_pushstring (L, "unknown error");
-			}
+			lua_pushfstring (L, "cannot find the requested path: %s", path);
+
 			if (ext_refs) {
 				lua_ucl_push_opaque (L, ext_refs);
 			}
@@ -908,9 +903,6 @@ lua_ucl_object_validate (lua_State *L)
 	else {
 		lua_pushboolean (L, res);
 		lua_pushstring (L, "invalid object or schema");
-		if (ext_refs) {
-			lua_ucl_push_opaque (L, ext_refs);
-		}
 	}
 
 	if (ext_refs) {

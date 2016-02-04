@@ -1192,8 +1192,6 @@ struct ucl_emitter_context {
 	const ucl_object_t *top;
 	/** Optional comments */
 	const ucl_object_t *comments;
-	/** The rest of context */
-	unsigned char data[1];
 };
 
 /**

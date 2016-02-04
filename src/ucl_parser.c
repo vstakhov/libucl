@@ -2241,7 +2241,7 @@ ucl_state_machine (struct ucl_parser *parser)
 			break;
 		case UCL_STATE_VALUE:
 			/* We need to check what we do have */
-			if (!ucl_parse_value (parser, chunk)) {
+			if (!parser->cur_obj || !ucl_parse_value (parser, chunk)) {
 				parser->prev_state = parser->state;
 				parser->state = UCL_STATE_ERROR;
 				return false;
@@ -2270,7 +2270,6 @@ ucl_state_machine (struct ucl_parser *parser)
 				return true;
 			}
 
-			parser->cur_obj = NULL;
 			p = chunk->pos;
 			break;
 		case UCL_STATE_MACRO_NAME:

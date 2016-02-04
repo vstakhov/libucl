@@ -638,9 +638,9 @@ ucl_object_emit_len (const ucl_object_t *obj, enum ucl_emitter emit_type,
 	}
 
 	func = ucl_object_emit_memory_funcs ((void **)&res);
-	s = func->ud;
 
 	if (func != NULL) {
+		s = func->ud;
 		ucl_object_emit_full (obj, emit_type, func, NULL);
 
 		if (outlen != NULL) {
