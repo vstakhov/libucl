@@ -8,5 +8,11 @@ before_script:
   - sudo apt-get update -qq
   - sudo apt-get install -qq autoconf libcurl4-openssl-dev automake libtool
 
+before_install:
+  - pip install --user cpp-coveralls
+
 script:
-  - ./autogen.sh && ./configure --enable-urls && make && make check
+  - ./autogen.sh && ./configure --enable-urls --enable-coverage && make && make coverage-check
+
+after_success:
+  - coveralls --exclude tests --exclude klib --exclude uthash --gcov-options '\-lp'
