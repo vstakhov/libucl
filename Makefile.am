@@ -45,16 +45,15 @@ coverage-check: coverage-requirement-check
 		LIBS="$(LIBS) $(COVERAGE_LIBS)"
 	@echo "Successfully run tests with instrumented libraries."
 
-# TODO(Eiichiro Iwata): Remove GNU make extension(abspath function)
-# Automake treat GNU make extension as warning
-# when using -Wall or -Wportability in AM_INIT_AUTOMAKE.
-coverage-report: coverage-requirement-check
-	@echo "Start to create coverage reports..."
+coverage-lcov: coverage-check coverage-requirement-check
 	$(LCOV) --capture \
 		--directory "$(top_builddir)/" \
 		--output-file $(COVERAGE_INFO_FILE) \
 		--gcov-tool $(GCOV) \
 		--compat-libtool --checksum
+
+coverage-report: coverage-lcov
+	@echo "Start to create coverage reports..."
 	$(GENHTML) --prefix "$(top_srcdir)" \
 		--output-directory $(COVERAGE_REPORT_DIR) \
 		--title $(PACKAGE_NAME) \

@@ -6,13 +6,14 @@ compiler:
 
 before_script:
   - sudo apt-get update -qq
-  - sudo apt-get install -qq autoconf libcurl4-openssl-dev automake libtool
+  - sudo apt-get install -qq autoconf libcurl4-openssl-dev automake libtool lcov
 
 before_install:
-  - pip install --user cpp-coveralls
+  - gem install coveralls-lcov
 
 script:
-  - ./autogen.sh && ./configure --enable-urls --enable-coverage && make && make coverage-check
+  - ./autogen.sh && ./configure --enable-urls --enable-coverage && make && make clean clean-coverage coverage-lcov
 
 after_success:
-  - coveralls --exclude tests --exclude klib --exclude uthash --gcov-options '\-lp'
+  - lcov --list coverage.info
+  - coveralls-lcov --repo-token ${COVERALLS_TOKEN} coverage.info
