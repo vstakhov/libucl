@@ -18,14 +18,6 @@ coverage-requirement-check:
 		echo "Cannot find $(GCOV). Please install gcov."; \
 		exit 1; \
 	fi
-	@if test ! -e $(LCOV); then \
-		echo "Cannot find $(LCOV). Please install lcov."; \
-		exit 1; \
-	fi
-	@if test ! -e $(GENHTML); then \
-		echo "Cannot find $(GENHTML). Please install lcov."; \
-		exit 1; \
-	fi
 
 coverage: coverage-requirement-check clean-coverage coverage-build coverage-check coverage-report
 	@echo "Please execute 'make clean' before 'make' or 'make check' to remove instrumented object files(compiled with -O0 etc.). Note that 'make clean' also remove coverage data."
