@@ -173,6 +173,8 @@ AC_LINK_IFELSE([
 	AC_MSG_WARN([Libucl references could be thread-unsafe because atomic builtins are missing])
 ])
 
+AX_CODE_COVERAGE
+
 AC_CONFIG_FILES(Makefile \
 	src/Makefile \
 	lua/Makefile
