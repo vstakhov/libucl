@@ -23,6 +23,10 @@
 
 #include "ucl.h"
 #include "ucl_internal.h"
+#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 
 int
 main (int argc, char **argv)
@@ -36,10 +40,10 @@ main (int argc, char **argv)
 	const char *fname_in = NULL, *fname_out = NULL;
 	int ret = 0, opt, json = 0, compact = 0, yaml = 0,
 			save_comments = 0, skip_macro = 0,
-			flags;
+			flags, fd_out, fd_in, use_fd = 0;
 	struct ucl_emitter_functions *func;
 
-	while ((opt = getopt(argc, argv, "jcyCM")) != -1) {
+	while ((opt = getopt(argc, argv, "fjcyCM")) != -1) {
 		switch (opt) {
 		case 'j':
 			json = 1;
@@ -56,8 +60,11 @@ main (int argc, char **argv)
 		case 'M':
 			skip_macro = true;
 			break;
+		case 'f':
+			use_fd = true;
+			break;
 		default: /* '?' */
-			fprintf (stderr, "Usage: %s [-jcy] [in] [out]\n",
+			fprintf (stderr, "Usage: %s [-jcy] [-CM] [-f] [in] [out]\n",
 					argv[0]);
 			exit (EXIT_FAILURE);
 		}
@@ -76,14 +83,27 @@ main (int argc, char **argv)
 		break;
 	}
 
-	if (fname_in != NULL) {
-		in = fopen (fname_in, "r");
-		if (in == NULL) {
-			exit (-errno);
+	if (!use_fd) {
+		if (fname_in != NULL) {
+			in = fopen (fname_in, "r");
+			if (in == NULL) {
+				exit (-errno);
+			}
+		}
+		else {
+			in = stdin;
 		}
 	}
 	else {
-		in = stdin;
+		if (fname_in != NULL) {
+			fd_in = open (fname_in, O_RDONLY);
+			if (fd_in == -1) {
+				exit (-errno);
+			}
+		}
+		else {
+			fd_in = STDIN_FILENO;
+		}
 	}
 
 	flags = UCL_PARSER_KEY_LOWERCASE;
@@ -103,39 +123,59 @@ main (int argc, char **argv)
 		ucl_parser_set_filevars (parser, fname_in, true);
 	}
 
-	inbuf = malloc (BUFSIZ);
-	bufsize = BUFSIZ;
-	r = 0;
+	if (!use_fd) {
+		inbuf = malloc (BUFSIZ);
+		bufsize = BUFSIZ;
+		r = 0;
 
-	while (!feof (in) && !ferror (in)) {
-		if (r == bufsize) {
-			inbuf = realloc (inbuf, bufsize * 2);
-			bufsize *= 2;
-			if (inbuf == NULL) {
-				perror ("realloc");
-				exit (EXIT_FAILURE);
+		while (!feof (in) && !ferror (in)) {
+			if (r == bufsize) {
+				inbuf = realloc (inbuf, bufsize * 2);
+				bufsize *= 2;
+				if (inbuf == NULL) {
+					perror ("realloc");
+					exit (EXIT_FAILURE);
+				}
+			}
+			r += fread (inbuf + r, 1, bufsize - r, in);
+		}
+
+		if (ferror (in)) {
+			fprintf (stderr, "Failed to read the input file.\n");
+			exit (EXIT_FAILURE);
+		}
+
+		ucl_parser_add_chunk (parser, (const unsigned char *)inbuf, r);
+		fclose (in);
+	}
+	else {
+		ucl_parser_add_fd (parser, fd_in);
+		close (fd_in);
+	}
+
+	if (!use_fd) {
+		if (fname_out != NULL) {
+			out = fopen (fname_out, "w");
+			if (out == NULL) {
+				exit (-errno);
 			}
 		}
-		r += fread (inbuf + r, 1, bufsize - r, in);
-	}
-
-	if (ferror (in)) {
-		fprintf (stderr, "Failed to read the input file.\n");
-		exit (EXIT_FAILURE);
-	}
-
-	ucl_parser_add_chunk (parser, (const unsigned char *)inbuf, r);
-	fclose (in);
-
-	if (fname_out != NULL) {
-		out = fopen (fname_out, "w");
-		if (out == NULL) {
-			exit (-errno);
+		else {
+			out = stdout;
 		}
 	}
 	else {
-		out = stdout;
+		if (fname_out != NULL) {
+			fd_out = open (fname_out, O_WRONLY | O_CREAT, 00644);
+			if (fd_out == -1) {
+				exit (-errno);
+			}
+		}
+		else {
+			fd_out = STDOUT_FILENO;
+		}
 	}
+
 
 	if (ucl_parser_get_error (parser) != NULL) {
 		fprintf (out, "Error occurred (phase 1): %s\n",
@@ -202,34 +242,48 @@ main (int argc, char **argv)
 
 	obj = ucl_parser_get_object (parser2);
 
-	if (json) {
-		if (compact) {
-			emitted = ucl_object_emit (obj, UCL_EMIT_JSON_COMPACT);
-		}
-		else {
-			emitted = ucl_object_emit (obj, UCL_EMIT_JSON);
-		}
-	}
-	else if (yaml) {
-		emitted = ucl_object_emit (obj, UCL_EMIT_YAML);
+	if (!use_fd) {
+		func = ucl_object_emit_file_funcs (out);
 	}
 	else {
-		emitted = NULL;
-		func = ucl_object_emit_memory_funcs ((void **)&emitted);
-
-		if (func != NULL) {
-			ucl_object_emit_full (obj, UCL_EMIT_CONFIG, func, comments);
-			ucl_object_emit_funcs_free (func);
-		}
+		func = ucl_object_emit_fd_funcs (fd_out);
 	}
 
-	fprintf (out, "%s\n", emitted);
+	if (func != NULL) {
+		if (json) {
+			if (compact) {
+				ucl_object_emit_full (obj, UCL_EMIT_JSON_COMPACT,
+						func, comments);
+			}
+			else {
+				ucl_object_emit_full (obj, UCL_EMIT_JSON,
+						func, comments);
+			}
+		}
+		else if (yaml) {
+			ucl_object_emit_full (obj, UCL_EMIT_YAML,
+					func, comments);
+		}
+		else {
+			ucl_object_emit_full (obj, UCL_EMIT_CONFIG,
+					func, comments);
+		}
+
+		ucl_object_emit_funcs_free (func);
+	}
+
+	if (!use_fd) {
+		fprintf (out, "\n");
+		fclose (out);
+	}
+	else {
+		write (fd_out, "\n", 1);
+		close (fd_out);
+	}
+
 	ucl_object_unref (obj);
 
 end:
-	if (emitted != NULL) {
-		free (emitted);
-	}
 	if (parser2 != NULL) {
 		ucl_parser_free (parser2);
 	}
@@ -239,8 +293,6 @@ end:
 	if (inbuf != NULL) {
 		free (inbuf);
 	}
-
-	fclose (out);
 
 	return ret;
 }
