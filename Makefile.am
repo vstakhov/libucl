@@ -51,6 +51,8 @@ coverage-lcov: coverage-check coverage-requirement-check
 		--output-file $(COVERAGE_INFO_FILE) \
 		--gcov-tool $(GCOV) \
 		--compat-libtool --checksum
+	$(LCOV) --extract $(COVERAGE_INFO_FILE) `pwd`/src/ucl_\* \
+		--output-file $(COVERAGE_INFO_FILE)
 
 coverage-report: coverage-lcov
 	@echo "Start to create coverage reports..."
