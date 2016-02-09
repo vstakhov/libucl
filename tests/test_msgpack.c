@@ -26,7 +26,7 @@
 #include "ucl_internal.h"
 #include <ctype.h>
 
-static const int niter = 1000;
+static const int niter = 100;
 static const int ntests = 100;
 static const int nelt = 10;
 
