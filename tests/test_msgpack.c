@@ -209,10 +209,11 @@ ucl_test_integer (void)
 		ucl_array_append (res, ucl_object_fromint (cur % 128));
 		ucl_array_append (res, ucl_object_fromint (-(cur % 128)));
 		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
-		ucl_array_append (res, ucl_object_fromint (cur % 65536));
-		//ucl_array_append (res, ucl_object_fromint (-(cur % 65536)));
+		ucl_array_append (res, ucl_object_fromint (cur % UINT16_MAX));
+		ucl_array_append (res, ucl_object_fromint (-(cur % INT16_MAX)));
 		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
-		ucl_array_append (res, ucl_object_fromint (cur % INT32_MAX));
+		ucl_array_append (res, ucl_object_fromint (cur % UINT32_MAX));
+		ucl_array_append (res, ucl_object_fromint (-(cur % INT32_MAX)));
 		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
 		ucl_array_append (res, ucl_object_fromint (cur));
 		ucl_array_append (res, ucl_object_fromint (-cur));
