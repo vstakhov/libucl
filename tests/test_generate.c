@@ -65,7 +65,8 @@ main (int argc, char **argv)
 	/* Create some strings */
 	cur = ucl_object_fromstring_common ("  test string    ", 0, UCL_STRING_TRIM);
 	ucl_object_insert_key (obj, cur, "key1", 0, false);
-	cur = ucl_object_fromstring_common ("  test \nstring\n    ", 0, UCL_STRING_TRIM | UCL_STRING_ESCAPE);
+	cur = ucl_object_fromstring_common ("  test \nstring\n\r\n\b\t\f\\\"    ", 0,
+			UCL_STRING_TRIM | UCL_STRING_ESCAPE);
 	ucl_object_insert_key (obj, cur, "key2", 0, false);
 	cur = ucl_object_fromstring_common ("  test string    \n", 0, 0);
 	ucl_object_insert_key (obj, cur, "key3", 0, false);

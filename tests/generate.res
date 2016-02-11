@@ -1,6 +1,6 @@
 key0 = 0.100000;
 key1 = "test string";
-key2 = "test \\nstring";
+key2 = "test \\nstring\\n\\r\\n\\b\\t\\f\\\\\\\"";
 key3 = "  test string    \n";
 key4 [
     9.999000,

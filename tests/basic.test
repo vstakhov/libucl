@@ -21,6 +21,8 @@ for _tin in ${TEST_DIR}/basic/*.in ; do
 		fi
 	fi
 	rm $_out
+	# Use FD interface
+	$PROG -f $_t.in > /dev/null
 	# JSON output
 	$PROG -j $_t.in > /dev/null
 	$PROG -c -j $_t.in > /dev/null
