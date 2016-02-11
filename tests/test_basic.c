@@ -31,7 +31,7 @@
 int
 main (int argc, char **argv)
 {
-	char *inbuf;
+	char *inbuf = NULL;
 	struct ucl_parser *parser = NULL, *parser2 = NULL;
 	ucl_object_t *obj, *comments = NULL;
 	ssize_t bufsize, r;
