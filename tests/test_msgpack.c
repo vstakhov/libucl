@@ -207,14 +207,15 @@ ucl_test_integer (void)
 	for (i = 0; i < count; i ++) {
 		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
 		ucl_array_append (res, ucl_object_fromint (cur % 128));
-		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
-		ucl_array_append (res, ucl_object_fromint (-cur % 128));
+		ucl_array_append (res, ucl_object_fromint (-(cur % 128)));
 		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
 		ucl_array_append (res, ucl_object_fromint (cur % 65536));
+		//ucl_array_append (res, ucl_object_fromint (-(cur % 65536)));
 		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
 		ucl_array_append (res, ucl_object_fromint (cur % INT32_MAX));
 		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
 		ucl_array_append (res, ucl_object_fromint (cur));
+		ucl_array_append (res, ucl_object_fromint (-cur));
 		/* Double version */
 		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
 		curf = (cur % 128) / 19 * 16;
@@ -225,6 +226,7 @@ ucl_test_integer (void)
 		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
 		curf = (cur % 65536) / 19 * 16;
 		ucl_array_append (res, ucl_object_fromdouble (curf));
+		ucl_array_append (res, ucl_object_fromdouble (-curf));
 		cur = ((uint64_t)pcg32_random ()) << 32 | pcg32_random ();
 		curf = (cur % INT32_MAX) / 19 * 16;
 		ucl_array_append (res, ucl_object_fromdouble (curf));
