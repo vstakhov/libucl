@@ -26,6 +26,18 @@
 #include <assert.h>
 #include "ucl.h"
 
+static void
+ud_dtor (void *ptr)
+{
+	assert (ptr == NULL);
+}
+
+static const char *
+ud_emit (void *ptr)
+{
+	return "test userdata emit";
+}
+
 int
 main (int argc, char **argv)
 {
@@ -145,6 +157,8 @@ main (int argc, char **argv)
 	cur = ucl_object_frombool (true);
 	ucl_object_insert_key (obj, cur, "k=3", 0, false);
 	ucl_object_insert_key (obj, ar1, "key14", 0, false);
+	cur = ucl_object_new_userdata (ud_dtor, ud_emit, NULL);
+	ucl_object_insert_key (obj, cur, "key15", 0, false);
 
 	/* Try to find using path */
 	/* Should exist */
