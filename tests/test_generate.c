@@ -87,10 +87,13 @@ main (int argc, char **argv)
 	ar = ucl_object_typed_new (UCL_ARRAY);
 	cur = ucl_object_fromint (10);
 	ucl_array_append (ar, cur);
+	assert (ucl_array_index_of (ar, cur) == 0);
 	cur = ucl_object_fromdouble (10.1);
 	ucl_array_append (ar, cur);
+	assert (ucl_array_index_of (ar, cur) == 1);
 	cur = ucl_object_fromdouble (9.999);
 	ucl_array_prepend (ar, cur);
+	assert (ucl_array_index_of (ar, cur) == 0);
 
 	ar1 = ucl_object_copy (ar);
 	cur = ucl_object_fromstring ("abc");
@@ -170,6 +173,8 @@ main (int argc, char **argv)
 	assert (test == cur);
 	cur = ucl_object_pop_key (obj, "key16");
 	assert (test == cur);
+	test = ucl_object_pop_key (obj, "key16");
+	assert (test == NULL);
 	test = ucl_object_find_keyl (obj, "key160", 5);
 	assert (test == NULL);
 	/* Objects merging tests */
@@ -182,6 +187,19 @@ main (int argc, char **argv)
 	ucl_array_append (test_obj, ucl_object_fromstring ("test"));
 	ucl_array_merge (test_obj, ar1, false);
 	ucl_object_insert_key (obj, test_obj, "key17", 0, true);
+	/* Object deletion */
+	cur = ucl_object_fromstring ("test");
+	ucl_object_insert_key (obj, cur, "key18", 0, true);
+	assert (ucl_object_delete_key (obj, "key18"));
+	assert (!ucl_object_delete_key (obj, "key18"));
+
+	/* Array replace */
+	ar1 = ucl_object_typed_new (UCL_ARRAY);
+	cur = ucl_object_fromstring ("test");
+	cur = ucl_elt_append (cur, ucl_object_fromstring ("test1"));
+	ucl_array_append (ar1, cur);
+	test = ucl_array_replace_index (ar1, ucl_object_fromstring ("test2"), 0);
+	assert (test == cur);
 
 	/* Try to find using path */
 	/* Should exist */

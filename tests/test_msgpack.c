@@ -26,7 +26,7 @@
 #include "ucl_internal.h"
 #include <ctype.h>
 
-static const int niter = 10;
+static const int niter = 20;
 static const int ntests = 10;
 static const int nelt = 20;
 
@@ -41,6 +41,8 @@ static ucl_object_t* ucl_test_map (void);
 static ucl_object_t* ucl_test_array (void);
 static ucl_object_t* ucl_test_large_map (void);
 static ucl_object_t* ucl_test_large_array (void);
+static ucl_object_t* ucl_test_large_string (void);
+static ucl_object_t* ucl_test_null (void);
 
 ucl_msgpack_test tests[] = {
 		ucl_test_integer,
@@ -48,6 +50,7 @@ ucl_msgpack_test tests[] = {
 		ucl_test_boolean,
 		ucl_test_map,
 		ucl_test_array,
+		ucl_test_null
 };
 
 #define NTESTS (sizeof(tests) / sizeof(tests[0]))
@@ -152,6 +155,10 @@ main (int argc, char **argv)
 
 		key = random_key (&klen);
 		elt = ucl_test_large_map ();
+		ucl_object_insert_key (obj, elt, key, klen, true);
+
+		key = random_key (&klen);
+		elt = ucl_test_large_string ();
 		ucl_object_insert_key (obj, elt, key, klen, true);
 
 		emitted = ucl_object_emit_len (obj, UCL_EMIT_MSGPACK, &elen);
@@ -325,7 +332,13 @@ ucl_test_map (void)
 	for (i = 0; i < count; i ++) {
 
 		if (recursion > 10) {
-			sel = pcg32_random () % (NTESTS - 2);
+			for (;;) {
+				sel = pcg32_random () % NTESTS;
+				if (tests[sel] != ucl_test_map &&
+						tests[sel] != ucl_test_array) {
+					break;
+				}
+			}
 		}
 		else {
 			sel = pcg32_random () % NTESTS;
@@ -388,7 +401,13 @@ ucl_test_array (void)
 
 	for (i = 0; i < count; i ++) {
 		if (recursion > 10) {
-			sel = pcg32_random () % (NTESTS - 2);
+			for (;;) {
+				sel = pcg32_random () % NTESTS;
+				if (tests[sel] != ucl_test_map &&
+						tests[sel] != ucl_test_array) {
+					break;
+				}
+			}
 		}
 		else {
 			sel = pcg32_random () % NTESTS;
@@ -425,3 +444,24 @@ ucl_test_large_array (void)
 	return res;
 }
 
+static ucl_object_t*
+ucl_test_large_string (void)
+{
+	ucl_object_t *res;
+	char *str;
+	uint32_t cur_len;
+
+	while ((cur_len = pcg32_random ()) % 100000 == 0);
+	str = malloc (cur_len % 100000);
+	res = ucl_object_fromstring_common (str, cur_len % 100000,
+				UCL_STRING_RAW);
+	res->flags |= UCL_OBJECT_BINARY;
+
+	return res;
+}
+
+static ucl_object_t*
+ucl_test_null (void)
+{
+	return ucl_object_typed_new (UCL_NULL);
+}
