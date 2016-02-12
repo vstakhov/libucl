@@ -2588,7 +2588,7 @@ ucl_object_new_full (ucl_type_t type, unsigned priority)
 		}
 	}
 	else {
-		new = ucl_object_new_userdata (NULL, NULL);
+		new = ucl_object_new_userdata (NULL, NULL, NULL);
 		ucl_object_set_priority (new, priority);
 	}
 
@@ -2596,7 +2596,9 @@ ucl_object_new_full (ucl_type_t type, unsigned priority)
 }
 
 ucl_object_t*
-ucl_object_new_userdata (ucl_userdata_dtor dtor, ucl_userdata_emitter emitter)
+ucl_object_new_userdata (ucl_userdata_dtor dtor,
+		ucl_userdata_emitter emitter,
+		void *ptr)
 {
 	struct ucl_object_userdata *new;
 	size_t nsize = sizeof (*new);
@@ -2610,6 +2612,7 @@ ucl_object_new_userdata (ucl_userdata_dtor dtor, ucl_userdata_emitter emitter)
 		new->obj.prev = (ucl_object_t *)new;
 		new->dtor = dtor;
 		new->emitter = emitter;
+		new->obj.value.ud = ptr;
 	}
 
 	return (ucl_object_t *)new;

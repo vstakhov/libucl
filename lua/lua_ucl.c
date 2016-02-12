@@ -422,9 +422,7 @@ ucl_object_lua_fromelt (lua_State *L, int idx)
 					fd->idx = luaL_ref (L, LUA_REGISTRYINDEX);
 
 					obj = ucl_object_new_userdata (lua_ucl_userdata_dtor,
-							lua_ucl_userdata_emitter);
-					obj->type = UCL_USERDATA;
-					obj->value.ud = (void *)fd;
+							lua_ucl_userdata_emitter, (void *)fd);
 				}
 			}
 		}

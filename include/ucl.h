@@ -288,10 +288,12 @@ UCL_EXTERN ucl_object_t* ucl_object_new_full (ucl_type_t type, unsigned priority
 /**
  * Create new object with userdata dtor
  * @param dtor destructor function
+ * @param emitter emitter for userdata
+ * @param ptr opaque pointer
  * @return new object
  */
 UCL_EXTERN ucl_object_t* ucl_object_new_userdata (ucl_userdata_dtor dtor,
-		ucl_userdata_emitter emitter) UCL_WARN_UNUSED_RESULT;
+		ucl_userdata_emitter emitter, void *ptr) UCL_WARN_UNUSED_RESULT;
 
 /**
  * Perform deep copy of an object copying everything
