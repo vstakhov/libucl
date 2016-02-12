@@ -41,12 +41,13 @@ ud_emit (void *ptr)
 int
 main (int argc, char **argv)
 {
-	ucl_object_t *obj, *cur, *ar, *ar1, *ref;
+	ucl_object_t *obj, *cur, *ar, *ar1, *ref, *test_obj;
 	ucl_object_iter_t it;
-	const ucl_object_t *found, *it_obj;
+	const ucl_object_t *found, *it_obj, *test;
 	FILE *out;
 	unsigned char *emitted;
 	const char *fname_out = NULL;
+	struct ucl_parser *parser;
 	int ret = 0;
 
 	switch (argc) {
@@ -160,6 +161,28 @@ main (int argc, char **argv)
 	cur = ucl_object_new_userdata (ud_dtor, ud_emit, NULL);
 	ucl_object_insert_key (obj, cur, "key15", 0, false);
 
+	/* More tests for keys */
+	cur = ucl_object_fromlstring ("test", 3);
+	ucl_object_insert_key (obj, cur, "key16", 0, false);
+	test = ucl_object_find_any_key (obj, "key100", "key200", "key300", "key16", NULL);
+	assert (test == cur);
+	test = ucl_object_find_keyl (obj, "key160", 5);
+	assert (test == cur);
+	cur = ucl_object_pop_key (obj, "key16");
+	assert (test == cur);
+	test = ucl_object_find_keyl (obj, "key160", 5);
+	assert (test == NULL);
+	/* Objects merging tests */
+	test_obj = ucl_object_new_full (UCL_OBJECT, 2);
+	ucl_object_insert_key (test_obj, cur, "key16", 0, true);
+	ucl_object_merge (obj, test_obj, true);
+	ucl_object_unref (test_obj);
+	/* Array merging test */
+	test_obj = ucl_object_new_full (UCL_ARRAY, 3);
+	ucl_array_append (test_obj, ucl_object_fromstring ("test"));
+	ucl_array_merge (test_obj, ar1, false);
+	ucl_object_insert_key (obj, test_obj, "key17", 0, true);
+
 	/* Try to find using path */
 	/* Should exist */
 	found = ucl_lookup_path (obj, "key4.1");
@@ -208,6 +231,30 @@ main (int argc, char **argv)
 
 	fprintf (out, "%s\n", emitted);
 	ucl_object_unref (obj);
+
+	parser = ucl_parser_new (UCL_PARSER_NO_IMPLICIT_ARRAYS);
+
+	if (ucl_parser_add_chunk_full (parser, emitted, strlen (emitted),
+			3, UCL_DUPLICATE_ERROR, UCL_PARSE_UCL)) {
+		/* Should fail due to duplicate */
+		assert (0);
+	}
+	else {
+		assert (ucl_parser_get_error (parser) != NULL);
+		ucl_parser_clear_error (parser);
+		ucl_parser_free (parser);
+		parser = ucl_parser_new (0);
+		ucl_parser_add_chunk_full (parser, emitted, strlen (emitted),
+					3, UCL_DUPLICATE_MERGE, UCL_PARSE_UCL);
+	}
+
+	assert (ucl_parser_get_column (parser) == 0);
+	assert (ucl_parser_get_linenum (parser) != 0);
+	ucl_parser_clear_error (parser);
+	assert (ucl_parser_get_error_code (parser) == 0);
+	obj = ucl_parser_get_object (parser);
+	ucl_parser_free (parser);
+	ucl_object_free (obj);
 
 	if (emitted != NULL) {
 		free (emitted);

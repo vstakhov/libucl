@@ -343,6 +343,8 @@ ucl_unescape_json_string (char *str, size_t len)
 						t[2] = 0x80 + ((uval & 0x003F));
 						t += 3;
 					}
+#if 0
+					/* It's not actually supported now */
 					else if(uval <= 0x10FFFF) {
 						t[0] = 0xF0 + ((uval & 0x1C0000) >> 18);
 						t[1] = 0x80 + ((uval & 0x03F000) >> 12);
@@ -350,6 +352,7 @@ ucl_unescape_json_string (char *str, size_t len)
 						t[3] = 0x80 + ((uval & 0x00003F));
 						t += 4;
 					}
+#endif
 					else {
 						*t++ = '?';
 					}
