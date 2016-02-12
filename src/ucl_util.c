@@ -27,6 +27,7 @@
 #include "ucl_chartable.h"
 #include "kvec.h"
 #include <stdarg.h>
+#include <stdio.h> /* for asprintf */
 
 #ifndef _WIN32
 #include <glob.h>
@@ -1550,7 +1551,7 @@ ucl_load_handler (const unsigned char *data, size_t len,
 	size_t buflen;
 	unsigned priority;
 	int64_t iv;
-	ucl_hash_t *container = NULL;
+	ucl_object_t *container = NULL;
 	enum ucl_string_flags flags;
 
 	/* Default values */
@@ -1610,19 +1611,32 @@ ucl_load_handler (const unsigned char *data, size_t len,
 		}
 	}
 
-	if (prefix == NULL || strlen(prefix) == 0) {
+	if (prefix == NULL || strlen (prefix) == 0) {
 		ucl_create_err (&parser->err, "No Key specified in load macro");
 		return false;
 	}
 
 	if (len > 0) {
 		asprintf (&load_file, "%.*s", (int)len, data);
-		if (!ucl_fetch_file (load_file, &buf, &buflen, &parser->err, !try_load)) {
+
+		if (!load_file) {
+			ucl_create_err (&parser->err, "cannot allocate memory for suffix");
+
+			return false;
+		}
+
+		if (!ucl_fetch_file (load_file, &buf, &buflen, &parser->err,
+				!try_load)) {
+			free (load_file);
+
 			return (try_load || false);
 		}
 
-		container = parser->stack->obj->value.ov;
-		old_obj = __DECONST (ucl_object_t *, ucl_hash_search (container, prefix, strlen (prefix)));
+		free (load_file);
+		container = parser->stack->obj;
+		old_obj = __DECONST (ucl_object_t *, ucl_object_find_key (container,
+				prefix));
+
 		if (old_obj != NULL) {
 			ucl_create_err (&parser->err, "Key %s already exists", prefix);
 			if (buflen > 0) {
@@ -1642,7 +1656,7 @@ ucl_load_handler (const unsigned char *data, size_t len,
 		else if (strcasecmp (target, "int") == 0) {
 			asprintf(&tmp, "%.*s", (int)buflen, buf);
 			iv = strtoll(tmp, NULL, 10);
-			obj = ucl_object_fromint(iv);
+			obj = ucl_object_fromint (iv);
 		}
 
 		if (buflen > 0) {
@@ -1652,13 +1666,11 @@ ucl_load_handler (const unsigned char *data, size_t len,
 		if (obj != NULL) {
 			obj->key = prefix;
 			obj->keylen = strlen (prefix);
-			ucl_copy_key_trash(obj);
+			ucl_copy_key_trash (obj);
 			obj->prev = obj;
 			obj->next = NULL;
 			ucl_object_set_priority (obj, priority);
-			container = ucl_hash_insert_object (container, obj,
-					parser->flags & UCL_PARSER_KEY_LOWERCASE);
-			parser->stack->obj->value.ov = container;
+			ucl_object_insert_key (container, obj, obj->key, obj->keylen, false);
 		}
 
 		return true;
@@ -3264,6 +3276,13 @@ ucl_object_compare (const ucl_object_t *o1, const ucl_object_t *o2)
 	}
 
 	return ret;
+}
+
+int
+ucl_object_compare_qsort (const ucl_object_t **o1,
+		const ucl_object_t **o2)
+{
+	return ucl_object_compare (*o1, *o2);
 }
 
 void

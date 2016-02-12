@@ -752,6 +752,19 @@ UCL_EXTERN int ucl_object_compare (const ucl_object_t *o1,
 		const ucl_object_t *o2);
 
 /**
+ * Compare objects `o1` and `o2` useful for sorting
+ * @param o1 the first object
+ * @param o2 the second object
+ * @return values >0, 0 and <0 if `o1` is more than, equal and less than `o2`.
+ * The order of comparison:
+ * 1) Type of objects
+ * 2) Size of objects
+ * 3) Content of objects
+ */
+UCL_EXTERN int ucl_object_compare_qsort (const ucl_object_t **o1,
+		const ucl_object_t **o2);
+
+/**
  * Sort UCL array using `cmp` compare function
  * @param ar
  * @param cmp
