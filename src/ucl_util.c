@@ -307,6 +307,9 @@ ucl_unescape_json_string (char *str, size_t len)
 			case 'u':
 				/* Unicode escape */
 				uval = 0;
+				h ++; /* u character */
+				len --;
+
 				if (len > 3) {
 					for (i = 0; i < 4; i++) {
 						uval <<= 4;
@@ -323,8 +326,7 @@ ucl_unescape_json_string (char *str, size_t len)
 							break;
 						}
 					}
-					h += 3;
-					len -= 3;
+
 					/* Encode */
 					if(uval < 0x80) {
 						t[0] = (char)uval;
@@ -351,6 +353,15 @@ ucl_unescape_json_string (char *str, size_t len)
 					else {
 						*t++ = '?';
 					}
+
+					/* Consume 4 characters of source */
+					h += 4;
+					len -= 4;
+
+					if (len > 0) {
+						len --; /* for '\' character */
+					}
+					continue;
 				}
 				else {
 					*t++ = 'u';
