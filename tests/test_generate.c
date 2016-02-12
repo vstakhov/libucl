@@ -29,7 +29,7 @@
 int
 main (int argc, char **argv)
 {
-	ucl_object_t *obj, *cur, *ar, *ref;
+	ucl_object_t *obj, *cur, *ar, *ar1, *ref;
 	ucl_object_iter_t it;
 	const ucl_object_t *found, *it_obj;
 	FILE *out;
@@ -79,6 +79,27 @@ main (int argc, char **argv)
 	cur = ucl_object_fromdouble (9.999);
 	ucl_array_prepend (ar, cur);
 
+	ar1 = ucl_object_copy (ar);
+	cur = ucl_object_fromstring ("abc");
+	ucl_array_prepend (ar1, cur);
+	cur = ucl_object_fromstring ("cde");
+	ucl_array_prepend (ar1, cur);
+	cur = ucl_object_fromstring ("абв"); /* UTF8 */
+	ucl_array_prepend (ar1, cur);
+	cur = ucl_object_fromstring ("Ебв"); /* UTF8 */
+	ucl_array_prepend (ar1, cur);
+/*
+ * This is ususally broken or fragile as utf collate is far from perfect
+	cur = ucl_object_fromstring ("ёбв");
+	ucl_array_prepend (ar1, cur);
+	cur = ucl_object_fromstring ("Ёбв"); // hello to @bapt
+*/
+	ucl_array_prepend (ar1, cur);
+	cur = ucl_object_fromstring ("😎"); /* everybody likes emoji in the code */
+	ucl_array_prepend (ar1, cur);
+
+	ucl_object_array_sort (ar1, ucl_object_compare_qsort);
+
 	/* Removing from an array */
 	cur = ucl_object_fromdouble (1.0);
 	ucl_array_append (ar, cur);
@@ -123,6 +144,7 @@ main (int argc, char **argv)
 	ucl_object_insert_key (obj, cur, "key13", 0, false);
 	cur = ucl_object_frombool (true);
 	ucl_object_insert_key (obj, cur, "k=3", 0, false);
+	ucl_object_insert_key (obj, ar1, "key14", 0, false);
 
 	/* Try to find using path */
 	/* Should exist */
