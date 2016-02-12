@@ -93,8 +93,8 @@ main (int argc, char **argv)
 	cur = ucl_object_fromstring ("ёбв");
 	ucl_array_prepend (ar1, cur);
 	cur = ucl_object_fromstring ("Ёбв"); // hello to @bapt
-*/
 	ucl_array_prepend (ar1, cur);
+*/
 	cur = ucl_object_fromstring ("😎"); /* everybody likes emoji in the code */
 	ucl_array_prepend (ar1, cur);
 
