@@ -314,7 +314,7 @@ public:
 	const Ucl operator[](const std::string &key) const
 	{
 		if (type () == UCL_OBJECT) {
-			return Ucl (ucl_object_find_keyl (obj.get(),
+			return Ucl (ucl_object_lookup_len (obj.get(),
 					key.data (), key.size ()));
 		}
 

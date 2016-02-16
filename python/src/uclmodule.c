@@ -30,7 +30,7 @@ _iterate_valid_ucl(ucl_object_t const * obj) {
 
 	tmp = obj;
 
-	while ((obj = ucl_iterate_object (tmp, &it, false))) {
+	while ((obj = ucl_object_iterate (tmp, &it, false))) {
 
 		PyObject* val;
 
@@ -47,7 +47,7 @@ _iterate_valid_ucl(ucl_object_t const * obj) {
 				val = PyDict_New();
 				const ucl_object_t *cur;
 				ucl_object_iter_t it_obj = NULL;
-				while ((cur = ucl_iterate_object (obj, &it_obj, true))) {
+				while ((cur = ucl_object_iterate (obj, &it_obj, true))) {
 					PyObject* keyobj = Py_BuildValue("s",ucl_object_key(cur));
 					PyDict_SetItem(val, keyobj, _iterate_valid_ucl(cur));
 				}
@@ -56,7 +56,7 @@ _iterate_valid_ucl(ucl_object_t const * obj) {
 				val = PyList_New(0);
 				const ucl_object_t *cur;
 				ucl_object_iter_t it_obj = NULL;
-				while ((cur = ucl_iterate_object (obj, &it_obj, true))) {
+				while ((cur = ucl_object_iterate (obj, &it_obj, true))) {
 					PyList_Append(val, _iterate_valid_ucl(cur));
 				}
 			}

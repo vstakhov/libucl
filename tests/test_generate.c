@@ -167,15 +167,15 @@ main (int argc, char **argv)
 	/* More tests for keys */
 	cur = ucl_object_fromlstring ("test", 3);
 	ucl_object_insert_key (obj, cur, "key16", 0, false);
-	test = ucl_object_find_any_key (obj, "key100", "key200", "key300", "key16", NULL);
+	test = ucl_object_lookup_any (obj, "key100", "key200", "key300", "key16", NULL);
 	assert (test == cur);
-	test = ucl_object_find_keyl (obj, "key160", 5);
+	test = ucl_object_lookup_len (obj, "key160", 5);
 	assert (test == cur);
 	cur = ucl_object_pop_key (obj, "key16");
 	assert (test == cur);
 	test = ucl_object_pop_key (obj, "key16");
 	assert (test == NULL);
-	test = ucl_object_find_keyl (obj, "key160", 5);
+	test = ucl_object_lookup_len (obj, "key160", 5);
 	assert (test == NULL);
 	/* Objects merging tests */
 	test_obj = ucl_object_new_full (UCL_OBJECT, 2);
@@ -203,19 +203,19 @@ main (int argc, char **argv)
 
 	/* Try to find using path */
 	/* Should exist */
-	found = ucl_lookup_path (obj, "key4.1");
+	found = ucl_object_lookup_path (obj, "key4.1");
 	assert (found != NULL && ucl_object_toint (found) == 10);
 	/* . should be ignored */
-	found = ucl_lookup_path (obj, ".key4.1");
+	found = ucl_object_lookup_path (obj, ".key4.1");
 	assert (found != NULL && ucl_object_toint (found) == 10);
 	/* moar dots... */
-	found = ucl_lookup_path (obj, ".key4........1...");
+	found = ucl_object_lookup_path (obj, ".key4........1...");
 	assert (found != NULL && ucl_object_toint (found) == 10);
 	/* No such index */
-	found = ucl_lookup_path (obj, ".key4.3");
+	found = ucl_object_lookup_path (obj, ".key4.3");
 	assert (found == NULL);
 	/* No such key */
-	found = ucl_lookup_path (obj, "key9..key1");
+	found = ucl_object_lookup_path (obj, "key9..key1");
 	assert (found == NULL);
 
 	/* Test iteration */
