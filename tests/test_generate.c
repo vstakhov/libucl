@@ -192,6 +192,12 @@ main (int argc, char **argv)
 	ucl_object_insert_key (obj, cur, "key18", 0, true);
 	assert (ucl_object_delete_key (obj, "key18"));
 	assert (!ucl_object_delete_key (obj, "key18"));
+	cur = ucl_object_fromlstring ("test", 4);
+	ucl_object_insert_key (obj, cur, "key18\0\0", 7, true);
+	assert (ucl_object_lookup_len (obj, "key18\0\0", 7) == cur);
+	assert (ucl_object_lookup (obj, "key18") == NULL);
+	assert (ucl_object_lookup_len (obj, "key18\0\1", 7) == NULL);
+	assert (ucl_object_delete_keyl (obj, "key18\0\0", 7));
 
 	/* Array replace */
 	ar1 = ucl_object_typed_new (UCL_ARRAY);
