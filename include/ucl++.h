@@ -328,7 +328,7 @@ public:
 		cbdata = Ucl::default_emit_funcs();
 		cbdata.ud = reinterpret_cast<void *>(&out);
 
-		ucl_object_emit_full (obj.get(), type, &cbdata);
+		ucl_object_emit_full (obj.get(), type, &cbdata, nullptr);
 	}
 
 	std::string dump (ucl_emitter_t type = UCL_EMIT_JSON) const
