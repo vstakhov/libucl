@@ -1634,13 +1634,14 @@ ucl_load_handler (const unsigned char *data, size_t len,
 	}
 
 	if (len > 0) {
-		asprintf (&load_file, "%.*s", (int)len, data);
-
+		load_file = malloc (len + 1);
 		if (!load_file) {
 			ucl_create_err (&parser->err, "cannot allocate memory for suffix");
 
 			return false;
 		}
+
+		snprintf (load_file, len + 1, "%.*s", (int)len, data);
 
 		if (!ucl_fetch_file (load_file, &buf, &buflen, &parser->err,
 				!try_load)) {
