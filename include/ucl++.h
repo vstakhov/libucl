@@ -120,6 +120,10 @@ public:
 			it = std::shared_ptr<void>(ucl_object_iterate_new (obj.obj.get()),
 					ucl_iter_deleter());
 			cur.reset (new Ucl(ucl_object_iterate_safe (it.get(), true)));
+			if (!*cur) {
+				it.reset ();
+				cur.reset ();
+			}
 		}
 
 		const_iterator() {}
