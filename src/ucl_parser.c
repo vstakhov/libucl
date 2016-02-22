@@ -2377,15 +2377,22 @@ ucl_state_machine (struct ucl_parser *parser)
 
 				UCL_FREE (macro_len + 1, macro_escaped);
 			}
+			else {
+				ret = false;
+				ucl_set_err (parser, UCL_EINTERNAL,
+						"internal error: parser has macro undefined", &parser->err);
+			}
 
 			/*
 			 * Chunk can be modified within macro handler
 			 */
 			chunk = parser->chunks;
 			p = chunk->pos;
+
 			if (macro_args) {
 				ucl_object_unref (macro_args);
 			}
+
 			if (!ret) {
 				return false;
 			}
