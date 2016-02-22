@@ -51,6 +51,8 @@ typedef kvec_t(ucl_object_t *) ucl_array_t;
 #endif
 
 #ifdef CURL_FOUND
+/* Seems to be broken */
+#define CURL_DISABLE_TYPECHECK 1
 #include <curl/curl.h>
 #endif
 #ifdef HAVE_FETCH_H
@@ -771,6 +773,8 @@ ucl_fetch_file (const unsigned char *filename, unsigned char **buf, size_t *bufl
 			close (fd);
 			ucl_create_err (err, "cannot mmap file %s: %s",
 					filename, strerror (errno));
+			*buf = NULL;
+
 			return false;
 		}
 		*buflen = st.st_size;
@@ -987,12 +991,12 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 			ucl_create_err (&parser->err, "cannot verify file %s: %s",
 							filebuf,
 							ERR_error_string (ERR_get_error (), NULL));
-			if (siglen > 0) {
+			if (sigbuf) {
 				ucl_munmap (sigbuf, siglen);
 			}
 			return false;
 		}
-		if (siglen > 0) {
+		if (sigbuf) {
 			ucl_munmap (sigbuf, siglen);
 		}
 #endif
@@ -1059,7 +1063,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 
 			if (nest_obj == NULL) {
 				ucl_create_err (&parser->err, "cannot allocate memory for an object");
-				if (buflen > 0) {
+				if (buf) {
 					ucl_munmap (buf, buflen);
 				}
 
@@ -1083,7 +1087,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 				nest_obj = ucl_object_new_full (UCL_OBJECT, params->priority);
 				if (nest_obj == NULL) {
 					ucl_create_err (&parser->err, "cannot allocate memory for an object");
-					if (buflen > 0) {
+					if (buf) {
 						ucl_munmap (buf, buflen);
 					}
 
@@ -1099,7 +1103,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 				new_obj = ucl_object_typed_new (UCL_ARRAY);
 				if (new_obj == NULL) {
 					ucl_create_err (&parser->err, "cannot allocate memory for an object");
-					if (buflen > 0) {
+					if (buf) {
 						ucl_munmap (buf, buflen);
 					}
 
@@ -1114,7 +1118,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 				nest_obj = ucl_object_new_full (UCL_OBJECT, params->priority);
 				if (nest_obj == NULL) {
 					ucl_create_err (&parser->err, "cannot allocate memory for an object");
-					if (buflen > 0) {
+					if (buf) {
 						ucl_munmap (buf, buflen);
 					}
 
@@ -1138,7 +1142,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 				ucl_create_err (&parser->err,
 						"Conflicting type for key: %s",
 						params->prefix);
-				if (buflen > 0) {
+				if (buf) {
 					ucl_munmap (buf, buflen);
 				}
 
@@ -1149,22 +1153,21 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 		 /* Put all of the content of the include inside that object */
 		parser->stack->obj->value.ov = container;
 
-		if (nest_obj != NULL) {
-			st = UCL_ALLOC (sizeof (struct ucl_stack));
-			if (st == NULL) {
-				ucl_create_err (&parser->err, "cannot allocate memory for an object");
-				ucl_object_unref (nest_obj);
-				if (buflen > 0) {
-					ucl_munmap (buf, buflen);
-				}
+		st = UCL_ALLOC (sizeof (struct ucl_stack));
+		if (st == NULL) {
+			ucl_create_err (&parser->err, "cannot allocate memory for an object");
+			ucl_object_unref (nest_obj);
 
-				return false;
+			if (buf) {
+				ucl_munmap (buf, buflen);
 			}
-			st->obj = nest_obj;
-			st->level = parser->stack->level;
-			LL_PREPEND (parser->stack, st);
-			parser->cur_obj = nest_obj;
+
+			return false;
 		}
+		st->obj = nest_obj;
+		st->level = parser->stack->level;
+		LL_PREPEND (parser->stack, st);
+		parser->cur_obj = nest_obj;
 	}
 
 	res = ucl_parser_add_chunk_full (parser, buf, buflen, params->priority,
@@ -1653,7 +1656,7 @@ ucl_load_handler (const unsigned char *data, size_t len,
 
 		if (old_obj != NULL) {
 			ucl_create_err (&parser->err, "Key %s already exists", prefix);
-			if (buflen > 0) {
+			if (buf) {
 				ucl_munmap (buf, buflen);
 			}
 
@@ -1673,7 +1676,7 @@ ucl_load_handler (const unsigned char *data, size_t len,
 			obj = ucl_object_fromint (iv);
 		}
 
-		if (buflen > 0) {
+		if (buf) {
 			ucl_munmap (buf, buflen);
 		}
 

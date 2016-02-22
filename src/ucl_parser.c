@@ -2298,7 +2298,7 @@ ucl_state_machine (struct ucl_parser *parser)
 					ucl_chunk_skipc (chunk, p);
 				}
 				else {
-					if (p - c > 0) {
+					if (c != NULL && p - c > 0) {
 						/* We got macro name */
 						macro_len = (size_t) (p - c);
 						HASH_FIND (hh, parser->macroes, c, macro_len, macro);
@@ -2351,7 +2351,7 @@ ucl_state_machine (struct ucl_parser *parser)
 					macro_start, macro_len);
 			parser->state = parser->prev_state;
 
-			if (macro_escaped == NULL) {
+			if (macro_escaped == NULL && macro != NULL) {
 				if (macro->is_context) {
 					ret = macro->h.context_handler (macro_start, macro_len,
 							macro_args,
@@ -2363,7 +2363,7 @@ ucl_state_machine (struct ucl_parser *parser)
 							macro->ud);
 				}
 			}
-			else {
+			else if (macro != NULL) {
 				if (macro->is_context) {
 					ret = macro->h.context_handler (macro_escaped, macro_len,
 							macro_args,
