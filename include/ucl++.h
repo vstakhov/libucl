@@ -127,15 +127,12 @@ public:
 		}
 
 		const_iterator() {}
-		const_iterator(const const_iterator &other) {
-			it = other.it;
-		}
+		const_iterator(const const_iterator &other) = delete;
+		const_iterator(const_iterator &&other) = default;
 		~const_iterator() {}
 
-		const_iterator& operator=(const const_iterator &other) {
-			it = other.it;
-			return *this;
-		}
+		const_iterator& operator=(const const_iterator &other) = delete;
+		const_iterator& operator=(const_iterator &&other) = default;
 
 		bool operator==(const const_iterator &other) const
 		{
