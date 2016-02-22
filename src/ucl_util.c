@@ -27,7 +27,7 @@
 #include "ucl_chartable.h"
 #include "kvec.h"
 #include <stdarg.h>
-#include <stdio.h> /* for asprintf */
+#include <stdio.h> /* for snprintf */
 
 #ifndef _WIN32
 #include <glob.h>
@@ -1672,9 +1672,21 @@ ucl_load_handler (const unsigned char *data, size_t len,
 			}
 		}
 		else if (strcasecmp (target, "int") == 0) {
-			asprintf(&tmp, "%.*s", (int)buflen, buf);
-			iv = strtoll(tmp, NULL, 10);
+			tmp = malloc (buflen + 1);
+
+			if (tmp == NULL) {
+				ucl_create_err (&parser->err, "Memory allocation failed");
+				if (buf) {
+					ucl_munmap (buf, buflen);
+				}
+
+				return false;
+			}
+
+			snprintf (tmp, buflen + 1, "%.*s", (int)buflen, buf);
+			iv = strtoll (tmp, NULL, 10);
 			obj = ucl_object_fromint (iv);
+			free (tmp);
 		}
 
 		if (buf) {
