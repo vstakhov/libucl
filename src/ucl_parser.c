@@ -1068,6 +1068,7 @@ ucl_parser_process_object_element (struct ucl_parser *parser, ucl_object_t *nobj
 {
 	ucl_hash_t *container;
 	ucl_object_t *tobj;
+	char errmsg[256];
 
 	container = parser->stack->obj->value.ov;
 
@@ -1126,11 +1127,10 @@ ucl_parser_process_object_element (struct ucl_parser *parser, ucl_object_t *nobj
 			break;
 
 		case UCL_DUPLICATE_ERROR:
-			ucl_create_err (&parser->err, "error while parsing %s: "
-					"line: %d, column: %d: duplicate element for key '%s' "
-					"has been found",
-					parser->cur_file ? parser->cur_file : "<unknown>",
-					parser->chunks->line, parser->chunks->column, nobj->key);
+			snprintf(errmsg, sizeof(errmsg),
+					"duplicate element for key '%s' found",
+					nobj->key);
+			ucl_set_err (parser, UCL_EMERGE, errmsg, &parser->err);
 			return false;
 
 		case UCL_DUPLICATE_MERGE:

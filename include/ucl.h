@@ -107,7 +107,8 @@ typedef enum ucl_error {
 	UCL_ENESTED, /**< Input has too many recursion levels */
 	UCL_EMACRO, /**< Error processing a macro */
 	UCL_EINTERNAL, /**< Internal unclassified error */
-	UCL_ESSL /**< SSL error */
+	UCL_ESSL, /**< SSL error */
+	UCL_EMERGE /**< A merge error occured */
 } ucl_error_t;
 
 /**
