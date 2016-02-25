@@ -2585,14 +2585,16 @@ ucl_parser_add_chunk_full (struct ucl_parser *parser, const unsigned char *data,
 		return false;
 	}
 
-	if (data == NULL) {
-		ucl_create_err (&parser->err, "invalid chunk added");
-		return false;
-	}
 	if (len == 0) {
 		parser->top_obj = ucl_object_new_full (UCL_OBJECT, priority);
 		return true;
 	}
+
+	if (data == NULL) {
+		ucl_create_err (&parser->err, "invalid chunk added");
+		return false;
+	}
+
 	if (parser->state != UCL_STATE_ERROR) {
 		chunk = UCL_ALLOC (sizeof (struct ucl_chunk));
 		if (chunk == NULL) {
