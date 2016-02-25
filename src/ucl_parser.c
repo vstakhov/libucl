@@ -259,7 +259,7 @@ ucl_lex_time_multiplier (const unsigned char c) {
 			{'h', 60 * 60},
 			{'d', 60 * 60 * 24},
 			{'w', 60 * 60 * 24 * 7},
-			{'y', 60 * 60 * 24 * 7 * 365}
+			{'y', 60 * 60 * 24 * 365}
 	};
 	int i;
 
@@ -2310,7 +2310,7 @@ ucl_state_machine (struct ucl_parser *parser)
 					ucl_chunk_skipc (chunk, p);
 				}
 				else {
-					if (p - c > 0) {
+					if (c != NULL && p - c > 0) {
 						/* We got macro name */
 						macro_len = (size_t) (p - c);
 						HASH_FIND (hh, parser->macroes, c, macro_len, macro);
@@ -2363,7 +2363,7 @@ ucl_state_machine (struct ucl_parser *parser)
 					macro_start, macro_len);
 			parser->state = parser->prev_state;
 
-			if (macro_escaped == NULL) {
+			if (macro_escaped == NULL && macro != NULL) {
 				if (macro->is_context) {
 					ret = macro->h.context_handler (macro_start, macro_len,
 							macro_args,
@@ -2375,7 +2375,7 @@ ucl_state_machine (struct ucl_parser *parser)
 							macro->ud);
 				}
 			}
-			else {
+			else if (macro != NULL) {
 				if (macro->is_context) {
 					ret = macro->h.context_handler (macro_escaped, macro_len,
 							macro_args,
@@ -2389,15 +2389,22 @@ ucl_state_machine (struct ucl_parser *parser)
 
 				UCL_FREE (macro_len + 1, macro_escaped);
 			}
+			else {
+				ret = false;
+				ucl_set_err (parser, UCL_EINTERNAL,
+						"internal error: parser has macro undefined", &parser->err);
+			}
 
 			/*
 			 * Chunk can be modified within macro handler
 			 */
 			chunk = parser->chunks;
 			p = chunk->pos;
+
 			if (macro_args) {
 				ucl_object_unref (macro_args);
 			}
+
 			if (!ret) {
 				return false;
 			}

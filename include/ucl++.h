@@ -120,18 +120,19 @@ public:
 			it = std::shared_ptr<void>(ucl_object_iterate_new (obj.obj.get()),
 					ucl_iter_deleter());
 			cur.reset (new Ucl(ucl_object_iterate_safe (it.get(), true)));
+			if (!*cur) {
+				it.reset ();
+				cur.reset ();
+			}
 		}
 
 		const_iterator() {}
-		const_iterator(const const_iterator &other) {
-			it = other.it;
-		}
+		const_iterator(const const_iterator &other) = delete;
+		const_iterator(const_iterator &&other) = default;
 		~const_iterator() {}
 
-		const_iterator& operator=(const const_iterator &other) {
-			it = other.it;
-			return *this;
-		}
+		const_iterator& operator=(const const_iterator &other) = delete;
+		const_iterator& operator=(const_iterator &&other) = default;
 
 		bool operator==(const const_iterator &other) const
 		{
@@ -328,7 +329,7 @@ public:
 		cbdata = Ucl::default_emit_funcs();
 		cbdata.ud = reinterpret_cast<void *>(&out);
 
-		ucl_object_emit_full (obj.get(), type, &cbdata);
+		ucl_object_emit_full (obj.get(), type, &cbdata, nullptr);
 	}
 
 	std::string dump (ucl_emitter_t type = UCL_EMIT_JSON) const
