@@ -1136,14 +1136,26 @@ ucl_parser_process_object_element (struct ucl_parser *parser, ucl_object_t *nobj
 		case UCL_DUPLICATE_MERGE:
 			/*
 			 * Here we do have some old object so we just push it on top of objects stack
+			 * Check priority and then perform the merge on the remaining objects
 			 */
 			if (tobj->type == UCL_OBJECT || tobj->type == UCL_ARRAY) {
 				ucl_object_unref (nobj);
 				nobj = tobj;
 			}
-			else {
-				/* For other types we create implicit array as usual */
+			else if (priold == prinew) {
 				ucl_parser_append_elt (parser, container, tobj, nobj);
+			}
+			else if (priold > prinew) {
+				/*
+				 * We add this new object to a list of trash objects just to ensure
+				 * that it won't come to any real object
+				 * XXX: rather inefficient approach
+				 */
+				DL_APPEND (parser->trash_objs, nobj);
+			}
+			else {
+				ucl_hash_replace (container, tobj, nobj);
+				ucl_object_unref (tobj);
 			}
 			break;
 		}
