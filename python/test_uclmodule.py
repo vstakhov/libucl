@@ -37,6 +37,14 @@ class TestUcl(unittest.TestCase):
     def test_float(self):
         self.assertEqual(ucl.load("a : 1.1"), {"a" : 1.1})
 
+    def test_boolean(self):
+        totest = (
+            "a : True;" \
+            "b : False"
+        )
+        correct = {"a" : True, "b" : False}
+        self.assertEqual(ucl.load(totest), correct)
+
     def test_empty_ucl(self):
         r = ucl.load("{}")
         self.assertEqual(r, {})
@@ -86,9 +94,9 @@ class TestUcl(unittest.TestCase):
                 'key7': '0xreadbeef',
                 'key8': -1e-10,
                 'key9': 1,
-                'key10': 'true',
-                'key11': 'false',
-                'key12': 'true',
+                'key10': True,
+                'key11': False,
+                'key12': True,
                 }
         self.assertEqual(ucl.load(totest), correct)
 

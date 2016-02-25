@@ -14,8 +14,7 @@ _basic_ucl_type(ucl_object_t const * const obj) {
 		return Py_BuildValue("s", ucl_object_tostring (obj));
 	}
 	else if (obj->type == UCL_BOOLEAN) {
-		// maybe used 'p' here?
-		return Py_BuildValue("s", ucl_object_tostring_forced (obj));
+		return ucl_object_toboolean(obj) ? Py_True : Py_False;
 	}
 	else if (obj->type == UCL_TIME) {
 		return Py_BuildValue("d", ucl_object_todouble (obj));
