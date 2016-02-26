@@ -41,9 +41,10 @@ ud_emit (void *ptr)
 int
 main (int argc, char **argv)
 {
-	ucl_object_t *obj, *cur, *ar, *ar1, *ref, *test_obj;
+	ucl_object_t *obj, *cur, *ar, *ar1, *ref, *test_obj, *comments;
 	ucl_object_iter_t it;
 	const ucl_object_t *found, *it_obj, *test;
+	struct ucl_emitter_functions *fn;
 	FILE *out;
 	unsigned char *emitted;
 	const char *fname_out = NULL;
@@ -199,6 +200,18 @@ main (int argc, char **argv)
 	assert (ucl_object_lookup_len (obj, "key18\0\1", 7) == NULL);
 	assert (ucl_object_delete_keyl (obj, "key18\0\0", 7));
 
+	/* Comments */
+
+	comments = ucl_object_typed_new (UCL_OBJECT);
+	found = ucl_object_lookup (obj, "key17");
+	test = ucl_object_lookup (obj, "key16");
+	ucl_comments_add (comments, found, "# test comment");
+	assert (ucl_comments_find (comments, found) != NULL);
+	assert (ucl_comments_find (comments, test) == NULL);
+	ucl_comments_move (comments, found, test);
+	assert (ucl_comments_find (comments, found) == NULL);
+	assert (ucl_comments_find (comments, test) != NULL);
+
 	/* Array replace */
 	ar1 = ucl_object_typed_new (UCL_ARRAY);
 	cur = ucl_object_fromstring ("test");
@@ -251,10 +264,12 @@ main (int argc, char **argv)
 	assert (ucl_object_type (it_obj) == UCL_BOOLEAN);
 	ucl_object_iterate_free (it);
 
-	emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
-
+	fn = ucl_object_emit_memory_funcs (&emitted);
+	assert (ucl_object_emit_full (obj, UCL_EMIT_CONFIG, fn, comments));
 	fprintf (out, "%s\n", emitted);
+	ucl_object_emit_funcs_free (fn);
 	ucl_object_unref (obj);
+	ucl_object_unref (comments);
 
 	parser = ucl_parser_new (UCL_PARSER_NO_IMPLICIT_ARRAYS);
 

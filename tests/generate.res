@@ -29,6 +29,7 @@ key14 [
     "абв",
 ]
 key15 = "test userdata emit";
+# test comment
 key16 = "tes";
 key17 [
     "test",
