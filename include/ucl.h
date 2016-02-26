@@ -1132,6 +1132,25 @@ UCL_EXTERN const ucl_object_t * ucl_comments_find (const ucl_object_t *comments,
 		const ucl_object_t *srch);
 
 /**
+ * Move comment from `from` object to `to` object
+ * @param comments comments object
+ * @param what source object
+ * @param whith destination object
+ * @return `true` if `from` has comment and it has been moved to `to`
+ */
+UCL_EXTERN bool ucl_comments_move (ucl_object_t *comments,
+		const ucl_object_t *from, const ucl_object_t *to);
+
+/**
+ * Adds a new comment for an object
+ * @param comments comments object
+ * @param obj object to add comment to
+ * @param comment string representation of a comment
+ */
+UCL_EXTERN void ucl_comments_add (ucl_object_t *comments,
+		const ucl_object_t *obj, const char *comment);
+
+/**
  * Add new public key to parser for signatures check
  * @param parser parser object
  * @param key PEM representation of a key
