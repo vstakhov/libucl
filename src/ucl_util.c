@@ -3469,6 +3469,8 @@ ucl_comments_move (ucl_object_t *comments,
 					sizeof (void *));
 			ucl_object_insert_key (comments, obj, (const char *)&to,
 					sizeof (void *), true);
+
+			return true;
 		}
 	}
 
