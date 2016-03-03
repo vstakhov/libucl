@@ -2,64 +2,63 @@
 #include <ucl.h>
 #include <Python.h>
 
-static PyObject*
-_basic_ucl_type(ucl_object_t const * const obj) {
-	if (obj->type == UCL_INT) {
-		return Py_BuildValue("L", (long long)ucl_object_toint (obj));
-	}
-	else if (obj->type == UCL_FLOAT) {
-		return Py_BuildValue("d", ucl_object_todouble (obj));
-	}
-	else if (obj->type == UCL_STRING) {
-		return Py_BuildValue("s", ucl_object_tostring (obj));
-	}
-	else if (obj->type == UCL_BOOLEAN) {
-		return ucl_object_toboolean(obj) ? Py_True : Py_False;
-	}
-	else if (obj->type == UCL_TIME) {
-		return Py_BuildValue("d", ucl_object_todouble (obj));
+static PyObject *
+_basic_ucl_type (ucl_object_t const *obj)
+{
+	switch (obj->type) {
+	case UCL_INT:
+		return Py_BuildValue ("L", (long long)ucl_object_toint (obj));
+	case UCL_FLOAT:
+		return Py_BuildValue ("d", ucl_object_todouble (obj));
+	case UCL_STRING:
+		return Py_BuildValue ("s", ucl_object_tostring (obj));
+	case UCL_BOOLEAN:
+		return ucl_object_toboolean (obj) ? Py_True : Py_False;
+	case UCL_TIME:
+		return Py_BuildValue ("d", ucl_object_todouble (obj));
 	}
 	return NULL;
 }
 
-static PyObject*
-_iterate_valid_ucl(ucl_object_t const * obj) {
+static PyObject *
+_iterate_valid_ucl (ucl_object_t const *obj)
+{
 	const ucl_object_t *tmp;
 	ucl_object_iter_t it = NULL;
 
 	tmp = obj;
 
 	while ((obj = ucl_object_iterate (tmp, &it, false))) {
-
-		PyObject* val;
+		PyObject *val;
 
 		val = _basic_ucl_type(obj);
 		if (!val) {
-			PyObject* key = NULL;
+			PyObject *key = NULL;
+
 			if (obj->key != NULL) {
 				key = Py_BuildValue("s", ucl_object_key(obj));
 			}
 
-			PyObject* ret;
-			ret = PyDict_New();
 			if (obj->type == UCL_OBJECT) {
-				val = PyDict_New();
 				const ucl_object_t *cur;
 				ucl_object_iter_t it_obj = NULL;
+
+				val = PyDict_New();
+
 				while ((cur = ucl_object_iterate (obj, &it_obj, true))) {
-					PyObject* keyobj = Py_BuildValue("s",ucl_object_key(cur));
+					PyObject *keyobj = Py_BuildValue("s",ucl_object_key(cur));
 					PyDict_SetItem(val, keyobj, _iterate_valid_ucl(cur));
 				}
-			}
-			else if (obj->type == UCL_ARRAY) {
-				val = PyList_New(0);
+			} else if (obj->type == UCL_ARRAY) {
 				const ucl_object_t *cur;
 				ucl_object_iter_t it_obj = NULL;
+
+				val = PyList_New(0);
+
 				while ((cur = ucl_object_iterate (obj, &it_obj, true))) {
 					PyList_Append(val, _iterate_valid_ucl(cur));
 				}
-			}
-			else if (obj->type == UCL_USERDATA) {
+			} else if (obj->type == UCL_USERDATA) {
 				// XXX: this should be
 				// PyBytes_FromStringAndSize; where is the
 				// length from?
@@ -73,13 +72,13 @@ _iterate_valid_ucl(ucl_object_t const * obj) {
 	return NULL;
 }
 
-static PyObject*
-_internal_load_ucl(char* uclstr) {
-	PyObject* ret;
-
+static PyObject *
+_internal_load_ucl (char *uclstr)
+{
+	PyObject *ret;
 	struct ucl_parser *parser = ucl_parser_new (UCL_PARSER_NO_TIME);
-
 	bool r = ucl_parser_add_string(parser, uclstr, 0);
+
 	if (r) {
 		if (ucl_parser_get_error (parser)) {
 			PyErr_SetString(PyExc_ValueError, ucl_parser_get_error(parser));
@@ -87,13 +86,13 @@ _internal_load_ucl(char* uclstr) {
 			ret = NULL;
 			goto return_with_parser;
 		} else {
-			ucl_object_t* uclobj = ucl_parser_get_object(parser);
+			ucl_object_t *uclobj = ucl_parser_get_object(parser);
 			ret = _iterate_valid_ucl(uclobj);
 			ucl_object_unref(uclobj);
 			goto return_with_parser;
 		}
-
-	} else {
+	}
+	else {
 		PyErr_SetString(PyExc_ValueError, ucl_parser_get_error (parser));
 		ret = NULL;
 		goto return_with_parser;
@@ -105,27 +104,34 @@ return_with_parser:
 }
 
 static PyObject*
-ucl_load(PyObject *self, PyObject *args) {
-	char* uclstr;
+ucl_load (PyObject *self, PyObject *args)
+{
+	char *uclstr;
+
 	if (PyArg_ParseTuple(args, "z", &uclstr)) {
 		if (!uclstr) {
 			Py_RETURN_NONE;
 		}
+
 		return _internal_load_ucl(uclstr);
 	}
+
 	return NULL;
 }
 
 static PyObject*
-ucl_validate(PyObject *self, PyObject *args) {
-	char  *uclstr, *schema;
+ucl_validate (PyObject *self, PyObject *args)
+{
+	char *uclstr, *schema;
+
 	if (PyArg_ParseTuple(args, "zz", &uclstr, &schema)) {
 		if (!uclstr || !schema) {
 			Py_RETURN_NONE;
 		}
+
 		PyErr_SetString(PyExc_NotImplementedError, "schema validation is not yet supported");
-		return NULL;
 	}
+
 	return NULL;
 }
 
@@ -145,11 +151,13 @@ static struct PyModuleDef uclmodule = {
 };
 
 PyMODINIT_FUNC
-PyInit_ucl(void) {
-	return PyModule_Create(&uclmodule);
+PyInit_ucl (void)
+{
+	return PyModule_Create (&uclmodule);
 }
 #else
-void initucl(void) {
-	Py_InitModule("ucl", uclMethods);
+void initucl (void)
+{
+	Py_InitModule ("ucl", uclMethods);
 }
 #endif
