@@ -104,5 +104,42 @@ class TestUcl(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             ucl.validate("","")
 
+
+class TestUclDump(unittest.TestCase):
+    def test_no_args(self):
+        with self.assertRaises(TypeError):
+            ucl.dump()
+
+    def test_multi_args(self):
+        with self.assertRaises(TypeError):
+            ucl.dump(0, 0)
+
+    def test_none(self):
+        self.assertEqual(ucl.dump(None), None)
+
+    def test_int(self):
+        self.assertEqual(ucl.dump({ "a" : 1 }), "a = 1;\n")
+
+    def test_nested_int(self):
+        self.assertEqual(ucl.dump({ "a" : { "b" : 1 } }), "a {\n    b = 1;\n}\n")
+
+    def test_int_array(self):
+        self.assertEqual(ucl.dump({ "a" : [1,2,3,4]}), "a [\n    1,\n    2,\n    3,\n    4,\n]\n")
+
+    def test_str(self):
+        self.assertEqual(ucl.dump({"a" : "b"}), "a = \"b\";\n")
+
+    def test_float(self):
+        self.assertEqual(ucl.dump({"a" : 1.1}), "a = 1.100000;\n")
+
+    def test_boolean(self):
+        totest = {"a" : True, "b" : False}
+        correct = "a = true;\nb = false;\n"
+        self.assertEqual(ucl.dump(totest), correct)
+
+    def test_empty_ucl(self):
+        self.assertEqual(ucl.dump({}), "")
+
+
 if __name__ == '__main__':
     unittest.main()

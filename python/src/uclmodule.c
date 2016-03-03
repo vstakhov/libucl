@@ -119,7 +119,93 @@ ucl_load (PyObject *self, PyObject *args)
 	return NULL;
 }
 
-static PyObject*
+static ucl_object_t *
+_iterate_python (PyObject *obj)
+{
+	if (obj == Py_None) {
+		return ucl_object_new();
+	} else if (PyBool_Check (obj)) {
+		return ucl_object_frombool (obj == Py_True);
+	} else if (PyInt_Check (obj)) {
+		return ucl_object_fromint (PyInt_AsLong (obj));
+	} else if (PyFloat_Check (obj)) {
+		return ucl_object_fromdouble (PyFloat_AsDouble (obj));
+	} else if (PyString_Check (obj)) {
+		return ucl_object_fromstring (PyString_AsString (obj));
+	// } else if (PyDateTime_Check (obj)) {
+	}
+	else if (PyDict_Check(obj)) {
+		PyObject *key, *value;
+		Py_ssize_t pos = 0;
+		ucl_object_t *top, *elm;
+
+		top = ucl_object_typed_new (UCL_OBJECT);
+
+		while (PyDict_Next(obj, &pos, &key, &value)) {
+			elm = _iterate_python(value);
+			ucl_object_insert_key (top, elm, PyString_AsString(key), 0, true);
+		}
+
+		return top;
+	}
+	else if (PySequence_Check(obj)) {
+		PyObject *value;
+		Py_ssize_t len, pos;
+		ucl_object_t *top, *elm;
+
+		len  = PySequence_Length(obj);
+		top = ucl_object_typed_new (UCL_ARRAY);
+
+		for (pos = 0; pos < len; pos++) {
+			value = PySequence_GetItem(obj, pos);
+			elm = _iterate_python(value);
+			ucl_array_append(top, elm);
+		}
+
+		return top;
+	}
+	else {
+		PyErr_SetString(PyExc_TypeError, "Unhandled object type");
+		return NULL;
+	}
+
+	return NULL;
+}
+
+static PyObject *
+ucl_dump (PyObject *self, PyObject *args)
+{
+	PyObject *obj;
+	ucl_object_t *root = NULL;
+
+	if (!PyArg_ParseTuple(args, "O", &obj)) {
+		PyErr_SetString(PyExc_TypeError, "Unhandled object type");
+		return NULL;
+	}
+
+	if (obj == Py_None) {
+		Py_RETURN_NONE;
+	}
+
+	if (!PyDict_Check(obj)) {
+		PyErr_SetString(PyExc_TypeError, "Argument must be dict");
+		return NULL;
+	}
+
+	root = _iterate_python(obj);
+	if (root) {
+		PyObject *ret;
+		char *buf = (char *) ucl_object_emit(root, UCL_EMIT_CONFIG);
+		ucl_object_unref(root);
+		ret = PyString_FromString(buf);
+		free(buf);
+		return ret;
+	}
+
+	return NULL;
+}
+
+static PyObject *
 ucl_validate (PyObject *self, PyObject *args)
 {
 	char *uclstr, *schema;
@@ -137,6 +223,7 @@ ucl_validate (PyObject *self, PyObject *args)
 
 static PyMethodDef uclMethods[] = {
 	{"load", ucl_load, METH_VARARGS, "Load UCL from stream"},
+	{"dump", ucl_dump, METH_VARARGS, "Dump UCL to stream"},
 	{"validate", ucl_validate, METH_VARARGS, "Validate ucl stream against schema"},
 	{NULL, NULL, 0, NULL}
 };
