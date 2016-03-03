@@ -176,10 +176,18 @@ static PyObject *
 ucl_dump (PyObject *self, PyObject *args)
 {
 	PyObject *obj;
+	ucl_emitter_t emitter;
 	ucl_object_t *root = NULL;
 
-	if (!PyArg_ParseTuple(args, "O", &obj)) {
+	emitter = UCL_EMIT_CONFIG;
+
+	if (!PyArg_ParseTuple(args, "O|i", &obj, &emitter)) {
 		PyErr_SetString(PyExc_TypeError, "Unhandled object type");
+		return NULL;
+	}
+
+	if (emitter >= UCL_EMIT_MAX) {
+		PyErr_SetString(PyExc_TypeError, "Invalid emitter type");
 		return NULL;
 	}
 
@@ -195,10 +203,13 @@ ucl_dump (PyObject *self, PyObject *args)
 	root = _iterate_python(obj);
 	if (root) {
 		PyObject *ret;
-		char *buf = (char *) ucl_object_emit(root, UCL_EMIT_CONFIG);
-		ucl_object_unref(root);
-		ret = PyString_FromString(buf);
+		char *buf;
+
+		buf = (char *) ucl_object_emit (root, emitter);
+		ucl_object_unref (root);
+		ret = PyString_FromString (buf);
 		free(buf);
+
 		return ret;
 	}
 
@@ -228,6 +239,16 @@ static PyMethodDef uclMethods[] = {
 	{NULL, NULL, 0, NULL}
 };
 
+static void
+init_macros(PyObject *mod)
+{
+	PyModule_AddIntMacro(mod, UCL_EMIT_JSON);
+	PyModule_AddIntMacro(mod, UCL_EMIT_JSON_COMPACT);
+	PyModule_AddIntMacro(mod, UCL_EMIT_CONFIG);
+	PyModule_AddIntMacro(mod, UCL_EMIT_YAML);
+	PyModule_AddIntMacro(mod, UCL_EMIT_MSGPACK);
+}
+
 #if PY_MAJOR_VERSION >= 3
 static struct PyModuleDef uclmodule = {
 	PyModuleDef_HEAD_INIT,
@@ -240,11 +261,15 @@ static struct PyModuleDef uclmodule = {
 PyMODINIT_FUNC
 PyInit_ucl (void)
 {
-	return PyModule_Create (&uclmodule);
+	PyObject *mod = PyModule_Create (&uclmodule);
+	init_macros (mod);
+
+	return mod;
 }
 #else
 void initucl (void)
 {
-	Py_InitModule ("ucl", uclMethods);
+	PyObject *mod = Py_InitModule ("ucl", uclMethods);
+	init_macros (mod);
 }
 #endif

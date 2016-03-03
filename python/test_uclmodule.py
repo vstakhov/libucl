@@ -140,6 +140,9 @@ class TestUclDump(unittest.TestCase):
     def test_empty_ucl(self):
         self.assertEqual(ucl.dump({}), "")
 
+    def test_json(self):
+        self.assertEqual(ucl.dump({ "a" : 1, "b": "bleh;" }, ucl.UCL_EMIT_JSON), '{\n    "a": 1,\n    "b": "bleh;"\n}')
+
 
 if __name__ == '__main__':
     unittest.main()
