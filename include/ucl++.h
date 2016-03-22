@@ -264,42 +264,48 @@ public:
 		return res;
 	}
 
-	double number_value () const
+	double number_value (const double default_val = 0.0) const
 	{
-		if (obj) {
-			return ucl_object_todouble (obj.get());
+		double res;
+
+		if (ucl_object_todouble_safe(obj.get(), &res)) {
+			return res;
 		}
 
-		return 0.0;
+		return default_val;
 	}
 
-	int64_t int_value () const
+	int64_t int_value (const int64_t default_val = 0) const
 	{
-		if (obj) {
-			return ucl_object_toint (obj.get());
+		int64_t res;
+
+		if (ucl_object_toint_safe(obj.get(), &res)) {
+			return res;
 		}
 
-		return 0;
+		return default_val;
 	}
 
-	bool bool_value () const
+	bool bool_value (const bool default_val = false) const
 	{
-		if (obj) {
-			return ucl_object_toboolean (obj.get());
+		bool res;
+
+		if (ucl_object_toboolean_safe(obj.get(), &res)) {
+			return res;
 		}
 
-		return false;
+		return default_val;
 	}
 
-	const std::string string_value () const
+	const std::string string_value (const std::string& default_val = "") const
 	{
-		std::string res;
+		const char* res = nullptr;
 
-		if (obj) {
-			res.assign (ucl_object_tostring (obj.get()));
+		if (ucl_object_tostring_safe(obj.get(), &res)) {
+			return res;
 		}
 
-		return res;
+		return default_val;
 	}
 
 	const Ucl operator[] (size_t i) const
