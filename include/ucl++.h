@@ -388,7 +388,7 @@ public:
 	bool operator> (const Ucl &rhs) const { return (rhs < *this); }
 	bool operator>= (const Ucl &rhs) const { return !(*this < rhs); }
 
-	operator bool () const
+	explicit operator bool () const
 	{
 		if (!obj || type() == UCL_NULL) {
 			return false;
