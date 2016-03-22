@@ -26,7 +26,6 @@
 #include <string>
 #include <memory>
 #include <iostream>
-#include <strstream>
 
 #include "ucl.h"
 
