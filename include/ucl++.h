@@ -308,7 +308,7 @@ public:
 		return default_val;
 	}
 
-	const Ucl operator[] (size_t i) const
+	const Ucl at (size_t i) const
 	{
 		if (type () == UCL_ARRAY) {
 			return Ucl (ucl_array_find_index (obj.get(), i));
@@ -317,7 +317,7 @@ public:
 		return Ucl (nullptr);
 	}
 
-	const Ucl operator[](const std::string &key) const
+	const Ucl lookup (const std::string &key) const
 	{
 		if (type () == UCL_OBJECT) {
 			return Ucl (ucl_object_lookup_len (obj.get(),
@@ -325,6 +325,16 @@ public:
 		}
 
 		return Ucl (nullptr);
+	}
+
+	inline const Ucl operator[] (size_t i) const
+	{
+		return at(i);
+	}
+
+	inline const Ucl operator[](const std::string &key) const
+	{
+		return lookup(key);
 	}
 	// Serialize.
 	void dump (std::string &out, ucl_emitter_t type = UCL_EMIT_JSON) const
