@@ -391,6 +391,12 @@ public:
 				std::istreambuf_iterator<char>()), err);
 	}
 
+    Ucl& operator= (Ucl rhs)
+    {
+        obj.swap (rhs.obj);
+        return *this;
+    }
+
 	bool operator== (const Ucl &rhs) const
 	{
 		return ucl_object_compare (obj.get(), rhs.obj.get ()) == 0;
