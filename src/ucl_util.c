@@ -1853,6 +1853,9 @@ ucl_parser_add_fd_priority (struct ucl_parser *parser, int fd,
 			fd, strerror (errno));
 		return false;
 	}
+	if (st.st_size == 0) {
+		return true;
+	}
 	if ((buf = ucl_mmap (NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {
 		ucl_create_err (&parser->err, "cannot mmap fd %d: %s",
 			fd, strerror (errno));
