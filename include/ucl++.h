@@ -24,6 +24,7 @@
 
 #pragma once
 #include <string>
+#include <vector>
 #include <memory>
 #include <iostream>
 
@@ -100,6 +101,16 @@ private:
 		return func;
 	};
 
+	static bool ucl_variable_getter(const unsigned char *data, size_t len,
+			unsigned char **replace, size_t *replace_len, bool *need_free, void* ud)
+	{
+		std::set<std::string> *vars = reinterpret_cast<std::set<std::string> *>(ud);
+		if (vars && data && len != 0) {
+			vars->insert (std::string (data, data + len));
+		}
+		return false;
+	}
+
 	std::unique_ptr<ucl_object_t, ucl_deleter> obj;
 
 public:
@@ -117,7 +128,7 @@ public:
 
 		const_iterator(const Ucl &obj) {
 			it = std::shared_ptr<void>(ucl_object_iterate_new (obj.obj.get()),
-					ucl_iter_deleter());
+				ucl_iter_deleter());
 			cur.reset (new Ucl(ucl_object_iterate_safe (it.get(), true)));
 			if (!*cur) {
 				it.reset ();
@@ -356,7 +367,7 @@ public:
 		return out;
 	}
 
-	static Ucl parse (const std::string & in, std::string & err)
+	static Ucl parse (const std::string &in, std::string &err)
 	{
 		auto parser = ucl_parser_new (UCL_PARSER_DEFAULT);
 
@@ -375,7 +386,7 @@ public:
 		return Ucl (obj);
 	}
 
-	static Ucl parse (const char * in, std::string & err)
+	static Ucl parse (const char *in, std::string &err)
 	{
 		if (in) {
 			return parse (std::string(in), err);
@@ -389,6 +400,31 @@ public:
 	{
 		return Ucl::parse (std::string(std::istreambuf_iterator<char>(ifs),
 				std::istreambuf_iterator<char>()), err);
+	}
+
+	static std::vector<std::string> find_variable (const std::string &in)
+	{
+		auto parser = ucl_parser_new (UCL_PARSER_DEFAULT);
+
+		std::set<std::string> vars;
+		ucl_parser_set_variables_handler (parser, ucl_variable_getter, &vars);
+		ucl_parser_add_chunk (parser, (const unsigned char *)in.data (), in.size ());
+		ucl_parser_free (parser);
+
+		std::vector<std::string> result;
+		std::move (vars.begin (), vars.end (), std::back_inserter (result));
+		return std::move (result);
+	}
+
+	static std::vector<std::string> find_variable (const char *in)
+	{
+		return find_variable (std::string (in));
+	}
+
+	static std::vector<std::string> find_variable (std::istream &ifs)
+	{
+		return Ucl::find_variable (std::string (std::istreambuf_iterator<char>(ifs),
+				std::istreambuf_iterator<char>()));
 	}
 
     Ucl& operator= (Ucl rhs)
