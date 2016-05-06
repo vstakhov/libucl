@@ -222,20 +222,20 @@ public:
 		obj.reset (ucl_object_fromstring_common (value.data (), value.size (),
 				UCL_STRING_RAW));
 	}
-	Ucl(const char * value) {
+	Ucl(const char *value) {
 		obj.reset (ucl_object_fromstring_common (value, 0, UCL_STRING_RAW));
 	}
 
 	// Implicit constructor: anything with a to_json() function.
 	template <class T, class = decltype(&T::to_ucl)>
-	Ucl(const T & t) : Ucl(t.to_ucl()) {}
+	Ucl(const T &t) : Ucl(t.to_ucl()) {}
 
 	// Implicit constructor: map-like objects (std::map, std::unordered_map, etc)
 	template <class M, typename std::enable_if<
 		std::is_constructible<std::string, typename M::key_type>::value
 		&& std::is_constructible<Ucl, typename M::mapped_type>::value,
 		int>::type = 0>
-	Ucl(const M & m) {
+	Ucl(const M &m) {
 		obj.reset (ucl_object_typed_new (UCL_OBJECT));
 		auto cobj = obj.get ();
 
@@ -249,7 +249,7 @@ public:
 	template <class V, typename std::enable_if<
 		std::is_constructible<Ucl, typename V::value_type>::value,
 		int>::type = 0>
-	Ucl(const V & v) {
+	Ucl(const V &v) {
 		obj.reset (ucl_object_typed_new (UCL_ARRAY));
 		auto cobj = obj.get ();
 
@@ -388,12 +388,11 @@ public:
 
 	static Ucl parse (const char *in, std::string &err)
 	{
-		if (in) {
-			return parse (std::string(in), err);
-		} else {
+		if (!in) {
 			err = "null input";
 			return nullptr;
 		}
+		return parse (std::string (in), err);
 	}
 
 	static Ucl parse (std::istream &ifs, std::string &err)
@@ -418,6 +417,9 @@ public:
 
 	static std::vector<std::string> find_variable (const char *in)
 	{
+		if (!in) {
+			return std::vector<std::string>();
+		}
 		return find_variable (std::string (in));
 	}
 
@@ -427,11 +429,11 @@ public:
 				std::istreambuf_iterator<char>()));
 	}
 
-    Ucl& operator= (Ucl rhs)
-    {
-        obj.swap (rhs.obj);
-        return *this;
-    }
+	Ucl& operator= (Ucl rhs)
+	{
+		obj.swap (rhs.obj);
+		return *this;
+	}
 
 	bool operator== (const Ucl &rhs) const
 	{
