@@ -112,6 +112,32 @@ private:
 		return false;
 	}
 
+	static bool ucl_variable_replacer (const unsigned char *data, size_t len,
+			unsigned char **replace, size_t *replace_len, bool *need_free, void* ud)
+	{
+		*need_free = false;
+
+		variable_replacer *replacer = reinterpret_cast<variable_replacer *>(ud);
+		if (!replacer)
+			return false;
+
+		std::string var_name (data, data + len);
+		if (!replacer->is_variable (var_name))
+			return false;
+
+		std::string var_value = replacer->replace (var_name);
+		if (var_value.empty ())
+			return false;
+
+		*replace = (unsigned char *)UCL_ALLOC (var_value.size ());
+		memcpy (*replace, var_value.data (), var_value.size ());
+
+		*replace_len = var_value.size ();
+		*need_free = true;
+
+		return true;
+	}
+
 	std::unique_ptr<ucl_object_t, ucl_deleter> obj;
 
 public:
@@ -181,6 +207,15 @@ public:
 		{
 			return cur.get();
 		}
+	};
+
+	struct variable_replacer {
+		virtual bool is_variable (const std::string &str) const
+		{
+			return !str.empty ();
+		}
+
+		virtual std::string replace (const std::string &var) const = 0;
 	};
 
 	// We grab ownership if get non-const ucl_object_t
@@ -395,6 +430,28 @@ public:
 		return Ucl (obj);
 	}
 
+	static Ucl parse (const std::string &in, const variable_replacer &replacer, std::string &err)
+	{
+		auto parser = ucl_parser_new (UCL_PARSER_DEFAULT);
+
+		ucl_parser_set_variables_handler (parser, ucl_variable_replacer,
+			&const_cast<variable_replacer &>(replacer));
+
+		if (!ucl_parser_add_chunk (parser, (const unsigned char *)in.data (),
+				in.size ())) {
+			err.assign (ucl_parser_get_error (parser));
+			ucl_parser_free (parser);
+
+			return nullptr;
+		}
+
+		auto obj = ucl_parser_get_object (parser);
+		ucl_parser_free (parser);
+
+		// Obj will handle ownership
+		return Ucl (obj);
+	}
+
 	static Ucl parse (const char *in, std::string &err)
 	{
 		return parse (in, std::map<std::string, std::string>(), err);
@@ -409,6 +466,15 @@ public:
 		return parse (std::string (in), vars, err);
 	}
 
+	static Ucl parse (const char *in, const variable_replacer &replacer, std::string &err)
+	{
+		if (!in) {
+			err = "null input";
+			return nullptr;
+		}
+		return parse (std::string(in), replacer, err);
+	}
+
 	static Ucl parse (std::istream &ifs, std::string &err)
 	{
 		return Ucl::parse (std::string(std::istreambuf_iterator<char>(ifs),
@@ -419,6 +485,12 @@ public:
 	{
 		return Ucl::parse (std::string(std::istreambuf_iterator<char>(ifs),
 				std::istreambuf_iterator<char>()), vars, err);
+	}
+
+	static Ucl parse (std::istream &ifs, const variable_replacer &replacer, std::string &err)
+	{
+		return Ucl::parse (std::string(std::istreambuf_iterator<char>(ifs),
+				std::istreambuf_iterator<char>()), replacer, err);
 	}
 
 	static std::vector<std::string> find_variable (const std::string &in)
