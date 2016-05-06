@@ -25,6 +25,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <map>
 #include <memory>
 #include <iostream>
 
@@ -369,7 +370,15 @@ public:
 
 	static Ucl parse (const std::string &in, std::string &err)
 	{
+		return parse (in, std::map<std::string, std::string>(), err);
+	}
+
+	static Ucl parse (const std::string &in, const std::map<std::string, std::string> &vars, std::string &err)
+	{
 		auto parser = ucl_parser_new (UCL_PARSER_DEFAULT);
+
+		for (const auto & item : vars)
+			ucl_parser_register_variable (parser, item.first.c_str (), item.second.c_str ());
 
 		if (!ucl_parser_add_chunk (parser, (const unsigned char *)in.data (),
 				in.size ())) {
@@ -388,17 +397,28 @@ public:
 
 	static Ucl parse (const char *in, std::string &err)
 	{
+		return parse (in, std::map<std::string, std::string>(), err);
+	}
+
+	static Ucl parse (const char *in, const std::map<std::string, std::string> &vars, std::string &err)
+	{
 		if (!in) {
 			err = "null input";
 			return nullptr;
 		}
-		return parse (std::string (in), err);
+		return parse (std::string (in), vars, err);
 	}
 
 	static Ucl parse (std::istream &ifs, std::string &err)
 	{
 		return Ucl::parse (std::string(std::istreambuf_iterator<char>(ifs),
-				std::istreambuf_iterator<char>()), err);
+				std::istreambuf_iterator<char>()), std::map<std::string, std::string>(), err);
+	}
+
+	static Ucl parse (std::istream &ifs, const std::map<std::string, std::string> &vars, std::string &err)
+	{
+		return Ucl::parse (std::string(std::istreambuf_iterator<char>(ifs),
+				std::istreambuf_iterator<char>()), vars, err);
 	}
 
 	static std::vector<std::string> find_variable (const std::string &in)
