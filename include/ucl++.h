@@ -138,6 +138,27 @@ private:
 		return true;
 	}
 
+	template <typename C, typename P>
+	static Ucl parse_with_strategy_function (C config_func, P parse_func, std::string &err)
+	{
+		auto parser = ucl_parser_new (UCL_PARSER_DEFAULT);
+
+		config_func (parser);
+
+		if (!parse_func (parser)) {
+			err.assign (ucl_parser_get_error (parser));
+			ucl_parser_free (parser);
+
+			return nullptr;
+		}
+
+		auto obj = ucl_parser_get_object (parser);
+		ucl_parser_free (parser);
+
+		// Obj will handle ownership
+		return Ucl (obj);
+	}
+
 	std::unique_ptr<ucl_object_t, ucl_deleter> obj;
 
 public:
@@ -410,46 +431,30 @@ public:
 
 	static Ucl parse (const std::string &in, const std::map<std::string, std::string> &vars, std::string &err)
 	{
-		auto parser = ucl_parser_new (UCL_PARSER_DEFAULT);
+		auto config_func = [&vars] (ucl_parser *parser) {
+			for (const auto & item : vars)
+				ucl_parser_register_variable (parser, item.first.c_str (), item.second.c_str ());
+		};
 
-		for (const auto & item : vars)
-			ucl_parser_register_variable (parser, item.first.c_str (), item.second.c_str ());
+		auto parse_func = [&in] (ucl_parser *parser) {
+			return ucl_parser_add_chunk (parser, (unsigned char *)in.data (), in.size ());
+		};
 
-		if (!ucl_parser_add_chunk (parser, (const unsigned char *)in.data (),
-				in.size ())) {
-			err.assign (ucl_parser_get_error (parser));
-			ucl_parser_free (parser);
-
-			return nullptr;
-		}
-
-		auto obj = ucl_parser_get_object (parser);
-		ucl_parser_free (parser);
-
-		// Obj will handle ownership
-		return Ucl (obj);
+		return parse_with_strategy_function (config_func, parse_func, err);
 	}
 
 	static Ucl parse (const std::string &in, const variable_replacer &replacer, std::string &err)
 	{
-		auto parser = ucl_parser_new (UCL_PARSER_DEFAULT);
+		auto config_func = [&replacer] (ucl_parser *parser) {
+			ucl_parser_set_variables_handler (parser, ucl_variable_replacer,
+				&const_cast<variable_replacer &>(replacer));
+		};
 
-		ucl_parser_set_variables_handler (parser, ucl_variable_replacer,
-			&const_cast<variable_replacer &>(replacer));
+		auto parse_func = [&in] (ucl_parser *parser) {
+			return ucl_parser_add_chunk (parser, (unsigned char *) in.data (), in.size ());
+		};
 
-		if (!ucl_parser_add_chunk (parser, (const unsigned char *)in.data (),
-				in.size ())) {
-			err.assign (ucl_parser_get_error (parser));
-			ucl_parser_free (parser);
-
-			return nullptr;
-		}
-
-		auto obj = ucl_parser_get_object (parser);
-		ucl_parser_free (parser);
-
-		// Obj will handle ownership
-		return Ucl (obj);
+		return parse_with_strategy_function (config_func, parse_func, err);
 	}
 
 	static Ucl parse (const char *in, std::string &err)
@@ -475,22 +480,37 @@ public:
 		return parse (std::string(in), replacer, err);
 	}
 
-	static Ucl parse (std::istream &ifs, std::string &err)
+	static Ucl parse_from_file (const std::string &filename, std::string &err)
 	{
-		return Ucl::parse (std::string(std::istreambuf_iterator<char>(ifs),
-				std::istreambuf_iterator<char>()), std::map<std::string, std::string>(), err);
+		return parse_from_file (filename, std::map<std::string, std::string>(), err);
 	}
 
-	static Ucl parse (std::istream &ifs, const std::map<std::string, std::string> &vars, std::string &err)
+	static Ucl parse_from_file (const std::string &filename, const std::map<std::string, std::string> &vars, std::string &err)
 	{
-		return Ucl::parse (std::string(std::istreambuf_iterator<char>(ifs),
-				std::istreambuf_iterator<char>()), vars, err);
+		auto config_func = [&vars] (ucl_parser *parser) {
+			for (const auto & item : vars)
+				ucl_parser_register_variable (parser, item.first.c_str (), item.second.c_str ());
+		};
+
+		auto parse_func = [&filename] (ucl_parser *parser) {
+			return ucl_parser_add_file (parser, filename.c_str ());
+		};
+
+		return parse_with_strategy_function (config_func, parse_func, err);
 	}
 
-	static Ucl parse (std::istream &ifs, const variable_replacer &replacer, std::string &err)
+	static Ucl parse_from_file (const std::string &filename, const variable_replacer &replacer, std::string &err)
 	{
-		return Ucl::parse (std::string(std::istreambuf_iterator<char>(ifs),
-				std::istreambuf_iterator<char>()), replacer, err);
+		auto config_func = [&replacer] (ucl_parser *parser) {
+			ucl_parser_set_variables_handler (parser, ucl_variable_replacer,
+				&const_cast<variable_replacer &>(replacer));
+		};
+
+		auto parse_func = [&filename] (ucl_parser *parser) {
+			return ucl_parser_add_file (parser, filename.c_str ());
+		};
+
+		return parse_with_strategy_function (config_func, parse_func, err);
 	}
 
 	static std::vector<std::string> find_variable (const std::string &in)
@@ -515,10 +535,18 @@ public:
 		return find_variable (std::string (in));
 	}
 
-	static std::vector<std::string> find_variable (std::istream &ifs)
+	static std::vector<std::string> find_variable_from_file (const std::string &filename)
 	{
-		return Ucl::find_variable (std::string (std::istreambuf_iterator<char>(ifs),
-				std::istreambuf_iterator<char>()));
+		auto parser = ucl_parser_new (UCL_PARSER_DEFAULT);
+
+		std::set<std::string> vars;
+		ucl_parser_set_variables_handler (parser, ucl_variable_getter, &vars);
+		ucl_parser_add_file (parser, filename.c_str ());
+		ucl_parser_free (parser);
+
+		std::vector<std::string> result;
+		std::move (vars.begin (), vars.end (), std::back_inserter (result));
+		return std::move (result);
 	}
 
 	Ucl& operator= (Ucl rhs)
