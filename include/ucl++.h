@@ -105,9 +105,11 @@ private:
 	static bool ucl_variable_getter(const unsigned char *data, size_t len,
 			unsigned char **replace, size_t *replace_len, bool *need_free, void* ud)
 	{
-		std::set<std::string> *vars = reinterpret_cast<std::set<std::string> *>(ud);
+        *need_free = false;
+
+		auto vars = reinterpret_cast<std::set<std::string> *>(ud);
 		if (vars && data && len != 0) {
-			vars->insert (std::string (data, data + len));
+			vars->emplace (data, data + len);
 		}
 		return false;
 	}
@@ -117,17 +119,20 @@ private:
 	{
 		*need_free = false;
 
-		variable_replacer *replacer = reinterpret_cast<variable_replacer *>(ud);
-		if (!replacer)
+		auto replacer = reinterpret_cast<variable_replacer *>(ud);
+		if (!replacer) {
 			return false;
+        }
 
 		std::string var_name (data, data + len);
-		if (!replacer->is_variable (var_name))
+		if (!replacer->is_variable (var_name)) {
 			return false;
+        }
 
 		std::string var_value = replacer->replace (var_name);
-		if (var_value.empty ())
+		if (var_value.empty ()) {
 			return false;
+        }
 
 		*replace = (unsigned char *)UCL_ALLOC (var_value.size ());
 		memcpy (*replace, var_value.data (), var_value.size ());
@@ -432,8 +437,9 @@ public:
 	static Ucl parse (const std::string &in, const std::map<std::string, std::string> &vars, std::string &err)
 	{
 		auto config_func = [&vars] (ucl_parser *parser) {
-			for (const auto & item : vars)
+			for (const auto & item : vars) {
 				ucl_parser_register_variable (parser, item.first.c_str (), item.second.c_str ());
+            }
 		};
 
 		auto parse_func = [&in] (ucl_parser *parser) {
@@ -488,8 +494,9 @@ public:
 	static Ucl parse_from_file (const std::string &filename, const std::map<std::string, std::string> &vars, std::string &err)
 	{
 		auto config_func = [&vars] (ucl_parser *parser) {
-			for (const auto & item : vars)
+			for (const auto & item : vars) {
 				ucl_parser_register_variable (parser, item.first.c_str (), item.second.c_str ());
+            }
 		};
 
 		auto parse_func = [&filename] (ucl_parser *parser) {
@@ -524,7 +531,7 @@ public:
 
 		std::vector<std::string> result;
 		std::move (vars.begin (), vars.end (), std::back_inserter (result));
-		return std::move (result);
+		return result;
 	}
 
 	static std::vector<std::string> find_variable (const char *in)
