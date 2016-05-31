@@ -118,7 +118,6 @@ ucl_hash_equal (const ucl_object_t *k1, const ucl_object_t *k2)
 KHASH_INIT (ucl_hash_node, const ucl_object_t *, struct ucl_hash_elt, 1,
 		ucl_hash_func, ucl_hash_equal)
 
-#ifdef UCL64_BIT_HASH
 static inline uint32_t
 ucl_hash_caseless_func (const ucl_object_t *o)
 {
