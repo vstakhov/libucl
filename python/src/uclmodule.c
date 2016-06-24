@@ -124,26 +124,60 @@ _iterate_python (PyObject *obj)
 {
 	if (obj == Py_None) {
 		return ucl_object_new();
-	} else if (PyBool_Check (obj)) {
-		return ucl_object_frombool (obj == Py_True);
-	} else if (PyInt_Check (obj)) {
-		return ucl_object_fromint (PyInt_AsLong (obj));
-	} else if (PyFloat_Check (obj)) {
-		return ucl_object_fromdouble (PyFloat_AsDouble (obj));
-	} else if (PyString_Check (obj)) {
-		return ucl_object_fromstring (PyString_AsString (obj));
-	// } else if (PyDateTime_Check (obj)) {
 	}
+	else if (PyBool_Check (obj)) {
+		return ucl_object_frombool (obj == Py_True);
+	}
+#if PY_MAJOR_VERSION < 3
+	else if (PyInt_Check (obj)) {
+		return ucl_object_fromint (PyInt_AsLong (obj));
+	}
+#endif
+	else if (PyLong_Check (obj)) {
+		return ucl_object_fromint (PyLong_AsLong (obj));
+	}
+	else if (PyFloat_Check (obj)) {
+		return ucl_object_fromdouble (PyFloat_AsDouble (obj));
+	}
+	else if (PyUnicode_Check (obj)) {
+		ucl_object_t *ucl_str;
+		PyObject *str = PyUnicode_AsASCIIString(obj);
+		ucl_str = ucl_object_fromstring (PyBytes_AsString (str));
+		Py_DECREF(str);
+		return ucl_str;
+	}
+#if PY_MAJOR_VERSION < 3
+	else if (PyString_Check (obj)) {
+		return ucl_object_fromstring (PyString_AsString (obj));
+	}
+#endif
 	else if (PyDict_Check(obj)) {
 		PyObject *key, *value;
 		Py_ssize_t pos = 0;
 		ucl_object_t *top, *elm;
+		char *keystr = NULL;
 
 		top = ucl_object_typed_new (UCL_OBJECT);
 
 		while (PyDict_Next(obj, &pos, &key, &value)) {
 			elm = _iterate_python(value);
-			ucl_object_insert_key (top, elm, PyString_AsString(key), 0, true);
+			
+			if (PyUnicode_Check(key)) {
+				PyObject *keyascii = PyUnicode_AsASCIIString(key);
+				keystr = PyBytes_AsString(keyascii);
+				Py_DECREF(keyascii);
+			}
+#if PY_MAJOR_VERSION < 3
+			else if (PyString_Check(key)) {
+				keystr = PyString_AsString(key);
+			}
+#endif
+			else {
+				PyErr_SetString(PyExc_TypeError, "Unknown key type");
+				return NULL;
+			}
+
+			ucl_object_insert_key (top, elm, keystr, 0, true);
 		}
 
 		return top;
@@ -207,7 +241,11 @@ ucl_dump (PyObject *self, PyObject *args)
 
 		buf = (char *) ucl_object_emit (root, emitter);
 		ucl_object_unref (root);
+#if PY_MAJOR_VERSION < 3
 		ret = PyString_FromString (buf);
+#else
+		ret = PyUnicode_FromString (buf);
+#endif
 		free(buf);
 
 		return ret;

@@ -129,19 +129,25 @@ class TestUclDump(unittest.TestCase):
     def test_str(self):
         self.assertEqual(ucl.dump({"a" : "b"}), "a = \"b\";\n")
 
+    def test_unicode(self):
+        self.assertEqual(ucl.dump({u"a" : u"b"}), u"a = \"b\";\n")
+
     def test_float(self):
         self.assertEqual(ucl.dump({"a" : 1.1}), "a = 1.100000;\n")
 
     def test_boolean(self):
         totest = {"a" : True, "b" : False}
-        correct = "a = true;\nb = false;\n"
-        self.assertEqual(ucl.dump(totest), correct)
+        correct = ["a = true;\nb = false;\n", "b = false;\na = true;\n"]
+        self.assertIn(ucl.dump(totest), correct)
 
     def test_empty_ucl(self):
         self.assertEqual(ucl.dump({}), "")
 
     def test_json(self):
-        self.assertEqual(ucl.dump({ "a" : 1, "b": "bleh;" }, ucl.UCL_EMIT_JSON), '{\n    "a": 1,\n    "b": "bleh;"\n}')
+        totest = { "a" : 1, "b": "bleh;" }
+        correct = ['{\n    "a": 1,\n    "b": "bleh;"\n}',
+                   '{\n    "b": "bleh;",\n    "a": 1\n}']
+        self.assertIn(ucl.dump(totest, ucl.UCL_EMIT_JSON), correct)
 
 
 if __name__ == '__main__':
