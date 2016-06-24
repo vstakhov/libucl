@@ -18,7 +18,7 @@ uclmodule = Extension('ucl',
         language='c')
 
 setup(name='ucl',
-    version='1.0',
+    version='0.8',
     description='ucl parser and emmitter',
     ext_modules = [uclmodule],
     author="Eitan Adler, Denis Volpato Martins",
