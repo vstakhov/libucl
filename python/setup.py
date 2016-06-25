@@ -5,9 +5,9 @@ import os
 
 
 compiler  = distutils.ccompiler.new_compiler()
-search_paths=[os.path.expanduser('~/{}'), '/opt/local/{}', '/usr/local/{}', '/usr/{}']
-lib_paths = [ a.format("lib") for a in search_paths]
-inc_paths = [ a.format("include") for a in search_paths]
+search_paths=[os.path.expanduser('~/%s'), '/opt/local/%s', '/usr/local/%s', '/usr/%s']
+lib_paths = [ a % "lib" for a in search_paths]
+inc_paths = [ a % "include" for a in search_paths]
 
 uclmodule = Extension('ucl',
         include_dirs = inc_paths,
@@ -18,10 +18,10 @@ uclmodule = Extension('ucl',
         language='c')
 
 setup(name='ucl',
-    version='1.0',
+    version='0.8',
     description='ucl parser and emmitter',
     ext_modules = [uclmodule],
-    author="Eitan Adler",
+    author="Eitan Adler, Denis Volpato Martins",
     author_email="lists@eitanadler.com",
     url="https://github.com/vstakhov/libucl/",
     license="MIT",
@@ -30,6 +30,7 @@ setup(name='ucl',
         "License :: DFSG approved",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: C",
+        "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: Implementation :: CPython",
         "Topic :: Software Development :: Libraries",
