@@ -5,9 +5,9 @@ import os
 
 
 compiler  = distutils.ccompiler.new_compiler()
-search_paths=[os.path.expanduser('~/{}'), '/opt/local/{}', '/usr/local/{}', '/usr/{}']
-lib_paths = [ a.format("lib") for a in search_paths]
-inc_paths = [ a.format("include") for a in search_paths]
+search_paths=[os.path.expanduser('~/%s'), '/opt/local/%s', '/usr/local/%s', '/usr/%s']
+lib_paths = [ a % "lib" for a in search_paths]
+inc_paths = [ a % "include" for a in search_paths]
 
 uclmodule = Extension('ucl',
         include_dirs = inc_paths,

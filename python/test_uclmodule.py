@@ -4,18 +4,46 @@ import unittest
 import ucl
 import sys
 
-if sys.version_info[:2] == (2, 7):
+# Python 3.2+
+if hasattr(unittest.TestCase, 'assertRaisesRegex'):
+    pass
+# Python 2.7 - 3.1
+elif hasattr(unittest.TestCase, 'assertRaisesRegexp'):
     unittest.TestCase.assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
+# Python 2.6-
+else:
+    import re
+    def assert_raises_regex(self, exception, regexp, callable, *args, **kwds):
+        try:
+            callable(*args, **kwds)
+        except exception as e:
+            if isinstance(regexp, basestring):
+                regexp = re.compile(regexp)
+            if not regexp.search(str(e)):
+                raise self.failureException('"%s" does not match "%s"' %
+                         (regexp.pattern, str(e)))
+        else:
+            if hasattr(exception,'__name__'): excName = exception.__name__
+            else: excName = str(exception)
+            raise AssertionError("%s not raised" % excName)
+    unittest.TestCase.assertRaisesRegex = assert_raises_regex
+
+# Python 2.6-
+if not hasattr(unittest.TestCase, 'assertIn'):
+    def assert_in(self, member, container, msg=None):
+        if member not in container:
+            standardMsg = '%s not found in %s' % (safe_repr(member),
+                                                  safe_repr(container))
+            self.fail(self._formatMessage(msg, standardMsg))
+    unittest.TestCase.assertIn = assert_in
 
 
 class TestUcl(unittest.TestCase):
     def test_no_args(self):
-        with self.assertRaises(TypeError):
-            ucl.load()
+        self.assertRaises(TypeError, lambda: ucl.load())
 
     def test_multi_args(self):
-        with self.assertRaises(TypeError):
-            ucl.load(0,0)
+        self.assertRaises(TypeError, lambda: ucl.load(0,0))
 
     def test_none(self):
         r = ucl.load(None)
@@ -59,8 +87,7 @@ class TestUcl(unittest.TestCase):
         self.assertEqual(ucl.load("["), [])
 
     def test_invalid_ucl(self):
-        with self.assertRaisesRegex(ValueError, "unfinished key$"):
-            ucl.load('{ "var"')
+        self.assertRaisesRegex(ValueError, "unfinished key$", lambda: ucl.load('{ "var"'))
 
     def test_comment_ignored(self):
         self.assertEqual(ucl.load("{/*1*/}"), {})
@@ -101,18 +128,15 @@ class TestUcl(unittest.TestCase):
         self.assertEqual(ucl.load(totest), correct)
 
     def test_validation_useless(self):
-        with self.assertRaises(NotImplementedError):
-            ucl.validate("","")
+        self.assertRaises(NotImplementedError, lambda: ucl.validate("",""))
 
 
 class TestUclDump(unittest.TestCase):
     def test_no_args(self):
-        with self.assertRaises(TypeError):
-            ucl.dump()
+        self.assertRaises(TypeError, lambda: ucl.dump())
 
     def test_multi_args(self):
-        with self.assertRaises(TypeError):
-            ucl.dump(0, 0)
+        self.assertRaises(TypeError, lambda: ucl.dump(0, 0))
 
     def test_none(self):
         self.assertEqual(ucl.dump(None), None)
