@@ -2,6 +2,8 @@
 #include <ucl.h>
 #include <Python.h>
 
+static PyObject *SchemaError;
+
 static PyObject *
 _basic_ucl_type (ucl_object_t const *obj)
 {
@@ -13,7 +15,7 @@ _basic_ucl_type (ucl_object_t const *obj)
 	case UCL_STRING:
 		return Py_BuildValue ("s", ucl_object_tostring (obj));
 	case UCL_BOOLEAN:
-		return ucl_object_toboolean (obj) ? Py_True : Py_False;
+		return PyBool_FromLong (ucl_object_toboolean (obj));
 	case UCL_TIME:
 		return Py_BuildValue ("d", ucl_object_todouble (obj));
 	}
@@ -257,17 +259,44 @@ ucl_dump (PyObject *self, PyObject *args)
 static PyObject *
 ucl_validate (PyObject *self, PyObject *args)
 {
-	char *uclstr, *schema;
+	PyObject *data;
+	char *schemastr;
+	struct ucl_parser *parser;
+	ucl_object_t *obj, *schema;
+	bool r;
+	struct ucl_schema_error err;
 
-	if (PyArg_ParseTuple(args, "zz", &uclstr, &schema)) {
-		if (!uclstr || !schema) {
-			Py_RETURN_NONE;
-		}
-
-		PyErr_SetString(PyExc_NotImplementedError, "schema validation is not yet supported");
+	if (!PyArg_ParseTuple (args, "sO", &schemastr, &data)) {
+		PyErr_SetString (PyExc_TypeError, "Unhandled object type");
+		return NULL;
 	}
 
-	return NULL;
+	// schema
+	parser = ucl_parser_new (UCL_PARSER_DEFAULT);
+	if (! ucl_parser_add_string (parser, schemastr, 0)) {
+		PyErr_SetString (PyExc_ValueError, ucl_parser_get_error (parser));
+		ucl_parser_free (parser);
+		return NULL;
+	}
+	schema = ucl_parser_get_object (parser);
+	ucl_parser_free (parser);
+
+	// object
+	obj = _iterate_python(data);
+	if (!obj)
+		return NULL;
+
+	// validation
+	r = ucl_object_validate (schema, obj, &err);
+	ucl_object_unref (schema);
+	ucl_object_unref (obj);
+
+	if (!r) {
+		PyErr_SetString (SchemaError, err.msg);
+		return NULL;
+	}
+
+	Py_RETURN_TRUE;
 }
 
 static PyMethodDef uclMethods[] = {
@@ -285,6 +314,10 @@ init_macros(PyObject *mod)
 	PyModule_AddIntMacro(mod, UCL_EMIT_CONFIG);
 	PyModule_AddIntMacro(mod, UCL_EMIT_YAML);
 	PyModule_AddIntMacro(mod, UCL_EMIT_MSGPACK);
+
+	SchemaError = PyErr_NewException("ucl.SchemaError", NULL, NULL);
+	Py_INCREF(SchemaError);
+	PyModule_AddObject(mod, "SchemaError", SchemaError);
 }
 
 #if PY_MAJOR_VERSION >= 3
