@@ -231,11 +231,6 @@ ucl_dump (PyObject *self, PyObject *args)
 		Py_RETURN_NONE;
 	}
 
-	if (!PyDict_Check(obj)) {
-		PyErr_SetString(PyExc_TypeError, "Argument must be dict");
-		return NULL;
-	}
-
 	root = _iterate_python(obj);
 	if (root) {
 		PyObject *ret;
@@ -259,37 +254,28 @@ ucl_dump (PyObject *self, PyObject *args)
 static PyObject *
 ucl_validate (PyObject *self, PyObject *args)
 {
-	PyObject *data;
-	char *schemastr;
-	struct ucl_parser *parser;
-	ucl_object_t *obj, *schema;
+	PyObject *dataobj, *schemaobj;
+	ucl_object_t *data, *schema;
 	bool r;
 	struct ucl_schema_error err;
 
-	if (!PyArg_ParseTuple (args, "sO", &schemastr, &data)) {
+	if (!PyArg_ParseTuple (args, "OO", &schemaobj, &dataobj)) {
 		PyErr_SetString (PyExc_TypeError, "Unhandled object type");
 		return NULL;
 	}
 
-	// schema
-	parser = ucl_parser_new (UCL_PARSER_DEFAULT);
-	if (! ucl_parser_add_string (parser, schemastr, 0)) {
-		PyErr_SetString (PyExc_ValueError, ucl_parser_get_error (parser));
-		ucl_parser_free (parser);
+	schema = _iterate_python(schemaobj);
+	if (!schema)
 		return NULL;
-	}
-	schema = ucl_parser_get_object (parser);
-	ucl_parser_free (parser);
 
-	// object
-	obj = _iterate_python(data);
-	if (!obj)
+	data = _iterate_python(dataobj);
+	if (!data)
 		return NULL;
 
 	// validation
-	r = ucl_object_validate (schema, obj, &err);
+	r = ucl_object_validate (schema, data, &err);
 	ucl_object_unref (schema);
-	ucl_object_unref (obj);
+	ucl_object_unref (data);
 
 	if (!r) {
 		PyErr_SetString (SchemaError, err.msg);
