@@ -10,6 +10,11 @@ class DumpTest(unittest.TestCase):
     def test_none(self):
         self.assertEqual(ucl.dump(None), None)
 
+    def test_null(self):
+        data = { "a" : None }
+        valid = "a = null;\n"
+        self.assertEqual(ucl.dump(data), valid)
+
     def test_int(self):
         data = { "a" : 1 }
         valid = "a = 1;\n"

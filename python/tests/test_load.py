@@ -13,6 +13,11 @@ class LoadTest(unittest.TestCase):
     def test_none(self):
         self.assertEqual(ucl.load(None), None)
 
+    def test_null(self):
+        data  = "a: null"
+        valid = { "a" : None }
+        self.assertEqual(ucl.load(data), valid)
+
     def test_int(self):
         data  = "a : 1"
         valid = { "a" : 1 }

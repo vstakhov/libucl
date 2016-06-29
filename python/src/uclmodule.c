@@ -18,6 +18,8 @@ _basic_ucl_type (ucl_object_t const *obj)
 		return PyBool_FromLong (ucl_object_toboolean (obj));
 	case UCL_TIME:
 		return Py_BuildValue ("d", ucl_object_todouble (obj));
+	case UCL_NULL:
+		Py_RETURN_NONE;
 	}
 	return NULL;
 }
