@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 #include <memory>
 #include <iostream>
 
@@ -103,7 +104,7 @@ private:
 	};
 
 	static bool ucl_variable_getter(const unsigned char *data, size_t len,
-			unsigned char **replace, size_t *replace_len, bool *need_free, void* ud)
+			unsigned char ** /*replace*/, size_t * /*replace_len*/, bool *need_free, void* ud)
 	{
         *need_free = false;
 
@@ -236,6 +237,8 @@ public:
 	};
 
 	struct variable_replacer {
+		virtual ~variable_replacer() {}
+
 		virtual bool is_variable (const std::string &str) const
 		{
 			return !str.empty ();
