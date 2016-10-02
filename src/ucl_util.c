@@ -1854,9 +1854,11 @@ ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 			UCL_PARSE_UCL);
 }
 
+
 bool
-ucl_parser_add_fd_priority (struct ucl_parser *parser, int fd,
-		unsigned priority)
+ucl_parser_add_fd_full (struct ucl_parser *parser, int fd,
+		unsigned priority, enum ucl_duplicate_strategy strat,
+		enum ucl_parse_type parse_type)
 {
 	unsigned char *buf;
 	size_t len;
@@ -1882,13 +1884,26 @@ ucl_parser_add_fd_priority (struct ucl_parser *parser, int fd,
 	}
 	parser->cur_file = NULL;
 	len = st.st_size;
-	ret = ucl_parser_add_chunk_priority (parser, buf, len, priority);
+	ret = ucl_parser_add_chunk_full (parser, buf, len, priority, strat,
+			parse_type);
 
 	if (len > 0) {
 		ucl_munmap (buf, len);
 	}
 
 	return ret;
+}
+
+bool
+ucl_parser_add_fd_priority (struct ucl_parser *parser, int fd,
+		unsigned priority)
+{
+	if (parser == NULL) {
+		return false;
+	}
+
+	return ucl_parser_add_fd_full(parser, fd, parser->default_priority,
+			UCL_DUPLICATE_APPEND, UCL_PARSE_UCL);
 }
 
 bool
