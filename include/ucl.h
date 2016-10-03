@@ -1069,6 +1069,21 @@ UCL_EXTERN bool ucl_parser_add_fd_priority (struct ucl_parser *parser,
 		int fd, unsigned priority);
 
 /**
+ * Load and add data from a file descriptor
+ * @param parser parser structure
+ * @param filename the name of file
+ * @param err if *err is NULL it is set to parser error
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @param strat Merge strategy to use while parsing this file
+ * @param parse_type Parser type to use while parsing this file
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_fd_full (struct ucl_parser *parser, int fd,
+		unsigned priority, enum ucl_duplicate_strategy strat,
+		enum ucl_parse_type parse_type);
+
+/**
  * Provide a UCL_ARRAY of paths to search for include files. The object is
  * copied so caller must unref the object.
  * @param parser parser structure
