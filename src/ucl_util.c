@@ -26,6 +26,7 @@
 #include "ucl_internal.h"
 #include "ucl_chartable.h"
 #include "kvec.h"
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h> /* for snprintf */
 
@@ -79,11 +80,6 @@ typedef kvec_t(ucl_object_t *) ucl_array_t;
 #endif
 #ifndef MAP_FAILED
 #define MAP_FAILED      ((void *) -1)
-#endif
-
-#ifdef _WIN32
-#include <limits.h>
-#define NBBY CHAR_BIT
 #endif
 
 static void *ucl_mmap(char *addr, size_t length, int prot, int access, int fd, off_t offset)
@@ -3380,7 +3376,7 @@ ucl_object_get_priority (const ucl_object_t *obj)
 		return 0;
 	}
 
-	return (obj->flags >> ((sizeof (obj->flags) * NBBY) - PRIOBITS));
+	return (obj->flags >> ((sizeof (obj->flags) * CHAR_BIT) - PRIOBITS));
 }
 
 void
@@ -3389,9 +3385,9 @@ ucl_object_set_priority (ucl_object_t *obj,
 {
 	if (obj != NULL) {
 		priority &= (0x1 << PRIOBITS) - 1;
-		priority <<= ((sizeof (obj->flags) * NBBY) - PRIOBITS);
-		priority |= obj->flags & ((1 << ((sizeof (obj->flags) * NBBY) -
-				PRIOBITS)) - 1);
+		priority <<= ((sizeof (obj->flags) * CHAR_BIT) - PRIOBITS);
+		priority |= obj->flags &
+		    ((1 << ((sizeof (obj->flags) * CHAR_BIT) - PRIOBITS)) - 1);
 		obj->flags = priority;
 	}
 }
