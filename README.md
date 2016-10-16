@@ -217,8 +217,8 @@ Multiline comments may be nested:
 
 UCL supports external macros both multiline and single line ones:
 ```nginx
-.macro "sometext";
-.macro {
+.macro_name "sometext";
+.macro_name {
     Some long text
     ....
 };
@@ -229,12 +229,12 @@ arguments themselves are the UCL object that is parsed and passed to a macro as
 options:
 
 ```nginx
-.macro(param=value) "something";
-.macro(param={key=value}) "something";
-.macro(.include "params.conf") "something";
-.macro(#this is multiline macro
+.macro_name(param=value) "something";
+.macro_name(param={key=value}) "something";
+.macro_name(.include "params.conf") "something";
+.macro_name(#this is multiline macro
 param = [value1, value2]) "something";
-.macro(key="()") "something";
+.macro_name(key="()") "something";
 ```
 
 UCL also provide a convenient `include` macro to load content from another files
