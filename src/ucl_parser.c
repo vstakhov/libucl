@@ -2321,7 +2321,7 @@ ucl_state_machine (struct ucl_parser *parser)
 					if (c != NULL && p - c > 0) {
 						/* We got macro name */
 						macro_len = (size_t) (p - c);
-						HASH_FIND (hh, parser->macroes, c, macro_len, macro);
+						HASH_FIND (hh, parser->macros, c, macro_len, macro);
 						if (macro == NULL) {
 							ucl_create_err (&parser->err,
 									"error on line %d at column %d: "
@@ -2506,7 +2506,7 @@ ucl_parser_register_macro (struct ucl_parser *parser, const char *macro,
 	new->h.handler = handler;
 	new->name = strdup (macro);
 	new->ud = ud;
-	HASH_ADD_KEYPTR (hh, parser->macroes, new->name, strlen (new->name), new);
+	HASH_ADD_KEYPTR (hh, parser->macros, new->name, strlen (new->name), new);
 }
 
 void
@@ -2529,7 +2529,7 @@ ucl_parser_register_context_macro (struct ucl_parser *parser, const char *macro,
 	new->name = strdup (macro);
 	new->ud = ud;
 	new->is_context = true;
-	HASH_ADD_KEYPTR (hh, parser->macroes, new->name, strlen (new->name), new);
+	HASH_ADD_KEYPTR (hh, parser->macros, new->name, strlen (new->name), new);
 }
 
 void
