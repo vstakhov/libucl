@@ -227,7 +227,7 @@ typedef struct ucl_object_s {
 	const char *key;						/**< Key of an object		*/
 	struct ucl_object_s *next;				/**< Array handle			*/
 	struct ucl_object_s *prev;				/**< Array handle			*/
-	uint32_t keylen;						/**< Lenght of a key		*/
+	uint32_t keylen;						/**< Length of a key		*/
 	uint32_t len;							/**< Size of an object		*/
 	uint32_t ref;							/**< Reference count		*/
 	uint16_t flags;							/**< Object flags			*/
