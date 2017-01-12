@@ -1090,6 +1090,9 @@ lua_ucl_to_format (lua_State *L)
 				strcasecmp (strtype, "ucl") == 0) {
 				format = UCL_EMIT_CONFIG;
 			}
+			else if (strcasecmp (strtype, "msgpack") == 0) {
+				format = UCL_EMIT_MSGPACK;
+			}
 		}
 	}
 
