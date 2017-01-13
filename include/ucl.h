@@ -838,6 +838,25 @@ UCL_EXTERN const ucl_object_t* ucl_object_iterate_safe (ucl_object_iter_t iter,
 		bool expand_values);
 
 /**
+ * Iteration type enumerator
+ */
+enum ucl_iterate_type {
+	UCL_ITERATE_EXPLICIT = 1 << 0, /**< Iterate just explicit arrays and objects */
+	UCL_ITERATE_IMPLICIT = 1 << 1,  /**< Iterate just implicit arrays */
+	UCL_ITERATE_BOTH = (1 << 0) | (1 << 1),   /**< Iterate both explicit and implicit arrays*/
+};
+
+/**
+ * Get the next object from the `obj`. This fucntion iterates over arrays, objects
+ * and implicit arrays if needed
+ * @param iter safe iterator
+ * @param
+ * @return the next object in sequence
+ */
+UCL_EXTERN const ucl_object_t* ucl_object_iterate_full (ucl_object_iter_t iter,
+		enum ucl_iterate_type type);
+
+/**
  * Free memory associated with the safe iterator
  * @param it safe iterator object
  */
