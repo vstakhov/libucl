@@ -32,6 +32,11 @@
 
 #ifndef _WIN32
 #include <glob.h>
+#include <sys/param.h>
+#else
+#ifndef NBBY
+#define NBBY 8
+#endif
 #endif
 
 #ifdef HAVE_LIBGEN_H
@@ -489,9 +494,9 @@ ucl_parser_free (struct ucl_parser *parser)
 	LL_FOREACH_SAFE (parser->stack, stack, stmp) {
 		free (stack);
 	}
-	HASH_ITER (hh, parser->macros, macro, mtmp) {
+	HASH_ITER (hh, parser->macroes, macro, mtmp) {
 		free (macro->name);
-		HASH_DEL (parser->macros, macro);
+		HASH_DEL (parser->macroes, macro);
 		UCL_FREE (sizeof (struct ucl_macro), macro);
 	}
 	LL_FOREACH_SAFE (parser->chunks, chunk, ctmp) {
@@ -3393,7 +3398,7 @@ ucl_object_get_priority (const ucl_object_t *obj)
 		return 0;
 	}
 
-	return (obj->flags >> ((sizeof (obj->flags) * CHAR_BIT) - PRIOBITS));
+	return (obj->flags >> ((sizeof (obj->flags) * NBBY) - PRIOBITS));
 }
 
 void
@@ -3402,9 +3407,9 @@ ucl_object_set_priority (ucl_object_t *obj,
 {
 	if (obj != NULL) {
 		priority &= (0x1 << PRIOBITS) - 1;
-		priority <<= ((sizeof (obj->flags) * CHAR_BIT) - PRIOBITS);
-		priority |= obj->flags &
-		    ((1 << ((sizeof (obj->flags) * CHAR_BIT) - PRIOBITS)) - 1);
+		priority <<= ((sizeof (obj->flags) * NBBY) - PRIOBITS);
+		priority |= obj->flags & ((1 << ((sizeof (obj->flags) * NBBY) -
+				PRIOBITS)) - 1);
 		obj->flags = priority;
 	}
 }

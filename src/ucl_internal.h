@@ -206,7 +206,7 @@ struct ucl_parser {
 	ucl_object_t *trash_objs;
 	ucl_object_t *includepaths;
 	char *cur_file;
-	struct ucl_macro *macros;
+	struct ucl_macro *macroes;
 	struct ucl_stack *stack;
 	struct ucl_chunk *chunks;
 	struct ucl_pubkey *keys;
@@ -570,6 +570,7 @@ bool ucl_parser_process_object_element (struct ucl_parser *parser,
  * @return
  */
 bool ucl_parse_msgpack (struct ucl_parser *parser);
+
 bool ucl_parse_csexp (struct ucl_parser *parser);
 
 #endif /* UCL_INTERNAL_H_ */
