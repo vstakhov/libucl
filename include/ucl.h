@@ -154,7 +154,8 @@ typedef enum ucl_parser_flags {
 	UCL_PARSER_NO_TIME = (1 << 2), /**< Do not parse time and treat time values as strings */
 	UCL_PARSER_NO_IMPLICIT_ARRAYS = (1 << 3), /** Create explicit arrays instead of implicit ones */
 	UCL_PARSER_SAVE_COMMENTS = (1 << 4), /** Save comments in the parser context */
-	UCL_PARSER_DISABLE_MACRO = (1 << 5) /** Treat macros as comments */
+	UCL_PARSER_DISABLE_MACRO = (1 << 5), /** Treat macros as comments */
+	UCL_PARSER_NO_FILEVARS = (1 << 6) /** Do not set file vars */
 } ucl_parser_flags_t;
 
 /**
@@ -832,11 +833,11 @@ UCL_EXTERN ucl_object_iter_t ucl_object_iterate_reset (ucl_object_iter_t it,
  * Get the next object from the `obj`. This fucntion iterates over arrays, objects
  * and implicit arrays
  * @param iter safe iterator
+ * @param expand_values expand explicit arrays and objects
  * @return the next object in sequence
  */
 UCL_EXTERN const ucl_object_t* ucl_object_iterate_safe (ucl_object_iter_t iter,
 		bool expand_values);
-
 /**
  * Iteration type enumerator
  */
@@ -1036,6 +1037,7 @@ UCL_EXTERN bool ucl_parser_add_string_priority (struct ucl_parser *parser,
  * Load and add data from a file
  * @param parser parser structure
  * @param filename the name of file
+ * @param err if *err is NULL it is set to parser error
  * @return true if chunk has been added and false in case of error
  */
 UCL_EXTERN bool ucl_parser_add_file (struct ucl_parser *parser,
@@ -1045,6 +1047,7 @@ UCL_EXTERN bool ucl_parser_add_file (struct ucl_parser *parser,
  * Load and add data from a file
  * @param parser parser structure
  * @param filename the name of file
+ * @param err if *err is NULL it is set to parser error
  * @param priority the desired priority of a chunk (only 4 least significant bits
  * are considered for this parameter)
  * @return true if chunk has been added and false in case of error
