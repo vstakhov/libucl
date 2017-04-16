@@ -2985,10 +2985,18 @@ ucl_object_t *
 ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
 {
 
-	if (head == NULL) {
+	if (head == NULL && elt == NULL) {
+		return NULL;
+	}
+	else if (head == NULL) {
 		elt->next = NULL;
 		elt->prev = elt;
 		head = elt;
+	}
+	else if (elt == NULL) {
+		head->next = NULL;
+		head->prev = head;
+		return head;
 	}
 	else {
 		elt->prev = head->prev;
