@@ -20,7 +20,7 @@ LN ?= ln
 else
 LN ?= rem ln
 endif
-LD_SHARED_FLAGS ?= -Wl,-soname,$(SONAME) -shared -lm
+LD_SHARED_FLAGS ?= -Wl,-soname,$(SONAME) -shared -lm -lregex
 LD_UCL_FLAGS ?= -L$(OBJDIR) -Wl,-rpath,$(OBJDIR) -lucl
 LD_ADD ?= -lrt
 COPT_FLAGS ?= -O2
