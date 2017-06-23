@@ -2229,7 +2229,7 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 				while ((cur = ucl_object_iterate (elt, &it, true)) != NULL) {
 					tmp = ucl_object_ref (cur);
 					ucl_object_insert_key_common (found, tmp, cur->key,
-							cur->keylen, copy_key, false, false);
+							cur->keylen, copy_key, true, false);
 				}
 				ucl_object_unref (elt);
 			}
@@ -2326,29 +2326,97 @@ ucl_object_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 	ucl_object_t *cur = NULL, *cp = NULL, *found = NULL;
 	ucl_object_iter_t iter = NULL;
 
-	if (top == NULL || top->type != UCL_OBJECT || elt == NULL || elt->type != UCL_OBJECT) {
+	if (top == NULL || elt == NULL) {
 		return false;
 	}
 
-	/* Mix two hashes */
-	while ((cur = (ucl_object_t*)ucl_hash_iterate (elt->value.ov, &iter))) {
-		if (copy) {
-			cp = ucl_object_copy (cur);
+	if (top->type == UCL_ARRAY) {
+		if (elt->type == UCL_ARRAY) {
+			/* Merge two arrays */
+			return ucl_array_merge (top, elt, copy);
 		}
 		else {
-			cp = ucl_object_ref (cur);
+			if (copy) {
+				ucl_array_append (top, ucl_object_copy (elt));
+
+				return true;
+			}
+			else {
+				ucl_array_append (top, ucl_object_ref (elt));
+
+				return true;
+			}
 		}
-		found = __DECONST(ucl_object_t *, ucl_hash_search (top->value.ov, cp->key, cp->keylen));
-		if (found == NULL) {
-			/* The key does not exist */
-			top->value.ov = ucl_hash_insert_object (top->value.ov, cp, false);
-			top->len ++;
+	}
+	else if (top->type == UCL_OBJECT) {
+		if (elt->type == UCL_OBJECT) {
+			/* Mix two hashes */
+			while ((cur = (ucl_object_t *) ucl_hash_iterate (elt->value.ov,
+					&iter))) {
+
+				if (copy) {
+					cp = ucl_object_copy (cur);
+				} else {
+					cp = ucl_object_ref (cur);
+				}
+
+				found = __DECONST(ucl_object_t *,
+						ucl_hash_search (top->value.ov, cp->key, cp->keylen));
+
+				if (found == NULL) {
+					/* The key does not exist */
+					top->value.ov = ucl_hash_insert_object (top->value.ov, cp,
+							false);
+					top->len++;
+				}
+				else {
+					/* The key already exists, merge it recursively */
+					if (found->type == UCL_OBJECT || found->type == UCL_ARRAY) {
+						if (!ucl_object_merge (found, cp, copy)) {
+							return false;
+						}
+					}
+					else {
+						ucl_hash_replace (top->value.ov, found, cp);
+						ucl_object_unref (found);
+					}
+				}
+			}
 		}
 		else {
-			/* The key already exists, replace it */
-			ucl_hash_replace (top->value.ov, found, cp);
-			ucl_object_unref (found);
+			if (copy) {
+				cp = ucl_object_copy (elt);
+			}
+			else {
+				cp = ucl_object_ref (elt);
+			}
+
+			found = __DECONST(ucl_object_t *,
+					ucl_hash_search (top->value.ov, cp->key, cp->keylen));
+
+			if (found == NULL) {
+				/* The key does not exist */
+				top->value.ov = ucl_hash_insert_object (top->value.ov, cp,
+						false);
+				top->len++;
+			}
+			else {
+				/* The key already exists, merge it recursively */
+				if (found->type == UCL_OBJECT || found->type == UCL_ARRAY) {
+					if (!ucl_object_merge (found, cp, copy)) {
+						return false;
+					}
+				}
+				else {
+					ucl_hash_replace (top->value.ov, found, cp);
+					ucl_object_unref (found);
+				}
+			}
 		}
+	}
+	else {
+		/* Cannot merge trivial objects */
+		return false;
 	}
 
 	return true;
@@ -2468,9 +2536,17 @@ ucl_object_iterate (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expan
 	return NULL;
 }
 
+enum ucl_safe_iter_flags {
+	UCL_ITERATE_FLAG_UNDEFINED = 0,
+	UCL_ITERATE_FLAG_INSIDE_ARRAY,
+	UCL_ITERATE_FLAG_INSIDE_OBJECT,
+	UCL_ITERATE_FLAG_IMPLICIT,
+};
+
 const char safe_iter_magic[4] = {'u', 'i', 't', 'e'};
 struct ucl_object_safe_iter {
 	char magic[4]; /* safety check */
+	uint32_t flags;
 	const ucl_object_t *impl_it; /* implicit object iteration */
 	ucl_object_iter_t expl_it; /* explicit iteration */
 };
@@ -2489,6 +2565,7 @@ ucl_object_iterate_new (const ucl_object_t *obj)
 	it = UCL_ALLOC (sizeof (*it));
 	if (it != NULL) {
 		memcpy (it->magic, safe_iter_magic, sizeof (it->magic));
+		it->flags = UCL_ITERATE_FLAG_UNDEFINED;
 		it->expl_it = NULL;
 		it->impl_it = obj;
 	}
@@ -2505,11 +2582,14 @@ ucl_object_iterate_reset (ucl_object_iter_t it, const ucl_object_t *obj)
 	UCL_SAFE_ITER_CHECK (rit);
 
 	if (rit->expl_it != NULL) {
-		UCL_FREE (sizeof (*rit->expl_it), rit->expl_it);
+		if (rit->flags == UCL_ITERATE_FLAG_INSIDE_OBJECT) {
+			UCL_FREE (sizeof (*rit->expl_it), rit->expl_it);
+		}
 	}
 
 	rit->impl_it = obj;
 	rit->expl_it = NULL;
+	rit->flags = UCL_ITERATE_FLAG_UNDEFINED;
 
 	return it;
 }
@@ -2533,7 +2613,20 @@ ucl_object_iterate_full (ucl_object_iter_t it, enum ucl_iterate_type type)
 		return NULL;
 	}
 
-	if (rit->impl_it->type == UCL_OBJECT || rit->impl_it->type == UCL_ARRAY) {
+	if (rit->impl_it->type == UCL_OBJECT) {
+		rit->flags = UCL_ITERATE_FLAG_INSIDE_OBJECT;
+		ret = ucl_object_iterate (rit->impl_it, &rit->expl_it, true);
+
+		if (ret == NULL && (type & UCL_ITERATE_IMPLICIT)) {
+			/* Need to switch to another implicit object in chain */
+			rit->impl_it = rit->impl_it->next;
+			rit->expl_it = NULL;
+
+			return ucl_object_iterate_safe (it, type);
+		}
+	}
+	else if (rit->impl_it->type == UCL_ARRAY) {
+		rit->flags = UCL_ITERATE_FLAG_INSIDE_ARRAY;
 		ret = ucl_object_iterate (rit->impl_it, &rit->expl_it, true);
 
 		if (ret == NULL && (type & UCL_ITERATE_IMPLICIT)) {
@@ -2546,6 +2639,7 @@ ucl_object_iterate_full (ucl_object_iter_t it, enum ucl_iterate_type type)
 	}
 	else {
 		/* Just iterate over the implicit array */
+		rit->flags = UCL_ITERATE_FLAG_IMPLICIT;
 		ret = rit->impl_it;
 		rit->impl_it = rit->impl_it->next;
 
@@ -2568,7 +2662,9 @@ ucl_object_iterate_free (ucl_object_iter_t it)
 	UCL_SAFE_ITER_CHECK (rit);
 
 	if (rit->expl_it != NULL) {
-		UCL_FREE (sizeof (*rit->expl_it), rit->expl_it);
+		if (rit->flags == UCL_ITERATE_FLAG_INSIDE_OBJECT) {
+			UCL_FREE (sizeof (*rit->expl_it), rit->expl_it);
+		}
 	}
 
 	UCL_FREE (sizeof (*rit), it);

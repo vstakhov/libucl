@@ -342,7 +342,6 @@ ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t rema
 		/* Call generic handler */
 		if (parser->var_handler (ptr, remain, &dst, &dstlen, &need_free,
 				parser->var_data)) {
-			*out_len += dstlen;
 			*found = true;
 			if (need_free) {
 				free (dst);
@@ -459,18 +458,11 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 	}
 	if (!found) {
 		if (strict && parser->var_handler != NULL) {
-			size_t var_len = 0;
-			while (var_len < remain && p[var_len] != '}')
-				var_len ++;
-
-			if (parser->var_handler (p, var_len, &dst, &dstlen, &need_free,
+			if (parser->var_handler (ptr, remain, &dst, &dstlen, &need_free,
 							parser->var_data)) {
 				memcpy (d, dst, dstlen);
-				ret += var_len;
-				d += dstlen;
-				if (need_free) {
-					free (dst);
-				}
+				ret += dstlen;
+				d += remain;
 				found = true;
 			}
 		}

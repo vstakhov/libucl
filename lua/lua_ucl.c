@@ -73,8 +73,8 @@ func = "huh";
 
 static int ucl_object_lua_push_array (lua_State *L, const ucl_object_t *obj);
 static int ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj, bool allow_array);
-static ucl_object_t* ucl_object_lua_fromtable (lua_State *L, int idx);
-static ucl_object_t* ucl_object_lua_fromelt (lua_State *L, int idx);
+static ucl_object_t* ucl_object_lua_fromtable (lua_State *L, int idx, ucl_string_flags_t flags);
+static ucl_object_t* ucl_object_lua_fromelt (lua_State *L, int idx, ucl_string_flags_t flags);
 
 static void *ucl_null;
 
@@ -289,7 +289,7 @@ ucl_object_push_lua (lua_State *L, const ucl_object_t *obj, bool allow_array)
  * @param idx
  */
 static ucl_object_t *
-ucl_object_lua_fromtable (lua_State *L, int idx)
+ucl_object_lua_fromtable (lua_State *L, int idx, ucl_string_flags_t flags)
 {
 	ucl_object_t *obj, *top = NULL;
 	size_t keylen;
@@ -335,7 +335,7 @@ ucl_object_lua_fromtable (lua_State *L, int idx)
 		for (i = 1; i <= max; i ++) {
 			lua_pushinteger (L, i);
 			lua_gettable (L, idx);
-			obj = ucl_object_lua_fromelt (L, lua_gettop (L));
+			obj = ucl_object_lua_fromelt (L, lua_gettop (L), flags);
 			if (obj != NULL) {
 				ucl_array_append (top, obj);
 			}
@@ -348,7 +348,7 @@ ucl_object_lua_fromtable (lua_State *L, int idx)
 		while (lua_next (L, idx) != 0) {
 			/* copy key to avoid modifications */
 			k = lua_tolstring (L, -2, &keylen);
-			obj = ucl_object_lua_fromelt (L, lua_gettop (L));
+			obj = ucl_object_lua_fromelt (L, lua_gettop (L), flags);
 
 			if (obj != NULL) {
 				ucl_object_insert_key (top, obj, k, keylen, true);
@@ -367,18 +367,27 @@ ucl_object_lua_fromtable (lua_State *L, int idx)
  * @param idx
  */
 static ucl_object_t *
-ucl_object_lua_fromelt (lua_State *L, int idx)
+ucl_object_lua_fromelt (lua_State *L, int idx, ucl_string_flags_t flags)
 {
 	int type;
 	double num;
 	ucl_object_t *obj = NULL;
 	struct ucl_lua_funcdata *fd;
+	const char *str;
+	size_t sz;
 
 	type = lua_type (L, idx);
 
 	switch (type) {
 	case LUA_TSTRING:
-		obj = ucl_object_fromstring_common (lua_tostring (L, idx), 0, 0);
+		str = lua_tolstring (L, idx, &sz);
+
+		if (str) {
+			obj = ucl_object_fromstring_common (str, sz, flags);
+		}
+		else {
+			obj = ucl_object_typed_new (UCL_NULL);
+		}
 		break;
 	case LUA_TNUMBER:
 		num = lua_tonumber (L, idx);
@@ -406,13 +415,13 @@ ucl_object_lua_fromelt (lua_State *L, int idx)
 				lua_insert (L, 1); /* func, gen, obj */
 				lua_insert (L, 2); /* func, obj, gen */
 				lua_call(L, 2, 1);
-				obj = ucl_object_lua_fromelt (L, 1);
+				obj = ucl_object_lua_fromelt (L, 1, flags);
 			}
 			lua_pop (L, 2);
 		}
 		else {
 			if (type == LUA_TTABLE) {
-				obj = ucl_object_lua_fromtable (L, idx);
+				obj = ucl_object_lua_fromtable (L, idx, flags);
 			}
 			else if (type == LUA_TFUNCTION) {
 				fd = malloc (sizeof (*fd));
@@ -451,10 +460,38 @@ ucl_object_lua_import (lua_State *L, int idx)
 	t = lua_type (L, idx);
 	switch (t) {
 	case LUA_TTABLE:
-		obj = ucl_object_lua_fromtable (L, idx);
+		obj = ucl_object_lua_fromtable (L, idx, 0);
 		break;
 	default:
-		obj = ucl_object_lua_fromelt (L, idx);
+		obj = ucl_object_lua_fromelt (L, idx, 0);
+		break;
+	}
+
+	return obj;
+}
+
+/**
+ * @function ucl_object_lua_import_escape(L, idx)
+ * Extracts ucl object from lua variable at `idx` position escaping JSON strings
+ * @see ucl_object_push_lua for conversion definitions
+ * @param {lua_state} L lua state machine pointer
+ * @param {int} idx index where the source variable is placed
+ * @return {ucl_object_t} new ucl object extracted from lua variable. Reference count of this object is 1,
+ * this object thus needs to be unref'ed after usage.
+ */
+ucl_object_t *
+ucl_object_lua_import_escape (lua_State *L, int idx)
+{
+	ucl_object_t *obj;
+	int t;
+
+	t = lua_type (L, idx);
+	switch (t) {
+	case LUA_TTABLE:
+		obj = ucl_object_lua_fromtable (L, idx, UCL_STRING_ESCAPE);
+		break;
+	default:
+		obj = ucl_object_lua_fromelt (L, idx, UCL_STRING_ESCAPE);
 		break;
 	}
 
@@ -584,6 +621,76 @@ lua_ucl_parser_parse_file (lua_State *L)
 	else {
 		lua_pushboolean (L, false);
 		lua_pushstring (L, "invalid arguments");
+	}
+
+	return ret;
+}
+
+/***
+ * @method parser:register_variable(name, value)
+ * Register parser variable
+ * @param {string} name name of variable
+ * @param {string} value value of variable
+ * @return {bool} success
+@example
+local parser = ucl.parser()
+local res = parser:register_variable('CONFDIR', '/etc/foo')
+ */
+static int
+lua_ucl_parser_register_variable (lua_State *L)
+{
+	struct ucl_parser *parser;
+	const char *name, *value;
+	int ret = 2;
+
+	parser = lua_ucl_parser_get (L, 1);
+	name = luaL_checkstring (L, 2);
+	value = luaL_checkstring (L, 3);
+
+	if (parser != NULL && name != NULL && value != NULL) {
+		ucl_parser_register_variable (parser, name, value);
+		lua_pushboolean (L, true);
+		ret = 1;
+	}
+	else {
+		return luaL_error (L, "invalid arguments");
+	}
+
+	return ret;
+}
+
+/***
+ * @method parser:register_variables(vars)
+ * Register parser variables
+ * @param {table} vars names/values of variables
+ * @return {bool} success
+@example
+local parser = ucl.parser()
+local res = parser:register_variables({CONFDIR = '/etc/foo', VARDIR = '/var'})
+ */
+static int
+lua_ucl_parser_register_variables (lua_State *L)
+{
+	struct ucl_parser *parser;
+	const char *name, *value;
+	int ret = 2;
+
+	parser = lua_ucl_parser_get (L, 1);
+
+	if (parser != NULL && lua_type (L, 2) == LUA_TTABLE) {
+		for (lua_pushnil (L); lua_next (L, 2); lua_pop (L, 1)) {
+			lua_pushvalue (L, -2);
+			name = luaL_checkstring (L, -1);
+			value = luaL_checkstring (L, -2);
+			ucl_parser_register_variable (parser, name, value);
+			lua_pop (L, 1);
+		}
+
+		lua_pushboolean (L, true);
+		ret = 1;
+	}
+	else {
+		return luaL_error (L, "invalid arguments");
 	}
 
 	return ret;
@@ -976,6 +1083,12 @@ lua_ucl_parser_mt (lua_State *L)
 
 	lua_pushcfunction (L, lua_ucl_parser_parse_string);
 	lua_setfield (L, -2, "parse_string");
+
+	lua_pushcfunction (L, lua_ucl_parser_register_variable);
+	lua_setfield (L, -2, "register_variable");
+
+	lua_pushcfunction (L, lua_ucl_parser_register_variables);
+	lua_setfield (L, -2, "register_variables");
 
 	lua_pushcfunction (L, lua_ucl_parser_get_object);
 	lua_setfield (L, -2, "get_object");
