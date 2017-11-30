@@ -349,7 +349,7 @@ This object should be released by caller.
 Libucl provides the functions similar to inverse conversion functions called with the specific C type:
 - `ucl_object_fromint` - converts `int64_t` to UCL object
 - `ucl_object_fromdouble` - converts `double` to UCL object
-- `ucl_object_fromboolean` - converts `bool` to UCL object
+- `ucl_object_frombool` - converts `bool` to UCL object
 - `ucl_object_fromstring` - converts `const char *` to UCL object (this string should be NULL terminated)
 - `ucl_object_fromlstring` - converts `const char *` and `size_t` len to UCL object (string does not need to be NULL terminated)
 
