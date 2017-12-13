@@ -106,7 +106,7 @@ main (int argc, char **argv)
 	cur = ucl_object_fromstring ("Ебв"); /* UTF8 */
 	ucl_array_prepend (ar1, cur);
 /*
- * This is ususally broken or fragile as utf collate is far from perfect
+ * This is usually broken or fragile as utf collate is far from perfect
 	cur = ucl_object_fromstring ("ёбв");
 	ucl_array_prepend (ar1, cur);
 	cur = ucl_object_fromstring ("Ёбв"); // hello to @bapt
