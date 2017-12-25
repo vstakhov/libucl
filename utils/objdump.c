@@ -146,14 +146,14 @@ main(int argc, char **argv)
 	ucl_parser_add_chunk (parser, inbuf, r);
 	fclose (in);
 	if (ucl_parser_get_error(parser)) {
-		printf ("Error occured: %s\n", ucl_parser_get_error(parser));
+		printf ("Error occurred: %s\n", ucl_parser_get_error(parser));
 		ret = 1;
 		goto end;
 	}
 
 	obj = ucl_parser_get_object (parser);
 	if (ucl_parser_get_error (parser)) {
-		printf ("Error occured: %s\n", ucl_parser_get_error(parser));
+		printf ("Error occurred: %s\n", ucl_parser_get_error(parser));
 		ret = 1;
 		goto end;
 	}

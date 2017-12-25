@@ -268,8 +268,8 @@ ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj,
  * - *scalar* values are directly presented by lua objects
  * - *userdata* values are converted to lua function objects using `LUA_REGISTRYINDEX`,
  * this can be used to pass functions from lua to c and vice-versa
- * - *arrays* are converted to lua tables with numeric indicies suitable for `ipairs` iterations
- * - *objects* are converted to lua tables with string indicies
+ * - *arrays* are converted to lua tables with numeric indices suitable for `ipairs` iterations
+ * - *objects* are converted to lua tables with string indices
  * @param {lua_State} L lua state pointer
  * @param {ucl_object_t} obj object to push
  * @param {bool} allow_array expand implicit arrays (should be true for all but partial arrays)
@@ -304,7 +304,7 @@ ucl_object_lua_fromtable (lua_State *L, int idx, ucl_string_flags_t flags)
 	int max = INT_MIN;
 
 	if (idx < 0) {
-		/* For negative indicies we want to invert them */
+		/* For negative indices we want to invert them */
 		idx = lua_gettop (L) + idx + 1;
 	}
 

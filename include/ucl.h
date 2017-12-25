@@ -108,13 +108,13 @@ typedef enum ucl_error {
 	UCL_EMACRO, /**< Error processing a macro */
 	UCL_EINTERNAL, /**< Internal unclassified error */
 	UCL_ESSL, /**< SSL error */
-	UCL_EMERGE /**< A merge error occured */
+	UCL_EMERGE /**< A merge error occurred */
 } ucl_error_t;
 
 /**
  * #ucl_object_t may have one of specified types, some types are compatible with each other and some are not.
  * For example, you can always convert #UCL_TIME to #UCL_FLOAT. Also you can convert #UCL_FLOAT to #UCL_INTEGER
- * by loosing floating point. Every object may be converted to a string by #ucl_object_tostring_forced() function.
+ * by losing floating point. Every object may be converted to a string by #ucl_object_tostring_forced() function.
  *
  */
 typedef enum ucl_type {
@@ -830,7 +830,7 @@ UCL_EXTERN ucl_object_iter_t ucl_object_iterate_reset (ucl_object_iter_t it,
 		const ucl_object_t *obj);
 
 /**
- * Get the next object from the `obj`. This fucntion iterates over arrays, objects
+ * Get the next object from the `obj`. This function iterates over arrays, objects
  * and implicit arrays
  * @param iter safe iterator
  * @param expand_values expand explicit arrays and objects
@@ -848,7 +848,7 @@ enum ucl_iterate_type {
 };
 
 /**
- * Get the next object from the `obj`. This fucntion iterates over arrays, objects
+ * Get the next object from the `obj`. This function iterates over arrays, objects
  * and implicit arrays if needed
  * @param iter safe iterator
  * @param
@@ -1185,7 +1185,7 @@ UCL_EXTERN const ucl_object_t * ucl_comments_find (const ucl_object_t *comments,
  * Move comment from `from` object to `to` object
  * @param comments comments object
  * @param what source object
- * @param whith destination object
+ * @param with destination object
  * @return `true` if `from` has comment and it has been moved to `to`
  */
 UCL_EXTERN bool ucl_comments_move (ucl_object_t *comments,
@@ -1420,7 +1420,7 @@ enum ucl_schema_error_code {
 struct ucl_schema_error {
 	enum ucl_schema_error_code code;	/**< error code */
 	char msg[128];						/**< error message */
-	const ucl_object_t *obj;			/**< object where error occured */
+	const ucl_object_t *obj;			/**< object where error occurred */
 };
 
 /**
@@ -1428,7 +1428,7 @@ struct ucl_schema_error {
  * @param schema schema object
  * @param obj object to validate
  * @param err error pointer, if this parameter is not NULL and error has been
- * occured, then `err` is filled with the exact error definition.
+ * occurred, then `err` is filled with the exact error definition.
  * @return true if `obj` is valid using `schema`
  */
 UCL_EXTERN bool ucl_object_validate (const ucl_object_t *schema,
@@ -1440,7 +1440,7 @@ UCL_EXTERN bool ucl_object_validate (const ucl_object_t *schema,
  * @param obj object to validate
  * @param root root schema object
  * @param err error pointer, if this parameter is not NULL and error has been
- * occured, then `err` is filled with the exact error definition.
+ * occurred, then `err` is filled with the exact error definition.
  * @return true if `obj` is valid using `schema`
  */
 UCL_EXTERN bool ucl_object_validate_root (const ucl_object_t *schema,
@@ -1456,7 +1456,7 @@ UCL_EXTERN bool ucl_object_validate_root (const ucl_object_t *schema,
  * @param root root schema object
  * @param ext_refs external references (might be modified during validation)
  * @param err error pointer, if this parameter is not NULL and error has been
- * occured, then `err` is filled with the exact error definition.
+ * occurred, then `err` is filled with the exact error definition.
  * @return true if `obj` is valid using `schema`
  */
 UCL_EXTERN bool ucl_object_validate_root_ext (const ucl_object_t *schema,
