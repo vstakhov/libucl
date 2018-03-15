@@ -534,6 +534,13 @@ UCL_EXTERN ucl_object_t* ucl_array_pop_last (ucl_object_t *top);
 UCL_EXTERN ucl_object_t* ucl_array_pop_first (ucl_object_t *top);
 
 /**
+ * Return size of the array `top`
+ * @param top object to get size from (must be of type UCL_ARRAY)
+ * @return size of the array
+ */
+UCL_EXTERN unsigned int ucl_array_size (const ucl_object_t *top);
+
+/**
  * Return object identified by index of the array `top`
  * @param top object to get a key from (must be of type UCL_ARRAY)
  * @param index array index to return
