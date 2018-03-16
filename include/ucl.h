@@ -921,6 +921,14 @@ UCL_EXTERN struct ucl_parser* ucl_parser_new (int flags);
 UCL_EXTERN bool ucl_parser_set_default_priority (struct ucl_parser *parser,
 		unsigned prio);
 /**
+ * Gets the default priority for the parser applied to chunks that do not
+ * specify priority explicitly
+ * @param parser parser object
+ * @return true default priority (0 .. 16), -1 for failure
+ */
+UCL_EXTERN int ucl_parser_get_default_priority (struct ucl_parser *parser);
+
+/**
  * Register new handler for a macro
  * @param parser parser object
  * @param macro macro name (without leading dot)
@@ -995,6 +1003,16 @@ UCL_EXTERN bool ucl_parser_add_chunk (struct ucl_parser *parser,
  */
 UCL_EXTERN bool ucl_parser_add_chunk_priority (struct ucl_parser *parser,
 		const unsigned char *data, size_t len, unsigned priority);
+
+/**
+ * Insert new chunk to a parser (must have previously processed data with an existing top object)
+ * @param parser parser structure
+ * @param data the pointer to the beginning of a chunk
+ * @param len the length of a chunk
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_insert_chunk (struct ucl_parser *parser,
+		const unsigned char *data, size_t len);
 
 /**
  * Full version of ucl_add_chunk with priority and duplicate strategy
@@ -1123,6 +1141,29 @@ UCL_EXTERN bool ucl_set_include_path (struct ucl_parser *parser,
  * @return top parser object or NULL
  */
 UCL_EXTERN ucl_object_t* ucl_parser_get_object (struct ucl_parser *parser);
+
+/**
+ * Get the current stack object as stack accessor function for use in macro
+ * functions (refcount is increased)
+ * @param parser parser object
+ * @param depth depth of stack to retrieve (top is 0)
+ * @return current stack object or NULL
+ */
+UCL_EXTERN ucl_object_t* ucl_parser_get_current_stack_object (struct ucl_parser *parser, unsigned int depth);
+
+/**
+ * Peek at the character at the current chunk position
+ * @param parser parser structure
+ * @return current chunk position character
+ */
+UCL_EXTERN unsigned char ucl_parser_chunk_peek (struct ucl_parser *parser);
+
+/**
+ * Skip the character at the current chunk position
+ * @param parser parser structure
+ * @return success boolean
+ */
+UCL_EXTERN bool ucl_parser_chunk_skip (struct ucl_parser *parser);
 
 /**
  * Get the error string if parsing has been failed
