@@ -133,16 +133,17 @@ static int ucl_munmap(void *map,size_t length)
 	return(0);
 }
 
-static char* ucl_realpath(const char *path, char *resolved_path) {
-    char *p;
-    char tmp[MAX_PATH + 1];
-    strncpy(tmp, path, sizeof(tmp)-1);
-    p = tmp;
-    while(*p) {
-        if (*p == '/') *p = '\\';
-        p++;
-    }
-    return _fullpath(resolved_path, tmp, MAX_PATH);
+static char* ucl_realpath(const char *path, char *resolved_path)
+{
+	char *p;
+	char tmp[MAX_PATH + 1];
+	strncpy(tmp, path, sizeof(tmp)-1);
+	p = tmp;
+	while(*p) {
+		if (*p == '/') *p = '\\';
+		p++;
+	}
+	return _fullpath(resolved_path, tmp, MAX_PATH);
 }
 #else
 #define ucl_mmap mmap

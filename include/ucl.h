@@ -926,7 +926,7 @@ struct ucl_parser;
 UCL_EXTERN struct ucl_parser* ucl_parser_new (int flags);
 
 /**
- * Sets the default priority for the parser applied to chunks that does not
+ * Sets the default priority for the parser applied to chunks that do not
  * specify priority explicitly
  * @param parser parser object
  * @param prio default priority (0 .. 16)
@@ -1051,7 +1051,7 @@ UCL_EXTERN bool ucl_parser_add_chunk_full (struct ucl_parser *parser,
  * @return true if string has been added and false in case of error
  */
 UCL_EXTERN bool ucl_parser_add_string (struct ucl_parser *parser,
-		const char *data,size_t len);
+		const char *data, size_t len);
 
 /**
  * Load ucl object from a string

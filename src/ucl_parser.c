@@ -44,16 +44,17 @@ struct ucl_parser_saved_state {
  * @param len
  * @return new position in chunk
  */
-#define ucl_chunk_skipc(chunk, p)    do{					\
-    if (*(p) == '\n') {										\
-        (chunk)->line ++;									\
-        (chunk)->column = 0;								\
-    }														\
-    else (chunk)->column ++;								\
-    (p++);													\
-    (chunk)->pos ++;										\
-    (chunk)->remain --;										\
-    } while (0)
+#define ucl_chunk_skipc(chunk, p)    \
+do {                                 \
+	if (*(p) == '\n') {          \
+		(chunk)->line ++;    \
+		(chunk)->column = 0; \
+	}                            \
+	else (chunk)->column ++;     \
+	(p++);                       \
+	(chunk)->pos ++;             \
+	(chunk)->remain --;          \
+} while (0)
 
 static inline void
 ucl_set_err (struct ucl_parser *parser, int code, const char *str, UT_string **err)

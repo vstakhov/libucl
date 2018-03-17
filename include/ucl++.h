@@ -107,7 +107,7 @@ private:
 	static bool ucl_variable_getter(const unsigned char *data, size_t len,
 			unsigned char ** /*replace*/, size_t * /*replace_len*/, bool *need_free, void* ud)
 	{
-        *need_free = false;
+		*need_free = false;
 
 		auto vars = reinterpret_cast<std::set<std::string> *>(ud);
 		if (vars && data && len != 0) {
@@ -124,17 +124,17 @@ private:
 		auto replacer = reinterpret_cast<variable_replacer *>(ud);
 		if (!replacer) {
 			return false;
-        }
+		}
 
 		std::string var_name (data, data + len);
 		if (!replacer->is_variable (var_name)) {
 			return false;
-        }
+		}
 
 		std::string var_value = replacer->replace (var_name);
 		if (var_value.empty ()) {
 			return false;
-        }
+ 		}
 
 		*replace = (unsigned char *)UCL_ALLOC (var_value.size ());
 		memcpy (*replace, var_value.data (), var_value.size ());
