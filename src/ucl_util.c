@@ -3059,6 +3059,22 @@ ucl_array_pop_first (ucl_object_t *top)
 	return ret;
 }
 
+unsigned int
+ucl_array_size (const ucl_object_t *top)
+{
+	if (top == NULL || top->type != UCL_ARRAY) {
+		return 0;
+	}
+
+	UCL_ARRAY_GET (vec, top);
+
+	if (vec != NULL) {
+		return kv_size(*vec);
+	}
+
+	return 0;
+}
+
 const ucl_object_t *
 ucl_array_find_index (const ucl_object_t *top, unsigned int index)
 {

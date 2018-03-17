@@ -391,6 +391,15 @@ public:
 		return default_val;
 	}
 
+	const size_t size () const
+	{
+		if (type () == UCL_ARRAY) {
+			return ucl_array_size (obj.get());
+		}
+
+		return 0;
+	}
+
 	const Ucl at (size_t i) const
 	{
 		if (type () == UCL_ARRAY) {
