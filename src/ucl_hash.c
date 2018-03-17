@@ -143,10 +143,10 @@ ucl_hash_caseless_func (const ucl_object_t *o)
 		u.c.c2 = lc_map[u.c.c2];
 		u.c.c3 = lc_map[u.c.c3];
 		u.c.c4 = lc_map[u.c.c4];
-		u.c.c1 = lc_map[u.c.c5];
-		u.c.c2 = lc_map[u.c.c6];
-		u.c.c3 = lc_map[u.c.c7];
-		u.c.c4 = lc_map[u.c.c8];
+		u.c.c5 = lc_map[u.c.c5];
+		u.c.c6 = lc_map[u.c.c6];
+		u.c.c7 = lc_map[u.c.c7];
+		u.c.c8 = lc_map[u.c.c8];
 		r = mum_hash_step (r, u.pp);
 	}
 
@@ -213,13 +213,12 @@ ucl_hash_caseless_equal (const ucl_object_t *k1, const ucl_object_t *k2)
 		}
 
 		while (leftover > 0) {
-			if (lc_map[(unsigned char)*s] != lc_map[(unsigned char)*d]) {
+			if (lc_map[(unsigned char)s[i]] != lc_map[(unsigned char)d[i]]) {
 				return 0;
 			}
 
 			leftover--;
-			s++;
-			d++;
+			i++;
 		}
 
 		return 1;
