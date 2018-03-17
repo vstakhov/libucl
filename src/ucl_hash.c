@@ -154,16 +154,22 @@ ucl_hash_caseless_func (const ucl_object_t *o)
 	switch (leftover) {
 	case 7:
 		u.c.c7 = lc_map[(unsigned char)s[i++]];
+		/* FALLTHRU */
 	case 6:
 		u.c.c6 = lc_map[(unsigned char)s[i++]];
+		/* FALLTHRU */
 	case 5:
 		u.c.c5 = lc_map[(unsigned char)s[i++]];
+		/* FALLTHRU */
 	case 4:
 		u.c.c4 = lc_map[(unsigned char)s[i++]];
+		/* FALLTHRU */
 	case 3:
 		u.c.c3 = lc_map[(unsigned char)s[i++]];
+		/* FALLTHRU */
 	case 2:
 		u.c.c2 = lc_map[(unsigned char)s[i++]];
+		/* FALLTHRU */
 	case 1:
 		u.c.c1 = lc_map[(unsigned char)s[i]];
 		r = mum_hash_step (r, u.pp);
@@ -177,7 +183,46 @@ static inline int
 ucl_hash_caseless_equal (const ucl_object_t *k1, const ucl_object_t *k2)
 {
 	if (k1->keylen == k2->keylen) {
-		return memcmp (k1->key, k2->key, k1->keylen) == 0;
+		unsigned fp, i;
+		const char *s = k1->key, *d = k2->key;
+		unsigned char c1, c2, c3, c4;
+		union {
+			unsigned char c[4];
+			uint32_t n;
+		} cmp1, cmp2;
+		size_t leftover = k1->keylen % 4;
+
+		fp = k1->keylen - leftover;
+
+		for (i = 0; i != fp; i += 4) {
+			c1 = s[i], c2 = s[i + 1], c3 = s[i + 2], c4 = s[i + 3];
+			cmp1.c[0] = lc_map[c1];
+			cmp1.c[1] = lc_map[c2];
+			cmp1.c[2] = lc_map[c3];
+			cmp1.c[3] = lc_map[c4];
+
+			c1 = d[i], c2 = d[i + 1], c3 = d[i + 2], c4 = d[i + 3];
+			cmp2.c[0] = lc_map[c1];
+			cmp2.c[1] = lc_map[c2];
+			cmp2.c[2] = lc_map[c3];
+			cmp2.c[3] = lc_map[c4];
+
+			if (cmp1.n != cmp2.n) {
+				return 0;
+			}
+		}
+
+		while (leftover > 0) {
+			if (lc_map[(unsigned char)*s] != lc_map[(unsigned char)*d]) {
+				return 0;
+			}
+
+			leftover--;
+			s++;
+			d++;
+		}
+
+		return 1;
 	}
 
 	return 0;
