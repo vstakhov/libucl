@@ -268,8 +268,8 @@ ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj,
  * - *scalar* values are directly presented by lua objects
  * - *userdata* values are converted to lua function objects using `LUA_REGISTRYINDEX`,
  * this can be used to pass functions from lua to c and vice-versa
- * - *arrays* are converted to lua tables with numeric indices suitable for `ipairs` iterations
- * - *objects* are converted to lua tables with string indices
+ * - *arrays* are converted to lua tables with numeric indicies suitable for `ipairs` iterations
+ * - *objects* are converted to lua tables with string indicies
  * @param {lua_State} L lua state pointer
  * @param {ucl_object_t} obj object to push
  * @param {bool} allow_array expand implicit arrays (should be true for all but partial arrays)
@@ -301,10 +301,10 @@ ucl_object_lua_fromtable (lua_State *L, int idx, ucl_string_flags_t flags)
 	size_t keylen;
 	const char *k;
 	bool is_array = true, is_implicit = false, found_mt = false;
-	int max = INT_MIN;
+	size_t max = 0, nelts = 0;
 
 	if (idx < 0) {
-		/* For negative indices we want to invert them */
+		/* For negative indicies we want to invert them */
 		idx = lua_gettop (L) + idx + 1;
 	}
 
@@ -320,10 +320,22 @@ ucl_object_lua_fromtable (lua_State *L, int idx, ucl_string_flags_t flags)
 			} else if (strcmp (classname, UCL_ARRAY_TYPE_META) == 0) {
 				is_array = true;
 				found_mt = true;
+#if LUA_VERSION_NUM >= 502
+				max = lua_rawlen (L, idx);
+#else
+				max = lua_objlen (L, idx);
+#endif
+				nelts = max;
 			} else if (strcmp (classname, UCL_IMPL_ARRAY_TYPE_META) == 0) {
 				is_array = true;
 				is_implicit = true;
 				found_mt = true;
+#if LUA_VERSION_NUM >= 502
+				max = lua_rawlen (L, idx);
+#else
+				max = lua_objlen (L, idx);
+#endif
+				nelts = max;
 			}
 		}
 
@@ -342,33 +354,24 @@ ucl_object_lua_fromtable (lua_State *L, int idx, ucl_string_flags_t flags)
 					}
 				} else {
 					/* Keys are not integer */
-					lua_pop (L, 2);
 					is_array = false;
-					break;
 				}
 			} else {
 				/* Keys are not numeric */
-				lua_pop (L, 2);
 				is_array = false;
-				break;
 			}
 			lua_pop (L, 1);
+			nelts ++;
 		}
-	}
-	else if (is_array) {
-#if LUA_VERSION_NUM >= 502
-		max = lua_rawlen (L, idx);
-#else
-		max = lua_objlen (L, idx);
-#endif
 	}
 
 	/* Table iterate */
 	if (is_array) {
-		int i;
+		unsigned int i;
 
 		if (!is_implicit) {
 			top = ucl_object_typed_new (UCL_ARRAY);
+			ucl_object_reserve (top, nelts);
 		}
 		else {
 			top = NULL;
@@ -394,15 +397,18 @@ ucl_object_lua_fromtable (lua_State *L, int idx, ucl_string_flags_t flags)
 	else {
 		lua_pushnil (L);
 		top = ucl_object_typed_new (UCL_OBJECT);
+		ucl_object_reserve (top, nelts);
+
 		while (lua_next (L, idx) != 0) {
 			/* copy key to avoid modifications */
-			k = lua_tolstring (L, -2, &keylen);
-			obj = ucl_object_lua_fromelt (L, lua_gettop (L), flags);
+			lua_pushvalue (L, -2);
+			k = lua_tolstring (L, -1, &keylen);
+			obj = ucl_object_lua_fromelt (L, lua_gettop (L) - 1, flags);
 
 			if (obj != NULL) {
 				ucl_object_insert_key (top, obj, k, keylen, true);
 			}
-			lua_pop (L, 1);
+			lua_pop (L, 2);
 		}
 	}
 
@@ -786,6 +792,52 @@ lua_ucl_parser_parse_string (lua_State *L)
 	return ret;
 }
 
+struct _rspamd_lua_text {
+	const char *start;
+	unsigned int len;
+	unsigned int flags;
+};
+
+/***
+ * @method parser:parse_text(input)
+ * Parse UCL object from file.
+ * @param {string} input string to parse
+ * @return {bool[, string]} if res is `true` then file has been parsed successfully, otherwise an error string is also returned
+ */
+static int
+lua_ucl_parser_parse_text (lua_State *L)
+{
+	struct ucl_parser *parser;
+	struct _rspamd_lua_text *t;
+	enum ucl_parse_type type = UCL_PARSE_UCL;
+	int ret = 2;
+
+	parser = lua_ucl_parser_get (L, 1);
+	t = luaL_checkudata (L, 2, "rspamd{text}");
+
+	if (lua_type (L, 3) == LUA_TSTRING) {
+		type = lua_ucl_str_to_parse_type (lua_tostring (L, 3));
+	}
+
+	if (parser != NULL && t != NULL) {
+		if (ucl_parser_add_chunk_full (parser, (const unsigned char *)t->start,
+				t->len, 0, UCL_DUPLICATE_APPEND, type)) {
+			lua_pushboolean (L, true);
+			ret = 1;
+		}
+		else {
+			lua_pushboolean (L, false);
+			lua_pushstring (L, ucl_parser_get_error (parser));
+		}
+	}
+	else {
+		lua_pushboolean (L, false);
+		lua_pushstring (L, "invalid arguments");
+	}
+
+	return ret;
+}
+
 /***
  * @method parser:get_object()
  * Get top object from parser and export it to lua representation.
@@ -1132,6 +1184,9 @@ lua_ucl_parser_mt (lua_State *L)
 
 	lua_pushcfunction (L, lua_ucl_parser_parse_string);
 	lua_setfield (L, -2, "parse_string");
+
+	lua_pushcfunction (L, lua_ucl_parser_parse_text);
+	lua_setfield (L, -2, "parse_text");
 
 	lua_pushcfunction (L, lua_ucl_parser_register_variable);
 	lua_setfield (L, -2, "register_variable");
