@@ -1,6 +1,6 @@
 # LIBUCL
 
-[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)
+[![CircleCI](https://circleci.com/gh/vstakhov/libucl.svg?style=svg)](https://circleci.com/gh/vstakhov/libucl)
 [![Coverity](https://scan.coverity.com/projects/4138/badge.svg)](https://scan.coverity.com/projects/4138)
 [![Coverage Status](https://coveralls.io/repos/github/vstakhov/libucl/badge.svg?branch=master)](https://coveralls.io/github/vstakhov/libucl?branch=master)
 
