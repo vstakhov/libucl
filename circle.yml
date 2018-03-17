@@ -1,0 +1,11 @@
+dependencies:
+  pre:
+    - sudo apt-get update -qq || true
+    - sudo apt-get install -qq autoconf libcurl4-openssl-dev automake libtool lcov
+    - gem install coveralls-lcov
+test:
+  override:
+    - ./autogen.sh && ./configure --enable-urls --enable-coverage && make && make check
+    - make clean clean-coverage coverage-lcov
+    - lcov --no-external -b ../libucl -d ../libucl -c --output-file coverage.info
+    - if [ ! -z $COVERALLS_REPO_TOKEN ]; then coveralls-lcov -t ${COVERALLS_REPO_TOKEN} coverage.info || true; fi
