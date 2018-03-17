@@ -1706,6 +1706,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 				}
 			}
 			/* Fallback to ordinary strings */
+			/* FALLTHRU */
 		default:
 parse_string:
 			if (obj == NULL) {
