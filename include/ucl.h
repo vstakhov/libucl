@@ -114,7 +114,7 @@ typedef enum ucl_error {
 /**
  * #ucl_object_t may have one of specified types, some types are compatible with each other and some are not.
  * For example, you can always convert #UCL_TIME to #UCL_FLOAT. Also you can convert #UCL_FLOAT to #UCL_INTEGER
- * by losing floating point. Every object may be converted to a string by #ucl_object_tostring_forced() function.
+ * by loosing floating point. Every object may be converted to a string by #ucl_object_tostring_forced() function.
  *
  */
 typedef enum ucl_type {
@@ -461,6 +461,13 @@ UCL_EXTERN ucl_object_t* ucl_object_pop_key (ucl_object_t *top, const char *key)
  */
 UCL_EXTERN bool ucl_object_insert_key_merged (ucl_object_t *top, ucl_object_t *elt,
 		const char *key, size_t keylen, bool copy_key);
+
+/**
+ * Reserve space in ucl array or object for `elt` elements
+ * @param obj object to reserve
+ * @param reserved size to reserve in an object
+ */
+UCL_EXTERN void ucl_object_reserve (ucl_object_t *obj, size_t reserved);
 
 /**
  * Append an element to the end of array object

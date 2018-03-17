@@ -752,11 +752,18 @@ ucl_fetch_file (const unsigned char *filename, unsigned char **buf, size_t *bufl
 	int fd;
 	struct stat st;
 
-	if (stat (filename, &st) == -1 || !S_ISREG (st.st_mode)) {
-		if (must_exist) {
+	if (stat (filename, &st) == -1) {
+		if (must_exist || errno == EPERM) {
 			ucl_create_err (err, "cannot stat file %s: %s",
 					filename, strerror (errno));
 		}
+		return false;
+	}
+	if (!S_ISREG (st.st_mode)) {
+		if (must_exist) {
+			ucl_create_err (err, "file %s is not a regular file", filename);
+		}
+
 		return false;
 	}
 	if (st.st_size == 0) {
@@ -952,9 +959,10 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 		if (params->soft_fail) {
 			return false;
 		}
-		if (!params->must_exist) {
+		if (!params->must_exist && errno != EPERM) {
 			return true;
 		}
+
 		ucl_create_err (&parser->err, "cannot open file %s: %s",
 									filebuf,
 									strerror (errno));
@@ -977,7 +985,12 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 			return false;
 		}
 
-		return (!params->must_exist || false);
+		if (params->must_exist || parser->err != NULL) {
+			/* The case of fatal errors */
+			return false;
+		}
+
+		return true;
 	}
 
 	if (params->check_signature) {
@@ -2774,6 +2787,21 @@ ucl_object_new_full (ucl_type_t type, unsigned priority)
 	}
 
 	return new;
+}
+
+void ucl_object_reserve (ucl_object_t *obj, size_t reserved)
+{
+	if (obj->type == UCL_ARRAY) {
+		UCL_ARRAY_GET (vec, obj);
+
+		if (vec->m < reserved) {
+			/* Preallocate some space for arrays */
+			kv_resize (ucl_object_t *, *vec, reserved);
+		}
+	}
+	else if (obj->type == UCL_OBJECT) {
+		ucl_hash_reserve (obj->value.ov, reserved);
+	}
 }
 
 ucl_object_t*
