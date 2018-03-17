@@ -1054,84 +1054,89 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 		old_obj = __DECONST (ucl_object_t *, ucl_hash_search (container,
 				params->prefix, strlen (params->prefix)));
 
-		if (strcasecmp (params->target, "array") == 0 && old_obj == NULL) {
-			/* Create an array with key: prefix */
-			old_obj = ucl_object_new_full (UCL_ARRAY, params->priority);
-			old_obj->key = params->prefix;
-			old_obj->keylen = strlen (params->prefix);
-			ucl_copy_key_trash(old_obj);
-			old_obj->prev = old_obj;
-			old_obj->next = NULL;
+		if (strcasecmp (params->target, "array") == 0) {
+			if (old_obj == NULL) {
+				/* Create an array with key: prefix */
+				old_obj = ucl_object_new_full (UCL_ARRAY, params->priority);
+				old_obj->key = params->prefix;
+				old_obj->keylen = strlen (params->prefix);
+				ucl_copy_key_trash (old_obj);
+				old_obj->prev = old_obj;
+				old_obj->next = NULL;
 
-			container = ucl_hash_insert_object (container, old_obj,
-					parser->flags & UCL_PARSER_KEY_LOWERCASE);
-			parser->stack->obj->len ++;
+				container = ucl_hash_insert_object (container, old_obj,
+						parser->flags & UCL_PARSER_KEY_LOWERCASE);
+				parser->stack->obj->len++;
 
-			nest_obj = ucl_object_new_full (UCL_OBJECT, params->priority);
-			nest_obj->prev = nest_obj;
-			nest_obj->next = NULL;
-
-			ucl_array_append (old_obj, nest_obj);
-		}
-		else if (old_obj == NULL) {
-			/* Create an object with key: prefix */
-			nest_obj = ucl_object_new_full (UCL_OBJECT, params->priority);
-
-			if (nest_obj == NULL) {
-				ucl_create_err (&parser->err, "cannot allocate memory for an object");
-				if (buf) {
-					ucl_munmap (buf, buflen);
-				}
-
-				return false;
-			}
-
-			nest_obj->key = params->prefix;
-			nest_obj->keylen = strlen (params->prefix);
-			ucl_copy_key_trash(nest_obj);
-			nest_obj->prev = nest_obj;
-			nest_obj->next = NULL;
-
-			container = ucl_hash_insert_object (container, nest_obj,
-					parser->flags & UCL_PARSER_KEY_LOWERCASE);
-			parser->stack->obj->len ++;
-		}
-		else if (strcasecmp (params->target, "array") == 0 ||
-				ucl_object_type(old_obj) == UCL_ARRAY) {
-			if (ucl_object_type(old_obj) == UCL_ARRAY) {
-				/* Append to the existing array */
 				nest_obj = ucl_object_new_full (UCL_OBJECT, params->priority);
-				if (nest_obj == NULL) {
-					ucl_create_err (&parser->err, "cannot allocate memory for an object");
-					if (buf) {
-						ucl_munmap (buf, buflen);
-					}
-
-					return false;
-				}
 				nest_obj->prev = nest_obj;
 				nest_obj->next = NULL;
 
 				ucl_array_append (old_obj, nest_obj);
 			}
 			else {
-				/* Convert the object to an array */
-				new_obj = ucl_object_typed_new (UCL_ARRAY);
-				if (new_obj == NULL) {
-					ucl_create_err (&parser->err, "cannot allocate memory for an object");
-					if (buf) {
-						ucl_munmap (buf, buflen);
+				if (ucl_object_type (old_obj) == UCL_ARRAY) {
+					/* Append to the existing array */
+					nest_obj = ucl_object_new_full (UCL_OBJECT,
+							params->priority);
+					if (nest_obj == NULL) {
+						ucl_create_err (&parser->err,
+								"cannot allocate memory for an object");
+						if (buf) {
+							ucl_munmap (buf, buflen);
+						}
+
+						return false;
 					}
+					nest_obj->prev = nest_obj;
+					nest_obj->next = NULL;
 
-					return false;
+					ucl_array_append (old_obj, nest_obj);
 				}
-				new_obj->key = old_obj->key;
-				new_obj->keylen = old_obj->keylen;
-				new_obj->flags |= UCL_OBJECT_MULTIVALUE;
-				new_obj->prev = new_obj;
-				new_obj->next = NULL;
+				else {
+					/* Convert the object to an array */
+					new_obj = ucl_object_typed_new (UCL_ARRAY);
+					if (new_obj == NULL) {
+						ucl_create_err (&parser->err,
+								"cannot allocate memory for an object");
+						if (buf) {
+							ucl_munmap (buf, buflen);
+						}
 
+						return false;
+					}
+					new_obj->key = old_obj->key;
+					new_obj->keylen = old_obj->keylen;
+					new_obj->flags |= UCL_OBJECT_MULTIVALUE;
+					new_obj->prev = new_obj;
+					new_obj->next = NULL;
+
+					nest_obj = ucl_object_new_full (UCL_OBJECT,
+							params->priority);
+					if (nest_obj == NULL) {
+						ucl_create_err (&parser->err,
+								"cannot allocate memory for an object");
+						if (buf) {
+							ucl_munmap (buf, buflen);
+						}
+
+						return false;
+					}
+					nest_obj->prev = nest_obj;
+					nest_obj->next = NULL;
+
+					ucl_array_append (new_obj, old_obj);
+					ucl_array_append (new_obj, nest_obj);
+					ucl_hash_replace (container, old_obj, new_obj);
+				}
+			}
+		}
+		else {
+			/* Case of object */
+			if (old_obj == NULL) {
+				/* Create an object with key: prefix */
 				nest_obj = ucl_object_new_full (UCL_OBJECT, params->priority);
+
 				if (nest_obj == NULL) {
 					ucl_create_err (&parser->err, "cannot allocate memory for an object");
 					if (buf) {
@@ -1140,33 +1145,39 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 
 					return false;
 				}
+
+				nest_obj->key = params->prefix;
+				nest_obj->keylen = strlen (params->prefix);
+				ucl_copy_key_trash(nest_obj);
 				nest_obj->prev = nest_obj;
 				nest_obj->next = NULL;
 
-				ucl_array_append (new_obj, old_obj);
-				ucl_array_append (new_obj, nest_obj);
-				ucl_hash_replace (container, old_obj, new_obj);
-			}
-		}
-		else {
-			if (ucl_object_type (old_obj) == UCL_OBJECT) {
-				/* Append to existing Object*/
-				nest_obj = old_obj;
+				container = ucl_hash_insert_object (container, nest_obj,
+						parser->flags & UCL_PARSER_KEY_LOWERCASE);
+				parser->stack->obj->len ++;
 			}
 			else {
-				/* The key is not an object */
-				ucl_create_err (&parser->err,
-						"Conflicting type for key: %s",
-						params->prefix);
-				if (buf) {
-					ucl_munmap (buf, buflen);
+				if (ucl_object_type (old_obj) == UCL_OBJECT) {
+					/* Append to existing Object*/
+					nest_obj = old_obj;
 				}
+				else {
+					/* The key is not an object */
+					ucl_create_err (&parser->err,
+							"Conflicting type for key: %s, asked %s, has %s",
+							params->prefix, params->target,
+							ucl_object_type_to_string (ucl_object_type (old_obj)));
+					if (buf) {
+						ucl_munmap (buf, buflen);
+					}
 
-				return false;
+					return false;
+				}
 			}
 		}
 
-		 /* Put all of the content of the include inside that object */
+
+		/* Put all of the content of the include inside that object */
 		parser->stack->obj->value.ov = container;
 
 		st = UCL_ALLOC (sizeof (struct ucl_stack));
