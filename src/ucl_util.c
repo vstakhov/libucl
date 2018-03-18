@@ -40,8 +40,55 @@
 #endif
 
 #ifdef HAVE_LIBGEN_H
+#ifndef _MSC_VER
 #include <libgen.h> /* For dirname */
+#else
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+char *dirname(char *path)
+{
+    char drive[3];
+    char dir[512]; // TODO : use appropriate constants macro
+    char val[512]; // TODO : use appropriate constants macro
+    _splitpath(
+        path,
+        drive, // drive
+        dir,   // dirname
+        NULL, // doesn't use filename
+        NULL  // doesn't use ext
+    );
+    sprintf(val, "%s%s", drive, dir);
+    return strdup (val);
+}
 #endif
+#endif
+
+#ifdef _MSC_VER
+#include <stdint.h>
+char *basename(char *path) {
+  char *res;
+
+  // Skip drive letter
+  if (path[0] != '\0' && path[1] == ':') {
+     path += 2;
+  }
+
+  // Return pointer to the char after the last directory separator
+  res = path;
+  while (1) {
+     char c = *path++;
+     switch (c) {
+     case '\0':
+        return res;
+     case '\\':
+     case '/':
+        res = ++path;
+        break;
+     }
+  }
+}
+#endif /* _MSC_VER */
 
 typedef kvec_t(ucl_object_t *) ucl_array_t;
 
@@ -1807,8 +1854,12 @@ ucl_parser_set_filevars (struct ucl_parser *parser, const char *filename, bool n
 
 		/* Define variables */
 		ucl_parser_register_variable (parser, "FILENAME", realbuf);
+#ifdef _MSC_VER
+		ucl_parser_register_variable (parser, "CURDIR", "CURRENTLY_NOT_IMPLEMENTED");
+#else
 		curdir = dirname (realbuf);
 		ucl_parser_register_variable (parser, "CURDIR", curdir);
+#endif
 	}
 	else {
 		/* Set everything from the current dir */

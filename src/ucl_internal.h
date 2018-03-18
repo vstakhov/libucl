@@ -62,8 +62,10 @@
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
+#ifndef _MSC_VER
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#endif
 #endif
 
 #ifdef HAVE_LIMITS_H
@@ -75,8 +77,12 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef _MSC_VER
+#include <io.h>
+#else
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #endif
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
@@ -99,6 +105,10 @@
 
 #ifdef HAVE_OPENSSL
 #include <openssl/evp.h>
+#endif
+
+#ifdef _MSC_VER
+#define PATH_MAX _MAX_PATH
 #endif
 
 #ifndef __DECONST
