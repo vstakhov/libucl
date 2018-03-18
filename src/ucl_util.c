@@ -40,7 +40,9 @@
 #endif
 
 #ifdef HAVE_LIBGEN_H
-#include <libgen.h> /* For dirname */
+#ifndef _WIN32
+#  include <libgen.h> /* For dirname */
+#endif
 #endif
 
 typedef kvec_t(ucl_object_t *) ucl_array_t;
@@ -65,8 +67,10 @@ typedef kvec_t(ucl_object_t *) ucl_array_t;
 #include <fetch.h>
 #endif
 
-#ifdef _WIN32
+#if defined(_MSC_VER)
 #include <windows.h>
+#include <io.h>
+#include <direct.h>
 
 #ifndef PROT_READ
 #define PROT_READ       1
@@ -86,6 +90,10 @@ typedef kvec_t(ucl_object_t *) ucl_array_t;
 #ifndef MAP_FAILED
 #define MAP_FAILED      ((void *) -1)
 #endif
+
+#define getcwd _getcwd
+#define open _open
+#define close _close
 
 static void *ucl_mmap(char *addr, size_t length, int prot, int access, int fd, off_t offset)
 {
@@ -144,6 +152,35 @@ static char* ucl_realpath(const char *path, char *resolved_path)
 		p++;
 	}
 	return _fullpath(resolved_path, tmp, MAX_PATH);
+}
+
+
+char *dirname(char *path)
+{
+	static char path_buffer[_MAX_PATH];
+	char drive[_MAX_DRIVE];
+	char dir[_MAX_DIR];
+	char fname[_MAX_FNAME];
+	char ext[_MAX_EXT];
+
+	_splitpath (path, drive, dir, fname, ext);
+	_makepath(path_buffer, drive, dir, NULL, NULL);
+
+	return path_buffer;
+}
+
+char *basename(char *path)
+{
+	static char path_buffer[_MAX_PATH];
+	char drive[_MAX_DRIVE];
+	char dir[_MAX_DIR];
+	char fname[_MAX_FNAME];
+	char ext[_MAX_EXT];
+
+	_splitpath(path, drive, dir, fname, ext);
+	_makepath(path_buffer, NULL, NULL, fname, ext);
+
+	return path_buffer;
 }
 #else
 #define ucl_mmap mmap
