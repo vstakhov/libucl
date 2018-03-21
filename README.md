@@ -18,6 +18,7 @@
 	- [Macros support](#macros-support)
 	- [Variables support](#variables-support)
 	- [Multiline strings](#multiline-strings)
+	- [Single quoted strings](#single-quoted-strings)
 - [Emitter](#emitter)
 - [Validation](#validation)
 - [Performance](#performance)
@@ -331,6 +332,18 @@ some
 text
 
 EOD
+```
+
+### Single quoted strings
+
+It is possible to use single quoted strings to simplify escaping rules. All values passed in single quoted strings are *NOT* escaped, with two exceptions: a single `'` character just before `\` character, and a newline character just after `\` character that is ignored.
+
+```
+key = 'value'; # Read as value
+key = 'value\n\'; # Read as  value\n\
+key = 'value\''; # Read as value'
+key = 'value\
+bla'; # Read as valuebla
 ```
 
 ## Emitter
