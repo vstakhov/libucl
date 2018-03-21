@@ -181,7 +181,7 @@ ucl_elt_string_write_squoted (const char *str, size_t size,
 		func->ucl_emitter_append_len (c, len, func->ud);
 	}
 
-	func->ucl_emitter_append_character ('"', 1, func->ud);
+	func->ucl_emitter_append_character ('\'', 1, func->ud);
 }
 
 void
