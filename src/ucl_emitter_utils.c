@@ -151,6 +151,40 @@ ucl_elt_string_write_json (const char *str, size_t size,
 }
 
 void
+ucl_elt_string_write_squoted (const char *str, size_t size,
+		struct ucl_emitter_context *ctx)
+{
+	const char *p = str, *c = str;
+	size_t len = 0;
+	const struct ucl_emitter_functions *func = ctx->func;
+
+	func->ucl_emitter_append_character ('\'', 1, func->ud);
+
+	while (size) {
+		if (*p == '\'') {
+			if (len > 0) {
+				func->ucl_emitter_append_len (c, len, func->ud);
+			}
+
+			len = 0;
+			c = ++p;
+			func->ucl_emitter_append_len ("\\\'", 2, func->ud);
+		}
+		else {
+			p ++;
+			len ++;
+		}
+		size --;
+	}
+
+	if (len > 0) {
+		func->ucl_emitter_append_len (c, len, func->ud);
+	}
+
+	func->ucl_emitter_append_character ('"', 1, func->ud);
+}
+
+void
 ucl_elt_string_write_multiline (const char *str, size_t size,
 		struct ucl_emitter_context *ctx)
 {

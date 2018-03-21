@@ -428,7 +428,12 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 			ucl_elt_string_write_multiline (obj->value.sv, obj->len, ctx);
 		}
 		else {
-			ucl_elt_string_write_json (obj->value.sv, obj->len, ctx);
+			if (obj->flags & UCL_OBJECT_SQUOTED) {
+				ucl_elt_string_write_squoted (obj->value.sv, obj->len, ctx);
+			}
+			else {
+				ucl_elt_string_write_json (obj->value.sv, obj->len, ctx);
+			}
 		}
 		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;

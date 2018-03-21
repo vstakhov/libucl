@@ -259,6 +259,13 @@ struct ucl_object_userdata {
  */
 size_t ucl_unescape_json_string (char *str, size_t len);
 
+
+/**
+ * Unescape single quoted string inplace
+ * @param str
+ */
+size_t ucl_unescape_squoted_string (char *str, size_t len);
+
 /**
  * Handle include macro
  * @param data include data
@@ -461,6 +468,16 @@ ucl_emit_get_standard_context (enum ucl_emitter emit_type);
  * @param buf target buffer
  */
 void ucl_elt_string_write_json (const char *str, size_t size,
+		struct ucl_emitter_context *ctx);
+
+
+/**
+ * Serialize string as single quoted string
+ * @param str string to emit
+ * @param buf target buffer
+ */
+void
+ucl_elt_string_write_squoted (const char *str, size_t size,
 		struct ucl_emitter_context *ctx);
 
 /**

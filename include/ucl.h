@@ -177,7 +177,8 @@ typedef enum ucl_string_flags {
 } ucl_string_flags_t;
 
 /**
- * Basic flags for an object
+ * Basic flags for an object (can use up to 12 bits as higher 4 bits are used
+ * for priorities)
  */
 typedef enum ucl_object_flags {
 	UCL_OBJECT_ALLOCATED_KEY = (1 << 0), /**< An object has key allocated internally */
@@ -187,7 +188,8 @@ typedef enum ucl_object_flags {
 	UCL_OBJECT_MULTILINE = (1 << 4), /**< String should be displayed as multiline string */
 	UCL_OBJECT_MULTIVALUE = (1 << 5), /**< Object is a key with multiple values */
 	UCL_OBJECT_INHERITED = (1 << 6), /**< Object has been inherited from another */
-	UCL_OBJECT_BINARY = (1 << 7) /**< Object contains raw binary data */
+	UCL_OBJECT_BINARY = (1 << 7), /**< Object contains raw binary data */
+	UCL_OBJECT_SQUOTED = (1 << 8) /**< Object has been enclosed in single quotes */
 } ucl_object_flags_t;
 
 /**
