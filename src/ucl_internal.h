@@ -80,7 +80,7 @@
 #ifdef HAVE_UNISTD_H
 # ifndef _WIN32
 # include <unistd.h>
-# endif 
+# endif
 #endif
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
@@ -100,9 +100,9 @@
 #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
 #define strdup _strdup
-#define snprintf _snprintf 
-#define vsnprintf _vsnprintf 
-#define strcasecmp _stricmp 
+#define snprintf _snprintf
+#define vsnprintf _vsnprintf
+#define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
@@ -176,7 +176,7 @@ enum ucl_character_type {
 
 struct ucl_macro {
 	char *name;
-	union {
+	union _ucl_macro {
 		ucl_macro_handler handler;
 		ucl_context_macro_handler context_handler;
 	} h;
