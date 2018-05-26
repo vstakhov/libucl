@@ -20,7 +20,7 @@ uclmodule = Extension(
 
 setup(
     name = 'ucl',
-    version = '0.8',
+    version = '0.8.1',
     description = 'ucl parser and emmitter',
     ext_modules = [uclmodule],
     test_suite = 'tests',
