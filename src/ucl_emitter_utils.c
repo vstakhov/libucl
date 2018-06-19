@@ -71,6 +71,13 @@ static const struct ucl_emitter_context ucl_standard_emitters[] = {
 	}
 };
 
+static inline void
+_ucl_emitter_free(void *p)
+{
+
+    free(p);
+}
+
 /**
  * Get standard emitter context for a specified emit_type
  * @param emit_type type of emitter
@@ -363,7 +370,7 @@ ucl_object_emit_memory_funcs (void **pmem)
 		f->ucl_emitter_append_double = ucl_utstring_append_double;
 		f->ucl_emitter_append_int = ucl_utstring_append_int;
 		f->ucl_emitter_append_len = ucl_utstring_append_len;
-		f->ucl_emitter_free_func = free;
+		f->ucl_emitter_free_func = _ucl_emitter_free;
 		utstring_new (s);
 		f->ud = s;
 		*pmem = s->d;
@@ -412,7 +419,7 @@ ucl_object_emit_fd_funcs (int fd)
 		f->ucl_emitter_append_double = ucl_fd_append_double;
 		f->ucl_emitter_append_int = ucl_fd_append_int;
 		f->ucl_emitter_append_len = ucl_fd_append_len;
-		f->ucl_emitter_free_func = free;
+		f->ucl_emitter_free_func = _ucl_emitter_free;
 		f->ud = ip;
 	}
 
