@@ -49,7 +49,16 @@ static bool ucl_schema_validate (const ucl_object_t *schema,
 /*
  * Create validation error
  */
-static void
+
+#ifdef __GNUC__
+static inline void
+ucl_schema_create_error (struct ucl_schema_error *err,
+		enum ucl_schema_error_code code, const ucl_object_t *obj,
+		const char *fmt, ...)
+__attribute__ (( format( printf, 4, 5) ));
+#endif
+
+static inline void
 ucl_schema_create_error (struct ucl_schema_error *err,
 		enum ucl_schema_error_code code, const ucl_object_t *obj,
 		const char *fmt, ...)
@@ -311,7 +320,7 @@ ucl_schema_validate_number (const ucl_object_t *schema,
 			if (fabs (remainder (val, constraint)) > alpha) {
 				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
 						"number %.4f is not multiple of %.4f, remainder is %.7f",
-						val, constraint);
+						val, constraint, remainder (val, constraint));
 				ret = false;
 				break;
 			}
@@ -371,7 +380,7 @@ ucl_schema_validate_string (const ucl_object_t *schema,
 			constraint = ucl_object_toint (elt);
 			if (obj->len > constraint) {
 				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
-						"string is too big: %.3f, maximum is: %.3f",
+						"string is too big: %u, maximum is: %" PRId64,
 						obj->len, constraint);
 				ret = false;
 				break;
@@ -382,7 +391,7 @@ ucl_schema_validate_string (const ucl_object_t *schema,
 			constraint = ucl_object_toint (elt);
 			if (obj->len < constraint) {
 				ucl_schema_create_error (err, UCL_SCHEMA_CONSTRAINT, obj,
-						"string is too short: %.3f, minimum is: %.3f",
+						"string is too short: %u, minimum is: %" PRId64,
 						obj->len, constraint);
 				ret = false;
 				break;
