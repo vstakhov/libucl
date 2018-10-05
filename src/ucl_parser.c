@@ -668,7 +668,8 @@ ucl_parser_add_container (ucl_object_t *obj, struct ucl_parser *parser,
 	st->obj = obj;
 
 	if (level >= UINT16_MAX) {
-		ucl_set_err (parser, UCL_ENESTED, "objects are nesting too deep (over 65535 limit)",
+		ucl_set_err (parser, UCL_ENESTED,
+				"objects are nesting too deep (over 65535 limit)",
 				&parser->err);
 		ucl_object_unref (obj);
 		return NULL;
@@ -1032,7 +1033,8 @@ ucl_lex_json_string (struct ucl_parser *parser,
 						ucl_chunk_skipc (chunk, p);
 					}
 					if (p >= chunk->end) {
-						ucl_set_err (parser, UCL_ESYNTAX, "unfinished escape character",
+						ucl_set_err (parser, UCL_ESYNTAX,
+								"unfinished escape character",
 								&parser->err);
 						return false;
 					}
@@ -1058,7 +1060,8 @@ ucl_lex_json_string (struct ucl_parser *parser,
 		ucl_chunk_skipc (chunk, p);
 	}
 
-	ucl_set_err (parser, UCL_ESYNTAX, "no quote at the end of json string",
+	ucl_set_err (parser, UCL_ESYNTAX,
+			"no quote at the end of json string",
 			&parser->err);
 	return false;
 }
@@ -1083,7 +1086,8 @@ ucl_lex_squoted_string (struct ucl_parser *parser,
 			ucl_chunk_skipc (chunk, p);
 
 			if (p >= chunk->end) {
-				ucl_set_err (parser, UCL_ESYNTAX, "unfinished escape character",
+				ucl_set_err (parser, UCL_ESYNTAX,
+						"unfinished escape character",
 						&parser->err);
 				return false;
 			}
@@ -1102,7 +1106,8 @@ ucl_lex_squoted_string (struct ucl_parser *parser,
 		ucl_chunk_skipc (chunk, p);
 	}
 
-	ucl_set_err (parser, UCL_ESYNTAX, "no quote at the end of single quoted string",
+	ucl_set_err (parser, UCL_ESYNTAX,
+			"no quote at the end of single quoted string",
 			&parser->err);
 	return false;
 }
@@ -1928,7 +1933,8 @@ ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 					if (!(st->e.params.flags & UCL_STACK_HAS_OBRACE)) {
 						parser->err_code = UCL_EUNPAIRED;
 						ucl_create_err (&parser->err,
-								"object closed with } at line %d is not opened with { at line %d",
+								"%s:%d object closed with } is not opened with { at line %d",
+								chunk->fname ? chunk->fname : "memory",
 								parser->chunks->line, st->e.params.line);
 
 						return false;
@@ -2461,7 +2467,8 @@ ucl_state_machine (struct ucl_parser *parser)
 				if (!ucl_skip_macro_as_comment (parser, chunk)) {
 					/* We have invalid macro */
 					ucl_create_err (&parser->err,
-							"error on line %d at column %d: invalid macro",
+							"error at %s:%d at column %d: invalid macro",
+							chunk->fname ? chunk->fname : "memory",
 							chunk->line,
 							chunk->column);
 					parser->state = UCL_STATE_ERROR;
@@ -2484,8 +2491,9 @@ ucl_state_machine (struct ucl_parser *parser)
 						HASH_FIND (hh, parser->macroes, c, macro_len, macro);
 						if (macro == NULL) {
 							ucl_create_err (&parser->err,
-									"error on line %d at column %d: "
+									"error at %s:%d at column %d: "
 									"unknown macro: '%.*s', character: '%c'",
+									chunk->fname ? chunk->fname : "memory",
 									chunk->line,
 									chunk->column,
 									(int) (p - c),
@@ -2501,7 +2509,8 @@ ucl_state_machine (struct ucl_parser *parser)
 					else {
 						/* We have invalid macro name */
 						ucl_create_err (&parser->err,
-								"error on line %d at column %d: invalid macro name",
+								"error at %s:%d at column %d: invalid macro name",
+								chunk->fname ? chunk->fname : "memory",
 								chunk->line,
 								chunk->column);
 						parser->state = UCL_STATE_ERROR;
@@ -2610,8 +2619,10 @@ ucl_state_machine (struct ucl_parser *parser)
 					utstring_new (parser->err);
 				}
 
-				utstring_printf (parser->err, "unmatched open brace at %d at line %d; ",
-						st->e.params.line, parser->chunks->line);
+				utstring_printf (parser->err, "%s:%d unmatched open brace at %d; ",
+						chunk->fname ? chunk->fname : "memory",
+						parser->chunks->line,
+						st->e.params.line);
 
 				has_error = true;
 			}
@@ -2858,6 +2869,11 @@ ucl_parser_add_chunk_full (struct ucl_parser *parser, const unsigned char *data,
 		chunk->priority = priority;
 		chunk->strategy = strat;
 		chunk->parse_type = parse_type;
+
+		if (parser->cur_file) {
+			chunk->fname = strdup (parser->cur_file);
+		}
+
 		LL_PREPEND (parser->chunks, chunk);
 		parser->recursion ++;
 

@@ -208,6 +208,7 @@ struct ucl_chunk {
 	const unsigned char *begin;
 	const unsigned char *end;
 	const unsigned char *pos;
+	char *fname;
 	size_t remain;
 	unsigned int line;
 	unsigned int column;

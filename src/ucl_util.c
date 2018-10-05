@@ -532,6 +532,10 @@ ucl_chunk_free (struct ucl_chunk *chunk)
 			}
 		}
 
+		if (chunk->fname) {
+			free (chunk->fname);
+		}
+
 		UCL_FREE (sizeof (*chunk), chunk);
 	}
 }
