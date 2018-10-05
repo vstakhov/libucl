@@ -666,13 +666,23 @@ ucl_parser_add_container (ucl_object_t *obj, struct ucl_parser *parser,
 	}
 
 	st->obj = obj;
-	st->params.level = level;
+
+	if (level >= UINT16_MAX) {
+		ucl_set_err (parser, UCL_ENESTED, "objects are nesting too deep (over 65535 limit)",
+				&parser->err);
+		ucl_object_unref (obj);
+		return NULL;
+	}
+
+
+	st->e.params.level = level;
+	st->e.params.line = parser->chunks->line;
 
 	if (has_obrace) {
-		st->params.flags = UCL_STACK_HAS_OBRACE;
+		st->e.params.flags = UCL_STACK_HAS_OBRACE;
 	}
 	else {
-		st->params.flags = 0;
+		st->e.params.flags = 0;
 	}
 
 	LL_PREPEND (parser->stack, st);
@@ -1714,7 +1724,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			/* We have a new object */
 			if (parser->stack) {
 				obj = ucl_parser_add_container (obj, parser, false,
-						parser->stack->params.level, true);
+						parser->stack->e.params.level, true);
 			}
 			else {
 				return false;
@@ -1735,7 +1745,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			/* We have a new array */
 			if (parser->stack) {
 				obj = ucl_parser_add_container (obj, parser, true,
-						parser->stack->params.level, true);
+						parser->stack->e.params.level, true);
 			}
 			else {
 				return false;
@@ -1914,6 +1924,16 @@ ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 
 					/* Pop all nested objects from a stack */
 					st = parser->stack;
+
+					if (!(st->e.params.flags & UCL_STACK_HAS_OBRACE)) {
+						parser->err_code = UCL_EUNPAIRED;
+						ucl_create_err (&parser->err,
+								"object closed with } at line %d is not opened with { at line %d",
+								parser->chunks->line, st->e.params.line);
+
+						return false;
+					}
+
 					parser->stack = st->next;
 					UCL_FREE (sizeof (struct ucl_stack), st);
 
@@ -1924,10 +1944,13 @@ ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 					while (parser->stack != NULL) {
 						st = parser->stack;
 
-						if (st->next == NULL ||
-							st->next->params.level == st->params.level) {
+						if (st->next == NULL) {
 							break;
 						}
+						else if (st->next->e.params.level == st->e.params.level) {
+							break;
+						}
+
 
 						parser->stack = st->next;
 						parser->cur_obj = st->obj;
@@ -2385,7 +2408,7 @@ ucl_state_machine (struct ucl_parser *parser)
 					obj = ucl_parser_add_container (parser->cur_obj,
 							parser,
 							false,
-							parser->stack->params.level + 1,
+							parser->stack->e.params.level + 1,
 							parser->state == UCL_STATE_KEY_OBRACE);
 					if (obj == NULL) {
 						return false;
@@ -2892,7 +2915,7 @@ ucl_parser_insert_chunk (struct ucl_parser *parser, const unsigned char *data,
 
 	/* Prevent inserted chunks from unintentionally closing the current object */
 	if (parser->stack != NULL && parser->stack->next != NULL) {
-		parser->stack->params.level = parser->stack->next->params.level;
+		parser->stack->e.params.level = parser->stack->next->e.params.level;
 	}
 
 	res = ucl_parser_add_chunk_full (parser, data, len, parser->chunks->priority,

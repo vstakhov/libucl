@@ -194,10 +194,14 @@ enum ucl_stack_flags {
 struct ucl_stack {
 	ucl_object_t *obj;
 	struct ucl_stack *next;
-	struct {
-		uint32_t level;
-		uint32_t flags;
-	} params;
+	union {
+		struct {
+			uint16_t level;
+			uint16_t flags;
+			uint32_t line;
+		} params;
+		uint64_t len;
+	} e;
 };
 
 struct ucl_chunk {
