@@ -678,6 +678,7 @@ ucl_parser_add_container (ucl_object_t *obj, struct ucl_parser *parser,
 
 	st->e.params.level = level;
 	st->e.params.line = parser->chunks->line;
+	st->chunk = parser->chunks;
 
 	if (has_obrace) {
 		st->e.params.flags = UCL_STACK_HAS_OBRACE;
@@ -2614,6 +2615,9 @@ ucl_state_machine (struct ucl_parser *parser)
 		bool has_error = false;
 
 		LL_FOREACH (parser->stack, st) {
+			if (st->chunk != parser->chunks) {
+				break; /* Not our chunk, give up */
+			}
 			if (st->e.params.flags & UCL_STACK_HAS_OBRACE) {
 				if (parser->err == NULL) {
 					utstring_new (parser->err);

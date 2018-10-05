@@ -777,6 +777,8 @@ ucl_msgpack_get_container (struct ucl_parser *parser,
 				ucl_create_err (&parser->err, "no memory");
 				return NULL;
 			}
+
+			parser->stack->chunk = parser->chunks;
 		}
 		else {
 			stack = calloc (1, sizeof (struct ucl_stack));
@@ -786,6 +788,7 @@ ucl_msgpack_get_container (struct ucl_parser *parser,
 				return NULL;
 			}
 
+			stack->chunk = parser->chunks;
 			stack->next = parser->stack;
 			parser->stack = stack;
 		}

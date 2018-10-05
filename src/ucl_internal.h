@@ -202,6 +202,7 @@ struct ucl_stack {
 		} params;
 		uint64_t len;
 	} e;
+	struct ucl_chunk *chunk;
 };
 
 struct ucl_chunk {
