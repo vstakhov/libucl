@@ -2600,6 +2600,30 @@ ucl_state_machine (struct ucl_parser *parser)
 		}
 	}
 
+	if (parser->stack != NULL) {
+		struct ucl_stack *st;
+		bool has_error = false;
+
+		LL_FOREACH (parser->stack, st) {
+			if (st->e.params.flags & UCL_STACK_HAS_OBRACE) {
+				if (parser->err == NULL) {
+					utstring_new (parser->err);
+				}
+
+				utstring_printf (parser->err, "unmatched open brace at %d at line %d; ",
+						st->e.params.line, parser->chunks->line);
+
+				has_error = true;
+			}
+		}
+
+		if (has_error) {
+			parser->err_code = UCL_EUNPAIRED;
+
+			return false;
+		}
+	}
+
 	return true;
 }
 
