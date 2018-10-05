@@ -1318,7 +1318,8 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 			return false;
 		}
 		st->obj = nest_obj;
-		st->level = parser->stack->level;
+		st->params.level = parser->stack->params.level;
+		st->params.flags = parser->stack->params.flags;
 		LL_PREPEND (parser->stack, st);
 		parser->cur_obj = nest_obj;
 	}

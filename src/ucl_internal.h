@@ -148,6 +148,7 @@ enum ucl_parser_state {
 	UCL_STATE_OBJECT,
 	UCL_STATE_ARRAY,
 	UCL_STATE_KEY,
+	UCL_STATE_KEY_OBRACE,
 	UCL_STATE_VALUE,
 	UCL_STATE_AFTER_VALUE,
 	UCL_STATE_ARRAY_VALUE,
@@ -185,10 +186,18 @@ struct ucl_macro {
 	UT_hash_handle hh;
 };
 
+enum ucl_stack_flags {
+	UCL_STACK_HAS_OBRACE = (1u << 0),
+	UCL_STACK_MAX = (1u << 1),
+};
+
 struct ucl_stack {
 	ucl_object_t *obj;
 	struct ucl_stack *next;
-	uint64_t level;
+	struct {
+		uint32_t level;
+		uint32_t flags;
+	} params;
 };
 
 struct ucl_chunk {

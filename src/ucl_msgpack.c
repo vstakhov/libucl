@@ -434,7 +434,7 @@ static ssize_t ucl_msgpack_parse_ignore (struct ucl_parser *parser,
 #define MSGPACK_FLAG_EXT (1 << 3)
 #define MSGPACK_FLAG_ASSOC (1 << 4)
 #define MSGPACK_FLAG_KEY (1 << 5)
-#define MSGPACK_CONTAINER_BIT (1ULL << 62)
+#define MSGPACK_CONTAINER_BIT (1U << 31)
 
 /*
  * Search tree packed in array
@@ -792,7 +792,8 @@ ucl_msgpack_get_container (struct ucl_parser *parser,
 			parser->stack = stack;
 		}
 
-		parser->stack->level = len | MSGPACK_CONTAINER_BIT;
+		parser->stack->params.level = len;
+		parser->stack->params.flags = MSGPACK_CONTAINER_BIT;
 
 #ifdef MSGPACK_DEBUG_PARSER
 		stack = parser->stack;
@@ -823,14 +824,11 @@ ucl_msgpack_get_container (struct ucl_parser *parser,
 static bool
 ucl_msgpack_is_container_finished (struct ucl_stack *container)
 {
-	uint64_t level;
-
 	assert (container != NULL);
 
-	if (container->level & MSGPACK_CONTAINER_BIT) {
-		level = container->level & ~MSGPACK_CONTAINER_BIT;
+	if (container->params.flags & MSGPACK_CONTAINER_BIT) {
 
-		if (level == 0) {
+		if (container->params.level == 0) {
 			return true;
 		}
 	}
@@ -843,12 +841,11 @@ ucl_msgpack_insert_object (struct ucl_parser *parser,
 		const unsigned char *key,
 		size_t keylen, ucl_object_t *obj)
 {
-	uint64_t level;
 	struct ucl_stack *container;
 
 	container = parser->stack;
 	assert (container != NULL);
-	assert (container->level > 0);
+	assert (container->params.level > 0);
 	assert (obj != NULL);
 	assert (container->obj != NULL);
 
@@ -875,9 +872,8 @@ ucl_msgpack_insert_object (struct ucl_parser *parser,
 		return false;
 	}
 
-	if (container->level & MSGPACK_CONTAINER_BIT) {
-		level = container->level & ~MSGPACK_CONTAINER_BIT;
-		container->level = (level - 1) | MSGPACK_CONTAINER_BIT;
+	if (container->params.flags & MSGPACK_CONTAINER_BIT) {
+		container->params.level--;
 	}
 
 	return true;
@@ -887,7 +883,7 @@ static struct ucl_stack *
 ucl_msgpack_get_next_container (struct ucl_parser *parser)
 {
 	struct ucl_stack *cur = NULL;
-	uint64_t level;
+	uint32_t level;
 
 	cur = parser->stack;
 
@@ -895,8 +891,8 @@ ucl_msgpack_get_next_container (struct ucl_parser *parser)
 		return NULL;
 	}
 
-	if (cur->level & MSGPACK_CONTAINER_BIT) {
-		level = cur->level & ~MSGPACK_CONTAINER_BIT;
+	if (cur->params.flags & MSGPACK_CONTAINER_BIT) {
+		level = cur->params.level;
 
 		if (level == 0) {
 			/* We need to switch to the previous container */
@@ -1312,7 +1308,7 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 	/* Rewind to the top level container */
 	ucl_msgpack_get_next_container (parser);
 	assert (parser->stack == NULL ||
-			(parser->stack->level & MSGPACK_CONTAINER_BIT) == 0);
+			(parser->stack->params.flags & MSGPACK_CONTAINER_BIT) == 0);
 
 	return true;
 }

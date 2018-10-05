@@ -630,7 +630,7 @@ ucl_copy_or_store_ptr (struct ucl_parser *parser,
  */
 static inline ucl_object_t *
 ucl_parser_add_container (ucl_object_t *obj, struct ucl_parser *parser,
-		bool is_array, int level)
+		bool is_array, uint32_t level, bool has_obrace)
 {
 	struct ucl_stack *st;
 
@@ -666,7 +666,15 @@ ucl_parser_add_container (ucl_object_t *obj, struct ucl_parser *parser,
 	}
 
 	st->obj = obj;
-	st->level = level;
+	st->params.level = level;
+
+	if (has_obrace) {
+		st->params.flags = UCL_STACK_HAS_OBRACE;
+	}
+	else {
+		st->params.flags = 0;
+	}
+
 	LL_PREPEND (parser->stack, st);
 	parser->cur_obj = obj;
 
@@ -1706,7 +1714,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			/* We have a new object */
 			if (parser->stack) {
 				obj = ucl_parser_add_container (obj, parser, false,
-						parser->stack->level);
+						parser->stack->params.level, true);
 			}
 			else {
 				return false;
@@ -1727,7 +1735,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			/* We have a new array */
 			if (parser->stack) {
 				obj = ucl_parser_add_container (obj, parser, true,
-						parser->stack->level);
+						parser->stack->params.level, true);
 			}
 			else {
 				return false;
@@ -1916,7 +1924,8 @@ ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 					while (parser->stack != NULL) {
 						st = parser->stack;
 
-						if (st->next == NULL || st->next->level == st->level) {
+						if (st->next == NULL ||
+							st->next->params.level == st->params.level) {
 							break;
 						}
 
@@ -2294,6 +2303,8 @@ ucl_state_machine (struct ucl_parser *parser)
 				return false;
 			}
 			else {
+				bool seen_obrace = false;
+
 				/* Skip any spaces */
 				while (p < chunk->end && ucl_test_character (*p,
 						UCL_CHARACTER_WHITESPACE_UNSAFE)) {
@@ -2305,20 +2316,28 @@ ucl_state_machine (struct ucl_parser *parser)
 				if (*p == '[') {
 					parser->state = UCL_STATE_VALUE;
 					ucl_chunk_skipc (chunk, p);
+					seen_obrace = true;
 				}
 				else {
-					parser->state = UCL_STATE_KEY;
+
 					if (*p == '{') {
 						ucl_chunk_skipc (chunk, p);
+						parser->state = UCL_STATE_KEY_OBRACE;
+						seen_obrace = true;
+					}
+					else {
+						parser->state = UCL_STATE_KEY;
 					}
 				}
 
 				if (parser->top_obj == NULL) {
 					if (parser->state == UCL_STATE_VALUE) {
-						obj = ucl_parser_add_container (NULL, parser, true, 0);
+						obj = ucl_parser_add_container (NULL, parser, true, 0,
+								seen_obrace);
 					}
 					else {
-						obj = ucl_parser_add_container (NULL, parser, false, 0);
+						obj = ucl_parser_add_container (NULL, parser, false, 0,
+								seen_obrace);
 					}
 
 					if (obj == NULL) {
@@ -2332,6 +2351,7 @@ ucl_state_machine (struct ucl_parser *parser)
 			}
 			break;
 		case UCL_STATE_KEY:
+		case UCL_STATE_KEY_OBRACE:
 			/* Skip any spaces */
 			while (p < chunk->end && ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 				ucl_chunk_skipc (chunk, p);
@@ -2362,8 +2382,11 @@ ucl_state_machine (struct ucl_parser *parser)
 			else if (parser->state != UCL_STATE_MACRO_NAME) {
 				if (next_key && parser->stack->obj->type == UCL_OBJECT) {
 					/* Parse more keys and nest objects accordingly */
-					obj = ucl_parser_add_container (parser->cur_obj, parser, false,
-							parser->stack->level + 1);
+					obj = ucl_parser_add_container (parser->cur_obj,
+							parser,
+							false,
+							parser->stack->params.level + 1,
+							parser->state == UCL_STATE_KEY_OBRACE);
 					if (obj == NULL) {
 						return false;
 					}
@@ -2868,7 +2891,9 @@ ucl_parser_insert_chunk (struct ucl_parser *parser, const unsigned char *data,
 	parser->state = UCL_STATE_INIT;
 
 	/* Prevent inserted chunks from unintentionally closing the current object */
-	if (parser->stack != NULL && parser->stack->next != NULL) parser->stack->level = parser->stack->next->level;
+	if (parser->stack != NULL && parser->stack->next != NULL) {
+		parser->stack->params.level = parser->stack->next->params.level;
+	}
 
 	res = ucl_parser_add_chunk_full (parser, data, len, parser->chunks->priority,
 					parser->chunks->strategy, parser->chunks->parse_type);
