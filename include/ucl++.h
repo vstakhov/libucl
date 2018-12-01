@@ -342,7 +342,7 @@ public:
 		return UCL_NULL;
 	}
 
-	const std::string key () const {
+	std::string key () const {
 		std::string res;
 
 		if (obj->key) {
@@ -385,7 +385,7 @@ public:
 		return default_val;
 	}
 
-	const std::string string_value (const std::string& default_val = "") const
+	std::string string_value (const std::string& default_val = "") const
 	{
 		const char* res = nullptr;
 
@@ -396,7 +396,7 @@ public:
 		return default_val;
 	}
 
-	const size_t size () const
+	size_t size () const
 	{
 		if (type () == UCL_ARRAY) {
 			return ucl_array_size (obj.get());
@@ -405,7 +405,7 @@ public:
 		return 0;
 	}
 
-	const Ucl at (size_t i) const
+	Ucl at (size_t i) const
 	{
 		if (type () == UCL_ARRAY) {
 			return Ucl (ucl_array_find_index (obj.get(), i));
@@ -414,7 +414,7 @@ public:
 		return Ucl (nullptr);
 	}
 
-	const Ucl lookup (const std::string &key) const
+	Ucl lookup (const std::string &key) const
 	{
 		if (type () == UCL_OBJECT) {
 			return Ucl (ucl_object_lookup_len (obj.get(),
@@ -424,12 +424,12 @@ public:
 		return Ucl (nullptr);
 	}
 
-	inline const Ucl operator[] (size_t i) const
+	inline Ucl operator[] (size_t i) const
 	{
 		return at(i);
 	}
 
-	inline const Ucl operator[](const std::string &key) const
+	inline Ucl operator[](const std::string &key) const
 	{
 		return lookup(key);
 	}
