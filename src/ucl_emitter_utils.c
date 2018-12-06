@@ -113,39 +113,39 @@ ucl_elt_string_write_json (const char *str, size_t size,
 				UCL_CHARACTER_DENIED|
 				UCL_CHARACTER_WHITESPACE_UNSAFE))) {
 			if (len > 0) {
-				func->ucl_emitter_append_len (c, len, func->ud);
+				func->ucl_emitter_append_len (UC_(c), len, func->ud);
 			}
 			switch (*p) {
 			case '\n':
-				func->ucl_emitter_append_len ("\\n", 2, func->ud);
+				func->ucl_emitter_append_len (UC_("\\n"), 2, func->ud);
 				break;
 			case '\r':
-				func->ucl_emitter_append_len ("\\r", 2, func->ud);
+				func->ucl_emitter_append_len (UC_("\\r"), 2, func->ud);
 				break;
 			case '\b':
-				func->ucl_emitter_append_len ("\\b", 2, func->ud);
+				func->ucl_emitter_append_len (UC_("\\b"), 2, func->ud);
 				break;
 			case '\t':
-				func->ucl_emitter_append_len ("\\t", 2, func->ud);
+				func->ucl_emitter_append_len (UC_("\\t"), 2, func->ud);
 				break;
 			case '\f':
-				func->ucl_emitter_append_len ("\\f", 2, func->ud);
+				func->ucl_emitter_append_len (UC_("\\f"), 2, func->ud);
 				break;
 			case '\v':
-				func->ucl_emitter_append_len ("\\u000B", 6, func->ud);
+				func->ucl_emitter_append_len (UC_("\\u000B"), 6, func->ud);
 				break;
 			case '\\':
-				func->ucl_emitter_append_len ("\\\\", 2, func->ud);
+				func->ucl_emitter_append_len (UC_("\\\\"), 2, func->ud);
 				break;
 			case ' ':
 				func->ucl_emitter_append_character (' ', 1, func->ud);
 				break;
 			case '"':
-				func->ucl_emitter_append_len ("\\\"", 2, func->ud);
+				func->ucl_emitter_append_len (UC_("\\\""), 2, func->ud);
 				break;
 			default:
 				/* Emit unicode unknown character */
-				func->ucl_emitter_append_len ("\\uFFFD", 6, func->ud);
+				func->ucl_emitter_append_len (UC_("\\uFFFD"), 6, func->ud);
 				break;
 			}
 			len = 0;
@@ -159,7 +159,7 @@ ucl_elt_string_write_json (const char *str, size_t size,
 	}
 
 	if (len > 0) {
-		func->ucl_emitter_append_len (c, len, func->ud);
+		func->ucl_emitter_append_len (UC_(c), len, func->ud);
 	}
 
 	func->ucl_emitter_append_character ('"', 1, func->ud);
@@ -178,12 +178,12 @@ ucl_elt_string_write_squoted (const char *str, size_t size,
 	while (size) {
 		if (*p == '\'') {
 			if (len > 0) {
-				func->ucl_emitter_append_len (c, len, func->ud);
+				func->ucl_emitter_append_len (UC_(c), len, func->ud);
 			}
 
 			len = 0;
 			c = ++p;
-			func->ucl_emitter_append_len ("\\\'", 2, func->ud);
+			func->ucl_emitter_append_len (UC_("\\\'"), 2, func->ud);
 		}
 		else {
 			p ++;
@@ -193,7 +193,7 @@ ucl_elt_string_write_squoted (const char *str, size_t size,
 	}
 
 	if (len > 0) {
-		func->ucl_emitter_append_len (c, len, func->ud);
+		func->ucl_emitter_append_len (UC_(c), len, func->ud);
 	}
 
 	func->ucl_emitter_append_character ('\'', 1, func->ud);
@@ -205,9 +205,9 @@ ucl_elt_string_write_multiline (const char *str, size_t size,
 {
 	const struct ucl_emitter_functions *func = ctx->func;
 
-	func->ucl_emitter_append_len ("<<EOD\n", sizeof ("<<EOD\n") - 1, func->ud);
-	func->ucl_emitter_append_len (str, size, func->ud);
-	func->ucl_emitter_append_len ("\nEOD", sizeof ("\nEOD") - 1, func->ud);
+	func->ucl_emitter_append_len (UC_("<<EOD\n"), sizeof ("<<EOD\n") - 1, func->ud);
+	func->ucl_emitter_append_len (UC_(str), size, func->ud);
+	func->ucl_emitter_append_len (UC_("\nEOD"), sizeof ("\nEOD") - 1, func->ud);
 }
 
 /*
@@ -495,10 +495,10 @@ ucl_object_emit_single_json (const ucl_object_t *obj)
 	if (buf != NULL) {
 		switch (obj->type) {
 		case UCL_OBJECT:
-			ucl_utstring_append_len ("object", 6, buf);
+			ucl_utstring_append_len (UC_("object"), 6, buf);
 			break;
 		case UCL_ARRAY:
-			ucl_utstring_append_len ("array", 5, buf);
+			ucl_utstring_append_len (UC_("array"), 5, buf);
 			break;
 		case UCL_INT:
 			ucl_utstring_append_int (obj->value.iv, buf);
@@ -508,24 +508,24 @@ ucl_object_emit_single_json (const ucl_object_t *obj)
 			ucl_utstring_append_double (obj->value.dv, buf);
 			break;
 		case UCL_NULL:
-			ucl_utstring_append_len ("null", 4, buf);
+			ucl_utstring_append_len (UC_("null"), 4, buf);
 			break;
 		case UCL_BOOLEAN:
 			if (obj->value.iv) {
-				ucl_utstring_append_len ("true", 4, buf);
+				ucl_utstring_append_len (UC_("true"), 4, buf);
 			}
 			else {
-				ucl_utstring_append_len ("false", 5, buf);
+				ucl_utstring_append_len (UC_("false"), 5, buf);
 			}
 			break;
 		case UCL_STRING:
-			ucl_utstring_append_len (obj->value.sv, obj->len, buf);
+			ucl_utstring_append_len (UC_(obj->value.sv), obj->len, buf);
 			break;
 		case UCL_USERDATA:
-			ucl_utstring_append_len ("userdata", 8, buf);
+			ucl_utstring_append_len (UC_("userdata"), 8, buf);
 			break;
 		}
-		res = utstring_body (buf);
+		res = U_(utstring_body (buf));
 		free (buf);
 	}
 

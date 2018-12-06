@@ -134,6 +134,11 @@ typedef SSIZE_T ssize_t;
 #define __DECONST(type, var)    ((type)(uintptr_t)(const void *)(var))
 #endif
 
+#define U_( a ) (unsigned char*)(a)
+#define UC_( a ) (const unsigned char*)(a)
+#define S_( a ) (char*)(a)
+#define SC_( a ) (const char*)(a)
+
 /**
  * @file rcl_internal.h
  * Internal structures and functions of UCL library

@@ -149,7 +149,7 @@ start:
 			while (p < chunk->end) {
 				if (*p == '\n') {
 					if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
-						ucl_save_comment (parser, beg, p - beg);
+						ucl_save_comment (parser, SC_(beg), p - beg);
 						beg = NULL;
 					}
 
@@ -180,7 +180,7 @@ start:
 							comments_nested --;
 							if (comments_nested == 0) {
 								if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
-									ucl_save_comment (parser, beg, p - beg + 1);
+									ucl_save_comment (parser, SC_(beg), p - beg + 1);
 									beg = NULL;
 								}
 
@@ -209,7 +209,7 @@ start:
 	}
 
 	if (beg && p > beg && (parser->flags & UCL_PARSER_SAVE_COMMENTS)) {
-		ucl_save_comment (parser, beg, p - beg);
+		ucl_save_comment (parser, SC_(beg), p - beg);
 	}
 
 	return true;
@@ -343,7 +343,7 @@ ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t rema
 	/* XXX: can only handle ${VAR} */
 	if (!(*found) && parser->var_handler != NULL && strict) {
 		/* Call generic handler */
-		if (parser->var_handler (ptr, remain, &dst, &dstlen, &need_free,
+		if (parser->var_handler (UC_(ptr), remain, &dst, &dstlen, &need_free,
 				parser->var_data)) {
 			*found = true;
 			if (need_free) {
@@ -461,7 +461,7 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 	}
 	if (!found) {
 		if (strict && parser->var_handler != NULL) {
-			if (parser->var_handler (ptr, remain, &dst, &dstlen, &need_free,
+			if (parser->var_handler (UC_(ptr), remain, &dst, &dstlen, &need_free,
 							parser->var_data)) {
 				memcpy (d, dst, dstlen);
 				ret += dstlen;
@@ -583,25 +583,25 @@ ucl_copy_or_store_ptr (struct ucl_parser *parser,
 			return false;
 		}
 		if (need_lowercase) {
-			ret = ucl_strlcpy_tolower (*dst, src, in_len + 1);
+			ret = ucl_strlcpy_tolower (S_(*dst), SC_(src), in_len + 1);
 		}
 		else {
-			ret = ucl_strlcpy_unsafe (*dst, src, in_len + 1);
+			ret = ucl_strlcpy_unsafe (S_(*dst), SC_(src), in_len + 1);
 		}
 
 		if (need_unescape) {
 			if (!unescape_squote) {
-				ret = ucl_unescape_json_string (*dst, ret);
+				ret = ucl_unescape_json_string (S_(*dst), ret);
 			}
 			else {
-				ret = ucl_unescape_squoted_string (*dst, ret);
+				ret = ucl_unescape_squoted_string (S_(*dst), ret);
 			}
 		}
 
 		if (need_expand) {
 			tmp = *dst;
 			tret = ret;
-			ret = ucl_expand_variable (parser, dst, tmp, ret);
+			ret = ucl_expand_variable (parser, dst, SC_(tmp), ret);
 			if (*dst == NULL) {
 				/* Nothing to expand */
 				*dst = tmp;
@@ -612,10 +612,10 @@ ucl_copy_or_store_ptr (struct ucl_parser *parser,
 				UCL_FREE (in_len + 1, tmp);
 			}
 		}
-		*dst_const = *dst;
+		*dst_const = SC_(*dst);
 	}
 	else {
-		*dst_const = src;
+		*dst_const = SC_(src);
 		ret = in_len;
 	}
 
@@ -992,7 +992,7 @@ ucl_lex_number (struct ucl_parser *parser,
 	const unsigned char *pos;
 	int ret;
 
-	ret = ucl_maybe_parse_number (obj, chunk->pos, chunk->end, (const char **)&pos,
+	ret = ucl_maybe_parse_number (obj, SC_(chunk->pos), SC_(chunk->end), (const char **)&pos,
 			true, false, ((parser->flags & UCL_PARSER_NO_TIME) == 0));
 
 	if (ret == 0) {
@@ -2122,7 +2122,7 @@ ucl_skip_macro_as_comment (struct ucl_parser *parser,
 
 		case macro_save:
 			if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
-				ucl_save_comment (parser, c, p - c);
+				ucl_save_comment (parser, SC_(c), p - c);
 			}
 
 			return true;
@@ -2568,7 +2568,7 @@ ucl_state_machine (struct ucl_parser *parser)
 				return false;
 			}
 			macro_len = ucl_expand_variable (parser, &macro_escaped,
-					macro_start, macro_len);
+					SC_(macro_start), macro_len);
 			parser->state = parser->prev_state;
 
 			if (macro_escaped == NULL && macro != NULL) {
@@ -3033,7 +3033,7 @@ ucl_parser_add_string (struct ucl_parser *parser, const char *data,
 	}
 
 	return ucl_parser_add_string_priority (parser,
-			(const unsigned char *)data, len, parser->default_priority);
+			SC_(data), len, parser->default_priority);
 }
 
 bool

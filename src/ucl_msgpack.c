@@ -244,7 +244,7 @@ ucl_emitter_print_string_msgpack (struct ucl_emitter_context *ctx,
 	}
 
 	func->ucl_emitter_append_len (buf, blen, func->ud);
-	func->ucl_emitter_append_len (s, len, func->ud);
+	func->ucl_emitter_append_len (UC_(s), len, func->ud);
 }
 
 void
@@ -277,7 +277,7 @@ ucl_emitter_print_binary_string_msgpack (struct ucl_emitter_context *ctx,
 	}
 
 	func->ucl_emitter_append_len (buf, blen, func->ud);
-	func->ucl_emitter_append_len (s, len, func->ud);
+	func->ucl_emitter_append_len (UC_(s), len, func->ud);
 }
 
 void
@@ -856,7 +856,7 @@ ucl_msgpack_insert_object (struct ucl_parser *parser,
 			return false;
 		}
 
-		obj->key = key;
+		obj->key = SC_(key);
 		obj->keylen = keylen;
 
 		if (!(parser->flags & UCL_PARSER_ZEROCOPY)) {
@@ -1377,7 +1377,7 @@ ucl_msgpack_parse_string (struct ucl_parser *parser,
 	}
 
 	obj = ucl_object_new_full (UCL_STRING, parser->chunks->priority);
-	obj->value.sv = pos;
+	obj->value.sv = SC_(pos);
 	obj->len = len;
 
 	if (fmt >= msgpack_bin8 && fmt <= msgpack_bin32) {

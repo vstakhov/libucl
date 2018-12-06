@@ -121,11 +121,11 @@ ucl_emitter_print_key (bool print_key, struct ucl_emitter_context *ctx,
 			ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
 		}
 		else {
-			func->ucl_emitter_append_len (obj->key, obj->keylen, func->ud);
+			func->ucl_emitter_append_len (UC_(obj->key), obj->keylen, func->ud);
 		}
 
 		if (obj->type != UCL_OBJECT && obj->type != UCL_ARRAY) {
-			func->ucl_emitter_append_len (" = ", 3, func->ud);
+			func->ucl_emitter_append_len (UC_(" = "), 3, func->ud);
 		}
 		else {
 			func->ucl_emitter_append_character (' ', 1, func->ud);
@@ -136,27 +136,27 @@ ucl_emitter_print_key (bool print_key, struct ucl_emitter_context *ctx,
 			ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
 		}
 		else if (obj->keylen > 0) {
-			func->ucl_emitter_append_len (obj->key, obj->keylen, func->ud);
+			func->ucl_emitter_append_len (UC_(obj->key), obj->keylen, func->ud);
 		}
 		else {
-			func->ucl_emitter_append_len ("null", 4, func->ud);
+			func->ucl_emitter_append_len (UC_("null"), 4, func->ud);
 		}
 
-		func->ucl_emitter_append_len (": ", 2, func->ud);
+		func->ucl_emitter_append_len (UC_(": "), 2, func->ud);
 	}
 	else {
 		if (obj->keylen > 0) {
 			ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
 		}
 		else {
-			func->ucl_emitter_append_len ("null", 4, func->ud);
+			func->ucl_emitter_append_len (UC_("null"), 4, func->ud);
 		}
 
 		if (compact) {
 			func->ucl_emitter_append_character (':', 1, func->ud);
 		}
 		else {
-			func->ucl_emitter_append_len (": ", 2, func->ud);
+			func->ucl_emitter_append_len (UC_(": "), 2, func->ud);
 		}
 	}
 }
@@ -171,11 +171,11 @@ ucl_emitter_finish_object (struct ucl_emitter_context *ctx,
 		if (obj->type != UCL_OBJECT && obj->type != UCL_ARRAY) {
 			if (!is_array) {
 				/* Objects are split by ';' */
-				func->ucl_emitter_append_len (";\n", 2, func->ud);
+				func->ucl_emitter_append_len (UC_(";\n"), 2, func->ud);
 			}
 			else {
 				/* Use commas for arrays */
-				func->ucl_emitter_append_len (",\n", 2, func->ud);
+				func->ucl_emitter_append_len (UC_(",\n"), 2, func->ud);
 			}
 		}
 		else {
@@ -261,7 +261,7 @@ ucl_emitter_common_start_array (struct ucl_emitter_context *ctx,
 		func->ucl_emitter_append_character ('[', 1, func->ud);
 	}
 	else {
-		func->ucl_emitter_append_len ("[\n", 2, func->ud);
+		func->ucl_emitter_append_len (UC_("[\n"), 2, func->ud);
 	}
 
 	ctx->indent ++;
@@ -311,7 +311,7 @@ ucl_emitter_common_start_object (struct ucl_emitter_context *ctx,
 			func->ucl_emitter_append_character ('{', 1, func->ud);
 		}
 		else {
-			func->ucl_emitter_append_len ("{\n", 2, func->ud);
+			func->ucl_emitter_append_len (UC_("{\n"), 2, func->ud);
 		}
 		ctx->indent ++;
 	}
@@ -331,7 +331,7 @@ ucl_emitter_common_start_object (struct ucl_emitter_context *ctx,
 						func->ucl_emitter_append_character (',', 1, func->ud);
 					}
 					else {
-						func->ucl_emitter_append_len (",\n", 2, func->ud);
+						func->ucl_emitter_append_len (UC_(",\n"), 2, func->ud);
 					}
 				}
 				ucl_add_tabs (func, ctx->indent, compact);
@@ -371,9 +371,9 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		}
 		else {
 			if (ctx->id == UCL_EMIT_YAML && ctx->indent == 0) {
-				func->ucl_emitter_append_len ("\n", 1, func->ud);
+				func->ucl_emitter_append_len (UC_("\n"), 1, func->ud);
 			} else {
-				func->ucl_emitter_append_len (",\n", 2, func->ud);
+				func->ucl_emitter_append_len (UC_(",\n"), 2, func->ud);
 			}
 		}
 	}
@@ -387,7 +387,7 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		if (comment) {
 			if (!(comment->flags & UCL_OBJECT_INHERITED)) {
 				DL_FOREACH (comment, cur_comment) {
-					func->ucl_emitter_append_len (cur_comment->value.sv,
+					func->ucl_emitter_append_len (UC_(cur_comment->value.sv),
 							cur_comment->len,
 							func->ud);
 					func->ucl_emitter_append_character ('\n', 1, func->ud);
@@ -415,10 +415,10 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		ucl_emitter_print_key (print_key, ctx, obj, compact);
 		flag = ucl_object_toboolean (obj);
 		if (flag) {
-			func->ucl_emitter_append_len ("true", 4, func->ud);
+			func->ucl_emitter_append_len (UC_("true"), 4, func->ud);
 		}
 		else {
-			func->ucl_emitter_append_len ("false", 5, func->ud);
+			func->ucl_emitter_append_len (UC_("false"), 5, func->ud);
 		}
 		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
@@ -442,7 +442,7 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		break;
 	case UCL_NULL:
 		ucl_emitter_print_key (print_key, ctx, obj, compact);
-		func->ucl_emitter_append_len ("null", 4, func->ud);
+		func->ucl_emitter_append_len (UC_("null"), 4, func->ud);
 		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
 	case UCL_OBJECT:
@@ -469,7 +469,7 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 
 	if (comment) {
 		DL_FOREACH (comment, cur_comment) {
-			func->ucl_emitter_append_len (cur_comment->value.sv,
+			func->ucl_emitter_append_len (UC_(cur_comment->value.sv),
 					cur_comment->len,
 					func->ud);
 			func->ucl_emitter_append_character ('\n', 1, func->ud);

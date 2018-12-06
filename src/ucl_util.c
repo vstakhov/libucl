@@ -509,11 +509,11 @@ ucl_copy_key_trash (const ucl_object_t *obj)
 			memcpy (deconst->trash_stack[UCL_TRASH_KEY], obj->key, obj->keylen);
 			deconst->trash_stack[UCL_TRASH_KEY][obj->keylen] = '\0';
 		}
-		deconst->key = obj->trash_stack[UCL_TRASH_KEY];
+		deconst->key = SC_(obj->trash_stack[UCL_TRASH_KEY]);
 		deconst->flags |= UCL_OBJECT_ALLOCATED_KEY;
 	}
 
-	return obj->trash_stack[UCL_TRASH_KEY];
+	return S_(obj->trash_stack[UCL_TRASH_KEY]);
 }
 
 void
@@ -559,7 +559,7 @@ ucl_copy_value_trash (const ucl_object_t *obj)
 					memcpy (deconst->trash_stack[UCL_TRASH_VALUE],
 							obj->value.sv,
 							obj->len);
-					deconst->value.sv = obj->trash_stack[UCL_TRASH_VALUE];
+					deconst->value.sv = SC_(obj->trash_stack[UCL_TRASH_VALUE]);
 				}
 			}
 			else {
@@ -569,19 +569,19 @@ ucl_copy_value_trash (const ucl_object_t *obj)
 							obj->value.sv,
 							obj->len);
 					deconst->trash_stack[UCL_TRASH_VALUE][obj->len] = '\0';
-					deconst->value.sv = obj->trash_stack[UCL_TRASH_VALUE];
+					deconst->value.sv = SC_(obj->trash_stack[UCL_TRASH_VALUE]);
 				}
 			}
 		}
 		else {
 			/* Just emit value in json notation */
 			deconst->trash_stack[UCL_TRASH_VALUE] = ucl_object_emit_single_json (obj);
-			deconst->len = strlen (obj->trash_stack[UCL_TRASH_VALUE]);
+			deconst->len = strlen (SC_(obj->trash_stack[UCL_TRASH_VALUE]));
 		}
 		deconst->flags |= UCL_OBJECT_ALLOCATED_VALUE;
 	}
 
-	return obj->trash_stack[UCL_TRASH_VALUE];
+	return S_(obj->trash_stack[UCL_TRASH_VALUE]);
 }
 
 ucl_object_t*
@@ -883,7 +883,7 @@ ucl_fetch_file (const unsigned char *filename, unsigned char **buf, size_t *bufl
 	int fd;
 	struct stat st;
 
-	if (stat (filename, &st) == -1) {
+	if (stat (SC_(filename), &st) == -1) {
 		if (must_exist || errno == EPERM) {
 			ucl_create_err (err, "cannot stat file %s: %s",
 					filename, strerror (errno));
@@ -903,7 +903,7 @@ ucl_fetch_file (const unsigned char *filename, unsigned char **buf, size_t *bufl
 		*buflen = 0;
 	}
 	else {
-		if ((fd = open (filename, O_RDONLY)) == -1) {
+		if ((fd = open (SC_(filename), O_RDONLY)) == -1) {
 			ucl_create_err (err, "cannot open file %s: %s",
 					filename, strerror (errno));
 			return false;
@@ -1009,7 +1009,7 @@ ucl_include_url (const unsigned char *data, size_t len,
 
 	snprintf (urlbuf, sizeof (urlbuf), "%.*s", (int)len, data);
 
-	if (!ucl_fetch_url (urlbuf, &buf, &buflen, &parser->err, params->must_exist)) {
+	if (!ucl_fetch_url (UC_(urlbuf), &buf, &buflen, &parser->err, params->must_exist)) {
 		return !params->must_exist;
 	}
 
@@ -1111,7 +1111,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 		return false;
 	}
 
-	if (!ucl_fetch_file (realbuf, &buf, &buflen, &parser->err, params->must_exist)) {
+	if (!ucl_fetch_file (UC_(realbuf), &buf, &buflen, &parser->err, params->must_exist)) {
 		if (params->soft_fail) {
 			return false;
 		}
@@ -1548,7 +1548,7 @@ ucl_include_common (const unsigned char *data, size_t len,
 	}
 
 	if (parser->includepaths == NULL) {
-		if (allow_url && ucl_strnstr (data, "://", len) != NULL) {
+		if (allow_url && ucl_strnstr (SC_(data), "://", len) != NULL) {
 			/* Globbing is not used for URL's */
 			return ucl_include_url (data, len, parser, &params);
 		}
@@ -1558,7 +1558,7 @@ ucl_include_common (const unsigned char *data, size_t len,
 		}
 	}
 	else {
-		if (allow_url && ucl_strnstr (data, "://", len) != NULL) {
+		if (allow_url && ucl_strnstr (SC_(data), "://", len) != NULL) {
 			/* Globbing is not used for URL's */
 			return ucl_include_url (data, len, parser, &params);
 		}
@@ -1568,7 +1568,7 @@ ucl_include_common (const unsigned char *data, size_t len,
 			if (ucl_object_type(param) == UCL_STRING) {
 				snprintf (ipath, sizeof (ipath), "%s/%.*s", ucl_object_tostring(param),
 						(int)len, data);
-				if ((search = ucl_include_file (ipath, strlen (ipath),
+				if ((search = ucl_include_file (UC_(ipath), strlen (ipath),
 						parser, &params))) {
 					if (!params.allow_glob) {
 						break;
@@ -1798,7 +1798,7 @@ ucl_load_handler (const unsigned char *data, size_t len,
 
 		snprintf (load_file, len + 1, "%.*s", (int)len, data);
 
-		if (!ucl_fetch_file (load_file, &buf, &buflen, &parser->err,
+		if (!ucl_fetch_file (UC_(load_file), &buf, &buflen, &parser->err,
 				!try_load)) {
 			free (load_file);
 
@@ -1820,7 +1820,7 @@ ucl_load_handler (const unsigned char *data, size_t len,
 		}
 
 		if (strcasecmp (target, "string") == 0) {
-			obj = ucl_object_fromstring_common (buf, buflen, flags);
+			obj = ucl_object_fromstring_common (SC_(buf), buflen, flags);
 			ucl_copy_value_trash (obj);
 			if (multiline) {
 				obj->flags |= UCL_OBJECT_MULTILINE;
@@ -1875,7 +1875,7 @@ ucl_inherit_handler (const unsigned char *data, size_t len,
 	bool replace = false;
 	struct ucl_parser *parser = ud;
 
-	parent = ucl_object_lookup_len (ctx, data, len);
+	parent = ucl_object_lookup_len (ctx, SC_(data), len);
 
 	/* Some sanity checks */
 	if (parent == NULL || ucl_object_type (parent) != UCL_OBJECT) {
@@ -1962,7 +1962,7 @@ ucl_parser_add_file_full (struct ucl_parser *parser, const char *filename,
 		return false;
 	}
 
-	if (!ucl_fetch_file (realbuf, &buf, &len, &parser->err, true)) {
+	if (!ucl_fetch_file (UC_(realbuf), &buf, &len, &parser->err, true)) {
 		return false;
 	}
 
@@ -2272,7 +2272,7 @@ ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags
 				}
 				*d = '\0';
 				obj->value.sv = dst;
-				obj->trash_stack[UCL_TRASH_VALUE] = dst;
+				obj->trash_stack[UCL_TRASH_VALUE] = U_(dst);
 				obj->len = escaped_len;
 			}
 		}
@@ -2281,14 +2281,14 @@ ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags
 			if (dst != NULL) {
 				ucl_strlcpy_unsafe (dst, start, end - start + 1);
 				obj->value.sv = dst;
-				obj->trash_stack[UCL_TRASH_VALUE] = dst;
+				obj->trash_stack[UCL_TRASH_VALUE] = U_(dst);
 				obj->len = end - start;
 			}
 		}
 		if ((flags & UCL_STRING_PARSE) && dst != NULL) {
 			/* Parse what we have */
 			if (flags & UCL_STRING_PARSE_BOOLEAN) {
-				if (!ucl_maybe_parse_boolean (obj, dst, obj->len) && (flags & UCL_STRING_PARSE_NUMBER)) {
+				if (!ucl_maybe_parse_boolean (obj, UC_(dst), obj->len) && (flags & UCL_STRING_PARSE_NUMBER)) {
 					ucl_maybe_parse_number (obj, dst, dst + obj->len, &pos,
 							flags & UCL_STRING_PARSE_DOUBLE,
 							flags & UCL_STRING_PARSE_BYTES,
@@ -3518,16 +3518,16 @@ ucl_object_copy_internal (const ucl_object_t *other, bool allow_array)
 		/* deep copy of values stored */
 		if (other->trash_stack[UCL_TRASH_KEY] != NULL) {
 			new->trash_stack[UCL_TRASH_KEY] =
-					strdup (other->trash_stack[UCL_TRASH_KEY]);
+					U_(strdup (SC_(other->trash_stack[UCL_TRASH_KEY])));
 			if (other->key == (const char *)other->trash_stack[UCL_TRASH_KEY]) {
-				new->key = new->trash_stack[UCL_TRASH_KEY];
+				new->key = SC_(new->trash_stack[UCL_TRASH_KEY]);
 			}
 		}
 		if (other->trash_stack[UCL_TRASH_VALUE] != NULL) {
 			new->trash_stack[UCL_TRASH_VALUE] =
-					strdup (other->trash_stack[UCL_TRASH_VALUE]);
+					U_(strdup (SC_(other->trash_stack[UCL_TRASH_VALUE])));
 			if (new->type == UCL_STRING) {
-				new->value.sv = new->trash_stack[UCL_TRASH_VALUE];
+				new->value.sv = SC_(new->trash_stack[UCL_TRASH_VALUE]);
 			}
 		}
 

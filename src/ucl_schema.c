@@ -771,7 +771,7 @@ ucl_schema_resolve_ref (const ucl_object_t *root, const char *ref,
 
 		if (ext_obj == NULL) {
 			if (ucl_strnstr (p, "://", strlen (p)) != NULL) {
-				if (!ucl_fetch_url (p, &url_buf, &url_buflen, &url_err, true)) {
+				if (!ucl_fetch_url (UC_(p), &url_buf, &url_buflen, &url_err, true)) {
 
 					ucl_schema_create_error (err,
 							UCL_SCHEMA_INVALID_SCHEMA,
@@ -786,7 +786,7 @@ ucl_schema_resolve_ref (const ucl_object_t *root, const char *ref,
 				}
 			}
 			else {
-				if (!ucl_fetch_file (p, &url_buf, &url_buflen, &url_err,
+				if (!ucl_fetch_file (UC_(p), &url_buf, &url_buflen, &url_err,
 						true)) {
 					ucl_schema_create_error (err,
 							UCL_SCHEMA_INVALID_SCHEMA,
