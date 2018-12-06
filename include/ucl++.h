@@ -683,7 +683,7 @@ public:
 
 		std::vector<std::string> result;
 		std::move (vars.begin (), vars.end (), std::back_inserter (result));
-		return std::move (result);
+		return result;
 	}
 
 	Ucl& operator= (Ucl rhs)
