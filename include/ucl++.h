@@ -196,7 +196,7 @@ public:
 			it = std::shared_ptr<void>(ucl_object_iterate_new (obj.obj.get()),
 				ucl_iter_deleter());
 			cur.reset (new Ucl(ucl_object_iterate_safe (it.get(), true)));
-			if (cur->type() == UCL_NULL) {
+			if (!cur->obj) {
 				it.reset ();
 				cur.reset ();
 			}
@@ -230,7 +230,7 @@ public:
 				cur.reset (new Ucl(ucl_object_iterate_safe (it.get(), true)));
 			}
 
-			if (cur && cur->type() == UCL_NULL) {
+			if (cur && !cur->obj) {
 				it.reset ();
 				cur.reset ();
 			}
