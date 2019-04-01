@@ -55,9 +55,9 @@ void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func func);
 
 /**
  * Inserts an element in the the hashtable.
- * @return 0 on success, -1 on failure (i.e. ENOMEM)
+ * @return true on success, false on failure (i.e. ENOMEM)
  */
-int ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj, const char *key,
+bool ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj, const char *key,
 		unsigned keylen);
 
 /**

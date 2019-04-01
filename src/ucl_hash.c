@@ -297,7 +297,7 @@ void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func func)
 	UCL_FREE (sizeof (*hashlin), hashlin);
 }
 
-int
+bool
 ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 		const char *key, unsigned keylen)
 {
@@ -306,7 +306,7 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 	struct ucl_hash_elt *elt;
 
 	if (hashlin == NULL) {
-		return -1;
+		return false;
 	}
 
 	if (hashlin->caseless) {
@@ -333,9 +333,9 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 			goto e0;
 		}
 	}
-	return 0;
+	return true;
 e0:
-	return -1;
+	return false;
 }
 
 void ucl_hash_replace (ucl_hash_t* hashlin, const ucl_object_t *old,
