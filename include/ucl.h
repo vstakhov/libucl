@@ -471,7 +471,7 @@ UCL_EXTERN bool ucl_object_insert_key_merged (ucl_object_t *top, ucl_object_t *e
  * @param reserved size to reserve in an object
  * @return 0 on success, -1 on failure (i.e. ENOMEM)
  */
-UCL_EXTERN int ucl_object_reserve (ucl_object_t *obj, size_t reserved);
+UCL_EXTERN bool ucl_object_reserve (ucl_object_t *obj, size_t reserved);
 
 /**
  * Append an element to the end of array object
@@ -829,11 +829,11 @@ typedef void* ucl_object_iter_t;
  * @param ep pointer record exception (such as ENOMEM), could be NULL
  * @return the next object or NULL
  */
-UCL_EXTERN const ucl_object_t* ucl_object_iterate2 (const ucl_object_t *obj,
+UCL_EXTERN const ucl_object_t* ucl_object_iterate_with_error (const ucl_object_t *obj,
 		ucl_object_iter_t *iter, bool expand_values, int *ep);
 
 #define ucl_iterate_object ucl_object_iterate
-#define ucl_object_iterate(ob, it, ev) ucl_object_iterate2((ob), (it), (ev), NULL)
+#define ucl_object_iterate(ob, it, ev) ucl_object_iterate_with_error((ob), (it), (ev), NULL)
 
 /**
  * Create new safe iterator for the specified object
@@ -842,7 +842,13 @@ UCL_EXTERN const ucl_object_t* ucl_object_iterate2 (const ucl_object_t *obj,
  */
 UCL_EXTERN ucl_object_iter_t ucl_object_iterate_new (const ucl_object_t *obj)
 	UCL_WARN_UNUSED_RESULT;
-
+/**
+ * Check safe iterator object after performing some operations on it
+ * (such as ucl_object_iterate_safe()) to see if operation has encountered
+ * fatal exception while performing that operation (e.g. ENOMEM).
+ * @param iter opaque iterator
+ * @return true if exception has occured, false otherwise
+ */
 UCL_EXTERN bool ucl_object_iter_chk_excpn(ucl_object_iter_t *it);
 
 /**
@@ -958,9 +964,9 @@ UCL_EXTERN int ucl_parser_get_default_priority (struct ucl_parser *parser);
  * @param macro macro name (without leading dot)
  * @param handler handler (it is called immediately after macro is parsed)
  * @param ud opaque user data for a handler
- * @return 0 on success, -1 on failure (i.e. ENOMEM)
+ * @return true on success, false on failure (i.e. ENOMEM)
  */
-UCL_EXTERN int ucl_parser_register_macro (struct ucl_parser *parser,
+UCL_EXTERN bool ucl_parser_register_macro (struct ucl_parser *parser,
 		const char *macro,
 		ucl_macro_handler handler, void* ud);
 
@@ -970,9 +976,9 @@ UCL_EXTERN int ucl_parser_register_macro (struct ucl_parser *parser,
  * @param macro macro name (without leading dot)
  * @param handler handler (it is called immediately after macro is parsed)
  * @param ud opaque user data for a handler
- * @return 0 on success, -1 on failure (i.e. ENOMEM)
+ * @return true on success, false on failure (i.e. ENOMEM)
  */
-UCL_EXTERN int ucl_parser_register_context_macro (struct ucl_parser *parser,
+UCL_EXTERN bool ucl_parser_register_context_macro (struct ucl_parser *parser,
 		const char *macro,
 		ucl_context_macro_handler handler,
 		void* ud);
