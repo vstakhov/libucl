@@ -443,14 +443,16 @@ ucl_hash_insert_object (ucl_hash_t *hashlin,
 
 	if (hashlin == NULL) {
 		nhp = ucl_hash_create (ignore_case);
-		if (nhp == NULL)
+		if (nhp == NULL) {
 			return NULL;
+		}
 	} else {
 		nhp = hashlin;
 	}
 	if (ucl_hash_insert (nhp, obj, obj->key, obj->keylen) < 0) {
-		if (nhp != hashlin)
+		if (nhp != hashlin) {
 			ucl_hash_destroy(nhp, NULL);
+		}
 		return NULL;
 	}
 

@@ -2546,7 +2546,7 @@ ucl_object_lookup_any (const ucl_object_t *obj,
 }
 
 const ucl_object_t*
-ucl_object_iterate2 (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_values,
+ucl_object_iterate_with_error (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_values,
     int *ep)
 {
 	const ucl_object_t *elt = NULL;
@@ -2689,7 +2689,7 @@ ucl_object_iterate_full (ucl_object_iter_t it, enum ucl_iterate_type type)
 
 	if (rit->impl_it->type == UCL_OBJECT) {
 		rit->flags = UCL_ITERATE_FLAG_INSIDE_OBJECT;
-		ret = ucl_object_iterate2 (rit->impl_it, &rit->expl_it, true, &ern);
+		ret = ucl_object_iterate_with_error (rit->impl_it, &rit->expl_it, true, &ern);
 
                 if (ret == NULL && ern != 0) {
                         rit->flags = UCL_ITERATE_FLAG_EXCEPTION;
@@ -2855,7 +2855,7 @@ enomem:
 	return new;
 }
 
-int ucl_object_reserve (ucl_object_t *obj, size_t reserved)
+bool ucl_object_reserve (ucl_object_t *obj, size_t reserved)
 {
 	if (obj->type == UCL_ARRAY) {
 		UCL_ARRAY_GET (vec, obj);
@@ -2868,9 +2868,9 @@ int ucl_object_reserve (ucl_object_t *obj, size_t reserved)
 	else if (obj->type == UCL_OBJECT) {
 		ucl_hash_reserve (obj->value.ov, reserved);
 	}
-	return 0;
+	return true;
 e0:
-	return -1;
+	return false;
 }
 
 ucl_object_t*
