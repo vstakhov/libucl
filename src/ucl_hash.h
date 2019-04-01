@@ -99,8 +99,9 @@ bool ucl_hash_iter_has_next (ucl_hash_t *hashlin, ucl_hash_iter_t iter);
 
 /**
  * Reserves space in hash
+ * @return true on sucess, false on failure (e.g. ENOMEM)
  * @param hashlin
  */
-int ucl_hash_reserve (ucl_hash_t *hashlin, size_t sz);
+bool ucl_hash_reserve (ucl_hash_t *hashlin, size_t sz);
 
 #endif

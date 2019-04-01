@@ -519,10 +519,10 @@ ucl_hash_delete (ucl_hash_t* hashlin, const ucl_object_t *obj)
 	}
 }
 
-int ucl_hash_reserve (ucl_hash_t *hashlin, size_t sz)
+bool ucl_hash_reserve (ucl_hash_t *hashlin, size_t sz)
 {
 	if (hashlin == NULL) {
-		return -1;
+		return false;
 	}
 
 	if (sz > hashlin->ar.m) {
@@ -539,7 +539,7 @@ int ucl_hash_reserve (ucl_hash_t *hashlin, size_t sz)
 			kh_resize (ucl_hash_node, h, sz * 2);
 		}
 	}
-	return 0;
+	return true;
 e0:
-	return -1;
+	return false;
 }
