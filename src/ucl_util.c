@@ -2644,7 +2644,7 @@ ucl_object_iter_chk_excpn(ucl_object_iter_t *it)
 
         UCL_SAFE_ITER_CHECK (rit);
 
-         return (rit->flags == UCL_ITERATE_FLAG_EXCEPTION);
+	return (rit->flags == UCL_ITERATE_FLAG_EXCEPTION);
 }
 
 ucl_object_iter_t
@@ -2679,7 +2679,7 @@ ucl_object_iterate_full (ucl_object_iter_t it, enum ucl_iterate_type type)
 {
 	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER (it);
 	const ucl_object_t *ret = NULL;
-        int ern;
+	int ern;
 
 	UCL_SAFE_ITER_CHECK (rit);
 
@@ -2691,10 +2691,10 @@ ucl_object_iterate_full (ucl_object_iter_t it, enum ucl_iterate_type type)
 		rit->flags = UCL_ITERATE_FLAG_INSIDE_OBJECT;
 		ret = ucl_object_iterate_with_error (rit->impl_it, &rit->expl_it, true, &ern);
 
-                if (ret == NULL && ern != 0) {
-                        rit->flags = UCL_ITERATE_FLAG_EXCEPTION;
-                        return NULL;
-                }
+		if (ret == NULL && ern != 0) {
+			rit->flags = UCL_ITERATE_FLAG_EXCEPTION;
+			return NULL;
+		}
 
 		if (ret == NULL && (type & UCL_ITERATE_IMPLICIT)) {
 			/* Need to switch to another implicit object in chain */
