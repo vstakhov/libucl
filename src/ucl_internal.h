@@ -473,7 +473,7 @@ ucl_hash_insert_object (ucl_hash_t *hashlin,
 	} else {
 		nhp = hashlin;
 	}
-	if (ucl_hash_insert (nhp, obj, obj->key, obj->keylen) < 0) {
+	if (!ucl_hash_insert (nhp, obj, obj->key, obj->keylen)) {
 		if (nhp != hashlin) {
 			ucl_hash_destroy(nhp, NULL);
 		}
