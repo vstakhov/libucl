@@ -624,25 +624,36 @@ ucl_parser_add_container (ucl_object_t *obj, struct ucl_parser *parser,
 		bool is_array, int level)
 {
 	struct ucl_stack *st;
+	ucl_object_t *nobj;
 
 	if (!is_array) {
 		if (obj == NULL) {
-			obj = ucl_object_new_full (UCL_OBJECT, parser->chunks->priority);
+			nobj = ucl_object_new_full (UCL_OBJECT, parser->chunks->priority);
+			if (nobj == NULL) {
+				goto enomem0;
+			}
 		}
 		else {
-			obj->type = UCL_OBJECT;
+			nobj = obj;
+			nobj->type = UCL_OBJECT;
 		}
-		if (obj->value.ov == NULL) {
-			obj->value.ov = ucl_hash_create (parser->flags & UCL_PARSER_KEY_LOWERCASE);
+		if (nobj->value.ov == NULL) {
+			nobj->value.ov = ucl_hash_create (parser->flags & UCL_PARSER_KEY_LOWERCASE);
+			if (nobj->value.ov == NULL)
+				goto enomem1;
 		}
 		parser->state = UCL_STATE_KEY;
 	}
 	else {
 		if (obj == NULL) {
-			obj = ucl_object_new_full (UCL_ARRAY, parser->chunks->priority);
+			nobj = ucl_object_new_full (UCL_ARRAY, parser->chunks->priority);
+			if (nobj == NULL) {
+				goto enomem0;
+			}
 		}
 		else {
-			obj->type = UCL_ARRAY;
+			nobj = obj;
+			nobj->type = UCL_ARRAY;
 		}
 		parser->state = UCL_STATE_VALUE;
 	}
@@ -650,18 +661,22 @@ ucl_parser_add_container (ucl_object_t *obj, struct ucl_parser *parser,
 	st = UCL_ALLOC (sizeof (struct ucl_stack));
 
 	if (st == NULL) {
-		ucl_set_err (parser, UCL_EINTERNAL, "cannot allocate memory for an object",
-				&parser->err);
-		ucl_object_unref (obj);
-		return NULL;
+		goto enomem1;
 	}
 
-	st->obj = obj;
+	st->obj = nobj;
 	st->level = level;
 	LL_PREPEND (parser->stack, st);
-	parser->cur_obj = obj;
+	parser->cur_obj = nobj;
 
-	return obj;
+	return nobj;
+enomem1:
+	if (nobj != obj)
+		ucl_object_unref (nobj);
+enomem0:
+	ucl_set_err (parser, UCL_EINTERNAL, "cannot allocate memory for an object",
+			&parser->err);
+	return NULL;
 }
 
 int
@@ -1085,6 +1100,8 @@ ucl_parser_process_object_element (struct ucl_parser *parser, ucl_object_t *nobj
 	if (tobj == NULL) {
 		container = ucl_hash_insert_object (container, nobj,
 				parser->flags & UCL_PARSER_KEY_LOWERCASE);
+		if (container == NULL)
+			return false;
 		nobj->prev = nobj;
 		nobj->next = NULL;
 		parser->stack->obj->len ++;
@@ -1368,6 +1385,8 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
 
 	/* Create a new object */
 	nobj = ucl_object_new_full (UCL_NULL, parser->chunks->priority);
+	if (nobj == NULL)
+		return false;
 	keylen = ucl_copy_or_store_ptr (parser, c, &nobj->trash_stack[UCL_TRASH_KEY],
 			&key, end - c, need_unescape, parser->flags & UCL_PARSER_KEY_LOWERCASE, false);
 	if (keylen == -1) {
@@ -2462,6 +2481,11 @@ ucl_state_machine (struct ucl_parser *parser)
 	return true;
 }
 
+#define UPRM_SAFE(fn, a, b, c, el) do { \
+		if (fn(a, b, c, a) != 0) \
+			goto el; \
+	} while (0)
+
 struct ucl_parser*
 ucl_parser_new (int flags)
 {
@@ -2474,12 +2498,12 @@ ucl_parser_new (int flags)
 
 	memset (parser, 0, sizeof (struct ucl_parser));
 
-	ucl_parser_register_macro (parser, "include", ucl_include_handler, parser);
-	ucl_parser_register_macro (parser, "try_include", ucl_try_include_handler, parser);
-	ucl_parser_register_macro (parser, "includes", ucl_includes_handler, parser);
-	ucl_parser_register_macro (parser, "priority", ucl_priority_handler, parser);
-	ucl_parser_register_macro (parser, "load", ucl_load_handler, parser);
-	ucl_parser_register_context_macro (parser, "inherit", ucl_inherit_handler, parser);
+	UPRM_SAFE(ucl_parser_register_macro, parser, "include", ucl_include_handler, e0);
+	UPRM_SAFE(ucl_parser_register_macro, parser, "try_include", ucl_try_include_handler, e0);
+	UPRM_SAFE(ucl_parser_register_macro, parser, "includes", ucl_includes_handler, e0);
+	UPRM_SAFE(ucl_parser_register_macro, parser, "priority", ucl_priority_handler, e0);
+	UPRM_SAFE(ucl_parser_register_macro, parser, "load", ucl_load_handler, e0);
+	UPRM_SAFE(ucl_parser_register_context_macro, parser, "inherit", ucl_inherit_handler, e0);
 
 	parser->flags = flags;
 	parser->includepaths = NULL;
@@ -2494,6 +2518,9 @@ ucl_parser_new (int flags)
 	}
 
 	return parser;
+e0:
+	ucl_parser_free(parser);
+	return NULL;
 }
 
 bool
@@ -2518,49 +2545,59 @@ ucl_parser_get_default_priority (struct ucl_parser *parser)
 	return parser->default_priority;
 }
 
-void
+int
 ucl_parser_register_macro (struct ucl_parser *parser, const char *macro,
 		ucl_macro_handler handler, void* ud)
 {
 	struct ucl_macro *new;
 
 	if (macro == NULL || handler == NULL) {
-		return;
+		return -1;
 	}
 
 	new = UCL_ALLOC (sizeof (struct ucl_macro));
 	if (new == NULL) {
-		return;
+		return -1;
 	}
 
 	memset (new, 0, sizeof (struct ucl_macro));
 	new->h.handler = handler;
 	new->name = strdup (macro);
+	if (new->name == NULL) {
+		UCL_FREE (sizeof (struct ucl_macro), new);
+		return -1;
+	}
 	new->ud = ud;
 	HASH_ADD_KEYPTR (hh, parser->macroes, new->name, strlen (new->name), new);
+	return 0;
 }
 
-void
+int
 ucl_parser_register_context_macro (struct ucl_parser *parser, const char *macro,
 		ucl_context_macro_handler handler, void* ud)
 {
 	struct ucl_macro *new;
 
 	if (macro == NULL || handler == NULL) {
-		return;
+		return -1;
 	}
 
 	new = UCL_ALLOC (sizeof (struct ucl_macro));
 	if (new == NULL) {
-		return;
+		return -1;
 	}
 
 	memset (new, 0, sizeof (struct ucl_macro));
 	new->h.context_handler = handler;
 	new->name = strdup (macro);
+	if (new->name == NULL) {
+		UCL_FREE (sizeof (struct ucl_macro), new);
+		return -1;
+	}
 	new->ud = ud;
 	new->is_context = true;
 	HASH_ADD_KEYPTR (hh, parser->macroes, new->name, strlen (new->name), new);
+	return 0;
 }
 
 void
