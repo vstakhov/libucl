@@ -28,9 +28,12 @@
 
 #include "kvec.h"
 int main() {
+	int ern;
 	kvec_t(int) array;
 	kv_init(array);
-	kv_push(int, array, 10, e0); // append
+	kv_push(int, array, 10, &ern); // append
+	if (ern != 0)
+		goto e0;
 	kv_a(int, array, 20) = 5; // dynamic
 	kv_A(array, 20) = 4; // static
 	kv_destroy(array);
@@ -93,6 +96,8 @@ e0:
 			kv_resize(type, v1, (v0).n, ep);					\
 			if (*ep != 0)								\
 				break;									\
+		} else { 										\
+			*ep = 0;								\
 		} 										\
 		(v1).n = (v0).n;													\
 		memcpy((v1).a, (v0).a, sizeof(type) * (v0).n);						\
@@ -103,6 +108,8 @@ e0:
 			kv_grow(type, v, ep);												\
 			if (*ep != 0)												\
 				break;												\
+		} else {													\
+			*ep = 0;												\
 		}																	\
 		(v).a[(v).n++] = (x);												\
 	} while (0)
@@ -112,6 +119,8 @@ e0:
 		kv_grow(type, v, ep);													\
 		if (*ep != 0)													\
 			break;													\
+	} else {														\
+		*ep = 0;													\
 	}																		\
 	memmove((v).a + 1, (v).a, sizeof(type) * (v).n);							\
 	(v).a[0] = (x);															\
@@ -123,6 +132,8 @@ e0:
 			kv_resize(type, v1, (v0).n + (v1).n, ep);		\
 			if (*ep != 0)						\
 				break;						\
+		} else {							\
+			*ep = 0;						\
 		}								\
 		memcpy((v1).a + (v1).n, (v0).a, sizeof(type) * (v0).n);	\
 		(v1).n = (v0).n + (v1).n;											\
