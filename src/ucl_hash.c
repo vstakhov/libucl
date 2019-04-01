@@ -237,17 +237,21 @@ ucl_hash_create (bool ignore_case)
 
 	new = UCL_ALLOC (sizeof (ucl_hash_t));
 	if (new != NULL) {
+		void *h;
 		kv_init (new->ar);
 
 		new->caseless = ignore_case;
 		if (ignore_case) {
-			khash_t(ucl_hash_caseless_node) *h = kh_init (ucl_hash_caseless_node);
-			new->hash = (void *)h;
+			h = (void *)kh_init (ucl_hash_caseless_node);
 		}
 		else {
-			khash_t(ucl_hash_node) *h = kh_init (ucl_hash_node);
-			new->hash = (void *)h;
+			h = (void *)kh_init (ucl_hash_node);
 		}
+		if (h == NULL) {
+			UCL_FREE (sizeof (ucl_hash_t), new);
+			return NULL;
+		}
+		new->hash = h;
 	}
 	return new;
 }
@@ -293,7 +297,7 @@ void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func func)
 	UCL_FREE (sizeof (*hashlin), hashlin);
 }
 
-void
+int
 ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 		const char *key, unsigned keylen)
 {
@@ -302,7 +306,7 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 	struct ucl_hash_elt *elt;
 
 	if (hashlin == NULL) {
-		return;
+		return -1;
 	}
 
 	if (hashlin->caseless) {
@@ -311,7 +315,7 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 		k = kh_put (ucl_hash_caseless_node, h, obj, &ret);
 		if (ret > 0) {
 			elt = &kh_value (h, k);
-			kv_push (const ucl_object_t *, hashlin->ar, obj);
+			kv_push (const ucl_object_t *, hashlin->ar, obj, e0);
 			elt->obj = obj;
 			elt->ar_idx = kv_size (hashlin->ar) - 1;
 		}
@@ -322,11 +326,16 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 		k = kh_put (ucl_hash_node, h, obj, &ret);
 		if (ret > 0) {
 			elt = &kh_value (h, k);
-			kv_push (const ucl_object_t *, hashlin->ar, obj);
+			kv_push (const ucl_object_t *, hashlin->ar, obj, e0);
 			elt->obj = obj;
 			elt->ar_idx = kv_size (hashlin->ar) - 1;
+		} else if (ret < 0) {
+			goto e0;
 		}
 	}
+	return 0;
+e0:
+	return -1;
 }
 
 void ucl_hash_replace (ucl_hash_t* hashlin, const ucl_object_t *old,
@@ -375,13 +384,16 @@ struct ucl_hash_real_iter {
 	const ucl_object_t **end;
 };
 
+#define UHI_SETERR(ep, ern) {if (ep != NULL) *ep = (ern);}
+
 const void*
-ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
+ucl_hash_iterate2 (ucl_hash_t *hashlin, ucl_hash_iter_t *iter, int *ep)
 {
 	struct ucl_hash_real_iter *it = (struct ucl_hash_real_iter *)(*iter);
 	const ucl_object_t *ret = NULL;
 
 	if (hashlin == NULL) {
+		UHI_SETERR(ep, EINVAL);
 		return NULL;
 	}
 
@@ -389,6 +401,7 @@ ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 		it = UCL_ALLOC (sizeof (*it));
 
 		if (it == NULL) {
+			UHI_SETERR(ep, ENOMEM);
 			return NULL;
 		}
 
@@ -396,6 +409,7 @@ ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 		it->end = it->cur + hashlin->ar.n;
 	}
 
+	UHI_SETERR(ep, 0);
 	if (it->cur < it->end) {
 		ret = *it->cur++;
 	}
@@ -505,14 +519,14 @@ ucl_hash_delete (ucl_hash_t* hashlin, const ucl_object_t *obj)
 	}
 }
 
-void ucl_hash_reserve (ucl_hash_t *hashlin, size_t sz)
+int ucl_hash_reserve (ucl_hash_t *hashlin, size_t sz)
 {
 	if (hashlin == NULL) {
-		return;
+		return -1;
 	}
 
 	if (sz > hashlin->ar.m) {
-		kv_resize (const ucl_object_t *, hashlin->ar, sz);
+		kv_resize (const ucl_object_t *, hashlin->ar, sz, e0);
 
 		if (hashlin->caseless) {
 			khash_t(ucl_hash_caseless_node) *h = (khash_t(
@@ -525,4 +539,7 @@ void ucl_hash_reserve (ucl_hash_t *hashlin, size_t sz)
 			kh_resize (ucl_hash_node, h, sz * 2);
 		}
 	}
+	return 0;
+e0:
+	return -1;
 }

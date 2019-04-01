@@ -30,11 +30,13 @@
 int main() {
 	kvec_t(int) array;
 	kv_init(array);
-	kv_push(int, array, 10); // append
+	kv_push(int, array, 10, e0); // append
 	kv_a(int, array, 20) = 5; // dynamic
 	kv_A(array, 20) = 4; // static
 	kv_destroy(array);
 	return 0;
+e0:
+	return 1;
 }
 */
 
@@ -60,35 +62,52 @@ int main() {
 #define kv_size(v) ((v).n)
 #define kv_max(v) ((v).m)
 
-#define kv_resize(type, v, s)  ((v).m = (s), (v).a = (type*)realloc((v).a, sizeof(type) * (v).m))
-#define kv_grow_factor 1.5
-#define kv_grow(type, v)  ((v).m = ((v).m > 1 ? (v).m * kv_grow_factor : 2), \
-		(v).a = (type*)realloc((v).a, sizeof(type) * (v).m))
+#define kv_resize(type, v, s, el)  do { \
+		type *_tp = (type*)realloc((v).a, sizeof(type) * (s)); \
+		if (_tp == NULL) { \
+			goto el; \
+		} else { \
+			(v).a = _tp; \
+			(v).m = (s); \
+		} \
+	} while (0)
 
-#define kv_copy(type, v1, v0) do {											\
-		if ((v1).m < (v0).n) kv_resize(type, v1, (v0).n);					\
+#define kv_grow_factor 1.5
+#define kv_grow(type, v, el)  do { \
+		size_t _ts = ((v).m > 1 ? (v).m * kv_grow_factor : 2); \
+		type *_tp = (type*)realloc((v).a, sizeof(type) * _ts); \
+		if (_tp == NULL) { \
+			goto el; \
+		} else { \
+			(v).a = _tp; \
+			(v).m = _ts; \
+		} \
+	} while (0)
+
+#define kv_copy(type, v1, v0, el) do {											\
+		if ((v1).m < (v0).n) kv_resize(type, v1, (v0).n, el);					\
 		(v1).n = (v0).n;													\
 		memcpy((v1).a, (v0).a, sizeof(type) * (v0).n);						\
 	} while (0)																\
 
-#define kv_push(type, v, x) do {											\
+#define kv_push(type, v, x, el) do {											\
 		if ((v).n == (v).m) {												\
-			kv_grow(type, v);												\
+			kv_grow(type, v, el);												\
 		}																	\
 		(v).a[(v).n++] = (x);												\
 	} while (0)
 
-#define kv_prepend(type, v, x) do {											\
+#define kv_prepend(type, v, x, el) do {											\
 	if ((v).n == (v).m) {													\
-		kv_grow(type, v);													\
+		kv_grow(type, v, el);													\
 	}																		\
 	memmove((v).a + 1, (v).a, sizeof(type) * (v).n);							\
 	(v).a[0] = (x);															\
 	(v).n ++;																\
 } while (0)
 
-#define kv_concat(type, v1, v0) do {										\
-	if ((v1).m < (v0).n + (v1).n) kv_resize(type, v1, (v0).n + (v1).n);		\
+#define kv_concat(type, v1, v0, el) do {										\
+	if ((v1).m < (v0).n + (v1).n) kv_resize(type, v1, (v0).n + (v1).n, el);		\
 		memcpy((v1).a + (v1).n, (v0).a, sizeof(type) * (v0).n);	\
 		(v1).n = (v0).n + (v1).n;											\
 	} while (0)

@@ -2654,7 +2654,8 @@ ucl_object_lookup_any (const ucl_object_t *obj,
 }
 
 const ucl_object_t*
-ucl_object_iterate (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_values)
+ucl_object_iterate2 (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_values,
+    int *ep)
 {
 	const ucl_object_t *elt = NULL;
 
@@ -2665,7 +2666,7 @@ ucl_object_iterate (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expan
 	if (expand_values) {
 		switch (obj->type) {
 		case UCL_OBJECT:
-			return (const ucl_object_t*)ucl_hash_iterate (obj->value.ov, iter);
+			return (const ucl_object_t*)ucl_hash_iterate2 (obj->value.ov, iter, ep);
 			break;
 		case UCL_ARRAY: {
 			unsigned int idx;
@@ -2711,6 +2712,7 @@ enum ucl_safe_iter_flags {
 	UCL_ITERATE_FLAG_INSIDE_ARRAY,
 	UCL_ITERATE_FLAG_INSIDE_OBJECT,
 	UCL_ITERATE_FLAG_IMPLICIT,
+	UCL_ITERATE_FLAG_EXCEPTION
 };
 
 const char safe_iter_magic[4] = {'u', 'i', 't', 'e'};
@@ -2743,6 +2745,15 @@ ucl_object_iterate_new (const ucl_object_t *obj)
 	return (ucl_object_iter_t)it;
 }
 
+bool
+ucl_object_iter_chk_excpn(ucl_object_iter_t *it)
+{
+        struct ucl_object_safe_iter *rit = UCL_SAFE_ITER (it);
+
+        UCL_SAFE_ITER_CHECK (rit);
+
+         return (rit->flags == UCL_ITERATE_FLAG_EXCEPTION);
+}
 
 ucl_object_iter_t
 ucl_object_iterate_reset (ucl_object_iter_t it, const ucl_object_t *obj)
@@ -2776,6 +2787,7 @@ ucl_object_iterate_full (ucl_object_iter_t it, enum ucl_iterate_type type)
 {
 	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER (it);
 	const ucl_object_t *ret = NULL;
+        int ern;
 
 	UCL_SAFE_ITER_CHECK (rit);
 
@@ -2785,7 +2797,12 @@ ucl_object_iterate_full (ucl_object_iter_t it, enum ucl_iterate_type type)
 
 	if (rit->impl_it->type == UCL_OBJECT) {
 		rit->flags = UCL_ITERATE_FLAG_INSIDE_OBJECT;
-		ret = ucl_object_iterate (rit->impl_it, &rit->expl_it, true);
+		ret = ucl_object_iterate2 (rit->impl_it, &rit->expl_it, true, &ern);
+
+                if (ret == NULL && ern != 0) {
+                        rit->flags = UCL_ITERATE_FLAG_EXCEPTION;
+                        return NULL;
+                }
 
 		if (ret == NULL && (type & UCL_ITERATE_IMPLICIT)) {
 			/* Need to switch to another implicit object in chain */
@@ -2933,7 +2950,7 @@ ucl_object_new_full (ucl_type_t type, unsigned priority)
 					UCL_ARRAY_GET (vec, new);
 
 					/* Preallocate some space for arrays */
-					kv_resize (ucl_object_t *, *vec, 8);
+					kv_resize (ucl_object_t *, *vec, 8, enomem);
 				}
 			}
 		}
@@ -2942,23 +2959,26 @@ ucl_object_new_full (ucl_type_t type, unsigned priority)
 		new = ucl_object_new_userdata (NULL, NULL, NULL);
 		ucl_object_set_priority (new, priority);
 	}
-
+enomem:
 	return new;
 }
 
-void ucl_object_reserve (ucl_object_t *obj, size_t reserved)
+int ucl_object_reserve (ucl_object_t *obj, size_t reserved)
 {
 	if (obj->type == UCL_ARRAY) {
 		UCL_ARRAY_GET (vec, obj);
 
 		if (vec->m < reserved) {
 			/* Preallocate some space for arrays */
-			kv_resize (ucl_object_t *, *vec, reserved);
+			kv_resize (ucl_object_t *, *vec, reserved, e0);
 		}
 	}
 	else if (obj->type == UCL_OBJECT) {
 		ucl_hash_reserve (obj->value.ov, reserved);
 	}
+	return 0;
+e0:
+	return -1;
 }
 
 ucl_object_t*
@@ -3068,11 +3088,13 @@ ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
 		top->value.av = (void *)vec;
 	}
 
-	kv_push (ucl_object_t *, *vec, elt);
+	kv_push (ucl_object_t *, *vec, elt, e0);
 
 	top->len ++;
 
 	return true;
+e0:
+	return false;
 }
 
 bool
@@ -3088,16 +3110,18 @@ ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
 		vec = UCL_ALLOC (sizeof (*vec));
 		kv_init (*vec);
 		top->value.av = (void *)vec;
-		kv_push (ucl_object_t *, *vec, elt);
+		kv_push (ucl_object_t *, *vec, elt, e0);
 	}
 	else {
 		/* Slow O(n) algorithm */
-		kv_prepend (ucl_object_t *, *vec, elt);
+		kv_prepend (ucl_object_t *, *vec, elt, e0);
 	}
 
 	top->len ++;
 
 	return true;
+e0:
+	return false;
 }
 
 bool
@@ -3122,7 +3146,7 @@ ucl_array_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 	UCL_ARRAY_GET (v2, cp);
 
 	if (v1 && v2) {
-		kv_concat (ucl_object_t *, *v1, *v2);
+		kv_concat (ucl_object_t *, *v1, *v2, e0);
 
 		for (i = v2->n; i < v1->n; i ++) {
 			obj = &kv_A (*v1, i);
@@ -3134,6 +3158,8 @@ ucl_array_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 	}
 
 	return true;
+e0:
+	return false;
 }
 
 ucl_object_t *
