@@ -302,7 +302,7 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 		const char *key, unsigned keylen)
 {
 	khiter_t k;
-	int ret, ern;
+	int ret;
 	struct ucl_hash_elt *elt;
 
 	if (hashlin == NULL) {
@@ -315,10 +315,7 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 		k = kh_put (ucl_hash_caseless_node, h, obj, &ret);
 		if (ret > 0) {
 			elt = &kh_value (h, k);
-			kv_push (const ucl_object_t *, hashlin->ar, obj, &ern);
-			if (ern != 0) {
-				goto e0;
-			}
+			kv_push (const ucl_object_t *, hashlin->ar, obj, e0);
 			elt->obj = obj;
 			elt->ar_idx = kv_size (hashlin->ar) - 1;
 		}
@@ -329,10 +326,7 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 		k = kh_put (ucl_hash_node, h, obj, &ret);
 		if (ret > 0) {
 			elt = &kh_value (h, k);
-			kv_push (const ucl_object_t *, hashlin->ar, obj, &ern);
-			if (ern != 0) {
-				goto e0;
-			}
+			kv_push (const ucl_object_t *, hashlin->ar, obj, e0);
 			elt->obj = obj;
 			elt->ar_idx = kv_size (hashlin->ar) - 1;
 		} else if (ret < 0) {
@@ -527,17 +521,12 @@ ucl_hash_delete (ucl_hash_t* hashlin, const ucl_object_t *obj)
 
 bool ucl_hash_reserve (ucl_hash_t *hashlin, size_t sz)
 {
-	int ern;
-
 	if (hashlin == NULL) {
 		return false;
 	}
 
 	if (sz > hashlin->ar.m) {
-		kv_resize (const ucl_object_t *, hashlin->ar, sz, &ern);
-		if (ern != 0) {
-			goto e0;
-		}
+		kv_resize (const ucl_object_t *, hashlin->ar, sz, e0);
 
 		if (hashlin->caseless) {
 			khash_t(ucl_hash_caseless_node) *h = (khash_t(

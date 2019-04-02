@@ -2932,7 +2932,6 @@ ucl_object_t *
 ucl_object_new_full (ucl_type_t type, unsigned priority)
 {
 	ucl_object_t *new;
-	int ern;
 
 	if (type != UCL_USERDATA) {
 		new = UCL_ALLOC (sizeof (ucl_object_t));
@@ -2951,10 +2950,7 @@ ucl_object_new_full (ucl_type_t type, unsigned priority)
 					UCL_ARRAY_GET (vec, new);
 
 					/* Preallocate some space for arrays */
-					kv_resize (ucl_object_t *, *vec, 8, &ern);
-					if (ern != 0) {
-						goto enomem;
-					}
+					kv_resize (ucl_object_t *, *vec, 8, enomem);
 				}
 			}
 		}
@@ -2969,17 +2965,12 @@ enomem:
 
 bool ucl_object_reserve (ucl_object_t *obj, size_t reserved)
 {
-	int ern;
-
 	if (obj->type == UCL_ARRAY) {
 		UCL_ARRAY_GET (vec, obj);
 
 		if (vec->m < reserved) {
 			/* Preallocate some space for arrays */
-			kv_resize (ucl_object_t *, *vec, reserved, &ern);
-			if (ern != 0) {
-				goto e0;
-			}
+			kv_resize (ucl_object_t *, *vec, reserved, e0);
 		}
 	}
 	else if (obj->type == UCL_OBJECT) {
@@ -3081,7 +3072,6 @@ bool
 ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
 {
 	UCL_ARRAY_GET (vec, top);
-	int ern;
 
 	if (elt == NULL || top == NULL) {
 		return false;
@@ -3098,10 +3088,7 @@ ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
 		top->value.av = (void *)vec;
 	}
 
-	kv_push (ucl_object_t *, *vec, elt, &ern);
-	if (ern != 0) {
-		goto e0;
-	}
+	kv_push (ucl_object_t *, *vec, elt, e0);
 
 	top->len ++;
 
@@ -3114,7 +3101,6 @@ bool
 ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
 {
 	UCL_ARRAY_GET (vec, top);
-	int ern;
 
 	if (elt == NULL || top == NULL) {
 		return false;
@@ -3124,14 +3110,11 @@ ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
 		vec = UCL_ALLOC (sizeof (*vec));
 		kv_init (*vec);
 		top->value.av = (void *)vec;
-		kv_push (ucl_object_t *, *vec, elt, &ern);
+		kv_push (ucl_object_t *, *vec, elt, e0);
 	}
 	else {
 		/* Slow O(n) algorithm */
-		kv_prepend (ucl_object_t *, *vec, elt, &ern);
-	}
-	if (ern != 0) {
-		goto e0;
+		kv_prepend (ucl_object_t *, *vec, elt, e0);
 	}
 
 	top->len ++;
@@ -3147,7 +3130,6 @@ ucl_array_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 	unsigned i;
 	ucl_object_t *cp = NULL;
 	ucl_object_t **obj;
-	int ern;
 
 	if (elt == NULL || top == NULL || top->type != UCL_ARRAY || elt->type != UCL_ARRAY) {
 		return false;
@@ -3164,10 +3146,7 @@ ucl_array_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 	UCL_ARRAY_GET (v2, cp);
 
 	if (v1 && v2) {
-		kv_concat (ucl_object_t *, *v1, *v2, &ern);
-		if (ern != 0) {
-			goto e0;
-		}
+		kv_concat (ucl_object_t *, *v1, *v2, e0);
 
 		for (i = v2->n; i < v1->n; i ++) {
 			obj = &kv_A (*v1, i);
