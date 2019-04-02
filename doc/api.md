@@ -451,7 +451,7 @@ while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
 /* Check error condition */
 if (ucl_object_iter_chk_excpn (it)) {
     ucl_object_iterate_free (it);
-    exit(1);
+    exit (1);
 }
 
 /* Switch to another object */
@@ -463,7 +463,7 @@ while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
 /* Check error condition */
 if (ucl_object_iter_chk_excpn (it)) {
     ucl_object_iterate_free (it);
-    exit(1);
+    exit (1);
 }
 
 ucl_object_iterate_free (it);
