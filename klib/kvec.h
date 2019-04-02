@@ -30,7 +30,7 @@
 int main() {
 	kvec_t(int) array;
 	kv_init(array);
-	kv_push(int, array, 10, e0); // append
+	kv_push_safe(int, array, 10, e0); // append
 	kv_a(int, array, 20) = 5; // dynamic
 	kv_A(array, 20) = 4; // static
 	kv_destroy(array);
