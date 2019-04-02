@@ -646,7 +646,7 @@ while\ ((cur\ =\ ucl_object_iterate_safe\ (it,\ true))\ !=\ NULL)\ {
 \ \ \ \ /*\ Do\ something\ */
 }
 /*\ Check\ error\ condition\ */
-if\ (ucl_object_iter_chk_excpn(it))\ {
+if\ (ucl_object_iter_chk_excpn\ (it))\ {
 \ \ \ \ ucl_object_iterate_free\ (it);
 \ \ \ \ exit(1);
 }
@@ -658,7 +658,7 @@ while\ ((cur\ =\ ucl_object_iterate_safe\ (it,\ true))\ !=\ NULL)\ {
 \ \ \ \ /*\ Do\ something\ else\ */
 }
 /*\ Check\ error\ condition\ */
-if\ (ucl_object_iter_chk_excpn(it))\ {
+if\ (ucl_object_iter_chk_excpn\ (it))\ {
 \ \ \ \ ucl_object_iterate_free\ (it);
 \ \ \ \ exit(1);
 }
