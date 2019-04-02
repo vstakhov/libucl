@@ -618,14 +618,14 @@ UCL defines the following functions to manage safe iterators:
 .IP \[bu] 2
 \f[C]ucl_object_iterate_safe\f[] \- safely iterate the object inside
 iterator.
-Note: function may allocate and fees memory during its operation.
+Note: function may allocate and free memory during its operation.
 Therefore it returns \f[C]NULL\f[] either while trying to access item
-after the last one or when exception (sucn as memory allocation
+after the last one or when exception (such as memory allocation
 failure) happens.
 .IP \[bu] 2
-\f[C]ucl_object_iter_chk_excpn\f[] \- check if last call to
+\f[C]ucl_object_iter_chk_excpn\f[] \- check if the last call to
 \f[C]ucl_object_iterate_safe\f[] ended up in unrecoverable exception
-(e.g. \f[C]ENOMEM\f) .
+(e.g. \f[C]ENOMEM\f[]).
 .IP \[bu] 2
 \f[C]ucl_object_iterate_free\f[] \- free memory associated with the safe
 iterator.
