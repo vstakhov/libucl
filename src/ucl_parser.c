@@ -672,7 +672,7 @@ ucl_parser_add_container (ucl_object_t *obj, struct ucl_parser *parser,
 		goto enomem1;
 	}
 
-	st->obj = obj;
+	st->obj = nobj;
 
 	if (level >= UINT16_MAX) {
 		ucl_set_err (parser, UCL_ENESTED,
