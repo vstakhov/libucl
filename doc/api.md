@@ -432,7 +432,8 @@ UCL defines the following functions to manage safe iterators:
 
 - `ucl_object_iterate_new` - creates new safe iterator
 - `ucl_object_iterate_reset` - resets iterator to a new object
-- `ucl_object_iterate_safe` - safely iterate the object inside iterator
+- `ucl_object_iterate_safe` - safely iterate the object inside iterator. Note: function may allocate and free memory during its operation. Therefore it returns `NULL` either while trying to access item after the last one or when exception (such as memory allocation failure) happens.
+- `ucl_object_iter_chk_excpn` -  check if the last call to `ucl_object_iterate_safe` ended up in unrecoverable exception (e.g. `ENOMEM`).
 - `ucl_object_iterate_free` - free memory associated with the safe iterator
 
 Please note that unlike unsafe iterators, safe iterators *must* be explicitly initialized and freed.
@@ -447,12 +448,22 @@ it = ucl_object_iterate_new (obj);
 while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
 	/* Do something */
 }
+/* Check error condition */
+if (ucl_object_iter_chk_excpn (it)) {
+    ucl_object_iterate_free (it);
+    exit (1);
+}
 
 /* Switch to another object */
 it = ucl_object_iterate_reset (it, another_obj);
 
 while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
 	/* Do something else */
+}
+/* Check error condition */
+if (ucl_object_iter_chk_excpn (it)) {
+    ucl_object_iterate_free (it);
+    exit (1);
 }
 
 ucl_object_iterate_free (it);
