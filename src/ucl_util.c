@@ -3649,6 +3649,13 @@ ucl_object_compare (const ucl_object_t *o1, const ucl_object_t *o2)
 	ucl_object_iter_t iter = NULL;
 	int ret = 0;
 
+    // Must check for NULL or code will segfault
+    if ((o1 == NULL) || (o2 == NULL))
+    {
+        // The only way this could be true is of both are NULL
+        return (o1 == NULL) && (o2 == NULL);
+    }
+    
 	if (o1->type != o2->type) {
 		return (o1->type) - (o2->type);
 	}
