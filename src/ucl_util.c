@@ -30,6 +30,10 @@
 #include <stdarg.h>
 #include <stdio.h> /* for snprintf */
 
+#ifdef __linux__
+#include <linux/limits.h>
+#endif
+
 #ifndef _WIN32
 #include <glob.h>
 #include <sys/param.h>
