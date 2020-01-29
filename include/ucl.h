@@ -1634,4 +1634,7 @@ UCL_EXTERN bool ucl_object_validate_root_ext (const ucl_object_t *schema,
 #define ucl_obj_ref ucl_object_ref
 #define ucl_obj_free ucl_object_free
 
+#define UCL_PRIORITY_MIN 0
+#define UCL_PRIORITY_MAX 15
+
 #endif /* UCL_H_ */
