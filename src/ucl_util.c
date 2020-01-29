@@ -1574,6 +1574,11 @@ ucl_include_common (const unsigned char *data, size_t len,
 			else if (param->type == UCL_INT) {
 				if (strncmp (param->key, "priority", param->keylen) == 0) {
 					params.priority = ucl_object_toint (param);
+					if (params.priority > UCL_PRIORITY_MAX) {
+						ucl_create_err (&parser->err, "Invalid priority value in macro: %d",
+							params.priority);
+						return false;
+					}
 				}
 			}
 		}
