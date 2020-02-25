@@ -543,3 +543,95 @@ bool ucl_hash_reserve (ucl_hash_t *hashlin, size_t sz)
 e0:
 	return false;
 }
+
+int
+ucl_lc_cmp (const char *s, const char *d, size_t l)
+{
+	unsigned int fp, i;
+	unsigned char c1, c2, c3, c4;
+	union {
+		unsigned char c[4];
+		uint32_t n;
+	} cmp1, cmp2;
+	size_t leftover = l % 4;
+	int ret = 0;
+
+	fp = l - leftover;
+
+	for (i = 0; i != fp; i += 4) {
+		c1 = s[i], c2 = s[i + 1], c3 = s[i + 2], c4 = s[i + 3];
+		cmp1.c[0] = lc_map[c1];
+		cmp1.c[1] = lc_map[c2];
+		cmp1.c[2] = lc_map[c3];
+		cmp1.c[3] = lc_map[c4];
+
+		c1 = d[i], c2 = d[i + 1], c3 = d[i + 2], c4 = d[i + 3];
+		cmp2.c[0] = lc_map[c1];
+		cmp2.c[1] = lc_map[c2];
+		cmp2.c[2] = lc_map[c3];
+		cmp2.c[3] = lc_map[c4];
+
+		if (cmp1.n != cmp2.n) {
+			return cmp1.n - cmp2.n;
+		}
+	}
+
+	while (leftover > 0) {
+		if (lc_map[(unsigned char)s[i]] != lc_map[(unsigned char)d[i]]) {
+			return s[i] - d[i];
+		}
+
+		leftover--;
+		i++;
+	}
+
+	return ret;
+}
+
+static int
+ucl_hash_cmp_icase (const void *a, const void *b)
+{
+	const ucl_object_t *oa = *(const ucl_object_t **)a,
+			*ob = *(const ucl_object_t **)b;
+
+	if (oa->keylen == ob->keylen) {
+		return ucl_lc_cmp (oa->key, ob->key, oa->keylen);
+	}
+
+	return ((int)(oa->keylen)) - ob->keylen;
+}
+
+static int
+ucl_hash_cmp_case_sens (const void *a, const void *b)
+{
+	const ucl_object_t *oa = *(const ucl_object_t **)a,
+			*ob = *(const ucl_object_t **)b;
+
+	if (oa->keylen == ob->keylen) {
+		return memcmp (oa->key, ob->key, oa->keylen);
+	}
+
+	return ((int)(oa->keylen)) - ob->keylen;
+}
+
+void
+ucl_hash_sort (ucl_hash_t *hashlin, enum ucl_object_keys_sort_flags fl)
+{
+
+	if (fl & UCL_SORT_KEYS_ICASE) {
+		qsort (hashlin->ar.a, hashlin->ar.n, sizeof (ucl_object_t *),
+				ucl_hash_cmp_icase);
+	}
+	else {
+		qsort (hashlin->ar.a, hashlin->ar.n, sizeof (ucl_object_t *),
+				ucl_hash_cmp_case_sens);
+	}
+
+	if (fl & UCL_SORT_KEYS_RECURSIVE) {
+		for (size_t i = 0; i < hashlin->ar.n; i ++) {
+			if (ucl_object_type (hashlin->ar.a[i]) == UCL_OBJECT) {
+				ucl_hash_sort (hashlin->ar.a[i]->value.ov, fl);
+			}
+		}
+	}
+}
