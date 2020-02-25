@@ -343,24 +343,30 @@ ucl_object_lua_fromtable (lua_State *L, int idx, ucl_string_flags_t flags)
 	}
 
 	if (!found_mt) {
-		/* Check for array */
+		/* Check for array (it is all inefficient) */
 		lua_pushnil (L);
+
 		while (lua_next (L, idx) != 0) {
-			if (lua_type (L, -2) == LUA_TNUMBER) {
-				double num = lua_tonumber (L, -2);
+			lua_pushvalue (L, -2);
+
+			if (lua_type (L, -1) == LUA_TNUMBER) {
+				double num = lua_tonumber (L, -1);
 				if (num == (int) num) {
 					if (num > max) {
 						max = num;
 					}
-				} else {
+				}
+				else {
 					/* Keys are not integer */
 					is_array = false;
 				}
-			} else {
+			}
+			else {
 				/* Keys are not numeric */
 				is_array = false;
 			}
-			lua_pop (L, 1);
+
+			lua_pop (L, 2);
 			nelts ++;
 		}
 	}
@@ -807,8 +813,8 @@ struct _rspamd_lua_text {
 
 /***
  * @method parser:parse_text(input)
- * Parse UCL object from file.
- * @param {string} input string to parse
+ * Parse UCL object from text object (Rspamd specific).
+ * @param {rspamd_text} input text to parse
  * @return {bool[, string]} if res is `true` then file has been parsed successfully, otherwise an error string is also returned
  */
 static int
@@ -820,7 +826,7 @@ lua_ucl_parser_parse_text (lua_State *L)
 	int ret = 2;
 
 	parser = lua_ucl_parser_get (L, 1);
-	t = luaL_checkudata (L, 2, "rspamd{text}");
+	t = lua_touserdata (L, 2);
 
 	if (lua_type (L, 3) == LUA_TSTRING) {
 		type = lua_ucl_str_to_parse_type (lua_tostring (L, 3));
@@ -1368,6 +1374,7 @@ lua_ucl_to_format (lua_State *L)
 {
 	ucl_object_t *obj;
 	int format = UCL_EMIT_JSON;
+	bool sort = false;
 
 	if (lua_gettop (L) > 1) {
 		if (lua_type (L, 2) == LUA_TNUMBER) {
@@ -1397,10 +1404,22 @@ lua_ucl_to_format (lua_State *L)
 				format = UCL_EMIT_MSGPACK;
 			}
 		}
+
+		if (lua_isboolean (L, 3)) {
+			sort = lua_toboolean (L, 3);
+		}
 	}
 
 	obj = ucl_object_lua_import (L, 1);
+
 	if (obj != NULL) {
+
+		if (sort) {
+			if (ucl_object_type (obj) == UCL_OBJECT) {
+				ucl_object_sort_keys (obj, UCL_SORT_KEYS_RECURSIVE);
+			}
+		}
+
 		lua_ucl_to_string (L, obj, format);
 		ucl_object_unref (obj);
 	}

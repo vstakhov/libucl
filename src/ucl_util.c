@@ -2244,6 +2244,7 @@ ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags
 				if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE | UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 					switch (*p) {
 					case '\v':
+					case '\0':
 						escaped_len += 5;
 						break;
 					case ' ':
@@ -2278,6 +2279,14 @@ ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags
 						case '\f':
 							*d++ = '\\';
 							*d = 'f';
+							break;
+						case '\0':
+							*d++ = '\\';
+							*d++ = 'u';
+							*d++ = '0';
+							*d++ = '0';
+							*d++ = '0';
+							*d   = '0';
 							break;
 						case '\v':
 							*d++ = '\\';
@@ -2749,7 +2758,7 @@ enum ucl_safe_iter_flags {
 	UCL_ITERATE_FLAG_EXCEPTION
 };
 
-const char safe_iter_magic[4] = {'u', 'i', 't', 'e'};
+static const char safe_iter_magic[4] = {'u', 'i', 't', 'e'};
 struct ucl_object_safe_iter {
 	char magic[4]; /* safety check */
 	uint32_t flags;
@@ -3744,6 +3753,14 @@ ucl_object_array_sort (ucl_object_t *ar,
 
 	qsort (vec->a, vec->n, sizeof (ucl_object_t *),
 			(int (*)(const void *, const void *))cmp);
+}
+
+void ucl_object_sort_keys (ucl_object_t *obj,
+		enum ucl_object_keys_sort_flags how)
+{
+	if (obj != NULL && obj->type == UCL_OBJECT) {
+		ucl_hash_sort (obj->value.ov, how);
+	}
 }
 
 #define PRIOBITS 4
