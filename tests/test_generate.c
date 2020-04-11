@@ -273,7 +273,7 @@ main (int argc, char **argv)
 	assert (ucl_object_type (it_obj) == UCL_BOOLEAN);
 	ucl_object_iterate_free (it);
 
-	fn = ucl_object_emit_memory_funcs (&emitted);
+	fn = ucl_object_emit_memory_funcs ((void **)&emitted);
 	assert (ucl_object_emit_full (obj, UCL_EMIT_CONFIG, fn, comments));
 	fprintf (out, "%s\n", emitted);
 	ucl_object_emit_funcs_free (fn);
