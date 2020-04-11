@@ -302,7 +302,7 @@ main (int argc, char **argv)
 	assert (ucl_parser_get_error_code (parser) == 0);
 	obj = ucl_parser_get_object (parser);
 	ucl_parser_free (parser);
-	ucl_object_free (obj);
+	ucl_object_unref (obj);
 
 	if (emitted != NULL) {
 		free (emitted);
