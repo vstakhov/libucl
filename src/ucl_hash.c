@@ -544,7 +544,7 @@ e0:
 	return false;
 }
 
-int
+static int
 ucl_lc_cmp (const char *s, const char *d, size_t l)
 {
 	unsigned int fp, i;
