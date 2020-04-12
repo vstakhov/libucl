@@ -467,6 +467,9 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 				ret += dstlen;
 				d += remain;
 				found = true;
+				if (need_free) {
+					free (dst);
+				}
 			}
 		}
 
