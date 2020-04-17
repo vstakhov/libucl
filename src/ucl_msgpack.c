@@ -1301,7 +1301,12 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 
 	/* Rewind to the top level container */
 	ucl_msgpack_get_next_container (parser);
-	assert (parser->stack == NULL);
+
+	if (parser->stack != NULL) {
+		ucl_create_err (&parser->err, "incomplete container");
+
+		return false;
+	}
 
 	return true;
 }
