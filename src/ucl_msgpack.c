@@ -1044,8 +1044,10 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 					len = FROM_BE64 (*(uint64_t *)p);
 					break;
 				default:
-					assert (0);
-					break;
+					ucl_create_err (&parser->err, "invalid length of the length field: %u",
+							(unsigned)obj_parser->len);
+
+					return false;
 				}
 
 				p += obj_parser->len;
