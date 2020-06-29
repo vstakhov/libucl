@@ -424,6 +424,15 @@ public:
 		return Ucl (nullptr);
 	}
 
+        Ucl search (const std::string &key) const
+        {
+            if (type () == UCL_OBJECT) {
+            return Ucl (ucl_object_lookup_path (obj.get(), key.data()));
+            }
+
+            return Ucl (nullptr);
+        }
+
 	inline Ucl operator[] (size_t i) const
 	{
 		return at(i);
