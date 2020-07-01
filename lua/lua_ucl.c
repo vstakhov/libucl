@@ -625,6 +625,7 @@ lua_ucl_parser_init (lua_State *L)
 	parser = ucl_parser_new (flags);
 	if (parser == NULL) {
 		lua_pushnil (L);
+		return 1;
 	}
 
 	pparser = lua_newuserdata (L, sizeof (parser));
