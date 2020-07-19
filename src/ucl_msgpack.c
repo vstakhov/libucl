@@ -1134,7 +1134,9 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			 */
 			container = parser->stack;
 
-			if (container == NULL) {
+			if (parser->stack == NULL) {
+				ucl_create_err (&parser->err,
+						"read assoc value when no container represented");
 				return false;
 			}
 
@@ -1253,6 +1255,12 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 		parser->cur_obj = ucl_object_new_full (
 				state == start_array ? UCL_ARRAY : UCL_OBJECT,
 				parser->chunks->priority);
+
+		if (parser->stack == NULL) {
+			ucl_create_err (&parser->err,
+					"read assoc value when no container represented");
+			return false;
+		}
 		/* Insert to the previous level container */
 		if (!ucl_msgpack_insert_object (parser,
 				key, keylen, parser->cur_obj)) {
@@ -1279,7 +1287,9 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 
 		container = parser->stack;
 
-		if (container == NULL) {
+		if (parser->stack == NULL) {
+			ucl_create_err (&parser->err,
+					"read assoc value when no container represented");
 			return false;
 		}
 
