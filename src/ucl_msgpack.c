@@ -1019,6 +1019,8 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			}
 			else {
 				/* Length is not embedded */
+				remain --;
+
 				if (remain < obj_parser->len) {
 					ucl_create_err (&parser->err, "not enough data remain to "
 							"read object's length: %u remain, %u needed",
@@ -1028,7 +1030,6 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 				}
 
 				p ++;
-				remain --;
 
 				switch (obj_parser->len) {
 				case 1:
@@ -1193,6 +1194,8 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 			container = parser->stack;
 
 			if (container == NULL) {
+				ucl_create_err (&parser->err,
+						"read assoc value when no container represented");
 				return false;
 			}
 
@@ -1204,6 +1207,7 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 
 			if (!ucl_msgpack_insert_object (parser, key, keylen,
 					parser->cur_obj)) {
+
 				return false;
 			}
 
@@ -1239,7 +1243,9 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 	case start_assoc:
 		/* Empty container at the end */
 		if (len != 0) {
-			ucl_create_err (&parser->err, "invalid non-empty container at the end");
+			ucl_create_err (&parser->err,
+					"invalid non-empty container at the end; len=%zu",
+					(uintmax_t)len);
 
 			return false;
 		}
