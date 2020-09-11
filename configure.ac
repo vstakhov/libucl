@@ -73,11 +73,11 @@ AC_ARG_ENABLE([utils],
 AM_CONDITIONAL([UTILS], [test x$utils = xtrue])
 
 AS_IF([test "x$enable_signatures" = "xyes"], [
-	AC_SEARCH_LIBS([EVP_MD_CTX_create], [crypto], [
+	AC_SEARCH_LIBS([CRYPTO_new_ex_data], [crypto], [
 		AC_DEFINE(HAVE_OPENSSL, 1, [Define to 1 if you have the 'crypto' library (-lcrypto).])
 		LIBCRYPTO_LIB="-lcrypto"
 		LIBS_EXTRA="${LIBS_EXTRA} -lcrypto"
-		], [AC_MSG_ERROR([unable to find the EVP_MD_CTX_create() function])])
+		], [AC_MSG_ERROR([unable to find the CRYPTO_new_ex_data() function])])
 ])
 AC_SUBST(LIBCRYPTO_LIB)
 AC_PATH_PROG(PANDOC, pandoc, [/non/existent])
