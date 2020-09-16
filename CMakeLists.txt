@@ -151,7 +151,7 @@ IF(ENABLE_URL_INCLUDE MATCHES "ON")
     				DOC "Path to libfetch header")
     ELSE(LIBFETCH_LIBRARY)
     	# Try to find libcurl
-    	ProcessPackage(CURL libcurl)
+        FIND_PACKAGE(CURL)
     	IF(NOT CURL_FOUND)
     		MESSAGE(WARNING "Neither libcurl nor libfetch were found, no support of URL includes in configuration")
     	ENDIF(NOT CURL_FOUND)
