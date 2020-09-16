@@ -98,6 +98,7 @@
 #if defined(_MSC_VER)
 /* Windows hacks */
 #include <BaseTsd.h>
+#include <inttypes.h>
 typedef SSIZE_T ssize_t;
 #define strdup _strdup
 #define snprintf _snprintf
