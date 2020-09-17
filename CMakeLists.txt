@@ -17,6 +17,7 @@ OPTION(ENABLE_URL_SIGN  "Enable signatures check in ucl includes (requires opens
 OPTION(BUILD_SHARED_LIBS "Build Shared Libraries [default: OFF]" OFF)
 OPTION(ENABLE_LUA "Enable lua support [default: OFF]" OFF)
 OPTION(ENABLE_LUAJIT "Enable luajit support [default: OFF]" OFF)
+OPTION(ENABLE_UTILS "Enable building utility binaries [default: OFF]" OFF)
 
 # Find lua installation
 MACRO(FindLua)
@@ -264,3 +265,8 @@ SET_TARGET_PROPERTIES(ucl PROPERTIES
 
 INSTALL(TARGETS ucl DESTINATION ${CMAKE_INSTALL_LIBDIR}
 		PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+IF(ENABLE_UTILS MATCHES "ON")
+    ADD_SUBDIRECTORY(utils)
+ENDIF()
+
