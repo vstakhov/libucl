@@ -1,0 +1,22 @@
+Source: libucl
+Priority: optional
+Maintainer: Igor Galić <igalic@brainsware.at>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.8
+Section: libs
+Homepage: <insert the upstream URL, if relevant>
+#Vcs-Git: https://anonscm.debian.org/collab-maint/libucl.git
+#Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/libucl.git
+
+Package: libucl-dev
+Section: libdevel
+Architecture: any
+Depends: libuclBROKEN (= ${binary:Version}), ${misc:Depends}
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>
+
+Package: libuclBROKEN
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>

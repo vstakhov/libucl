@@ -1,0 +1,5 @@
+libucl (0.8.0-1) unstable; urgency=medium
+
+  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+
+ -- Igor Galić <igalic@brainsware.at>  Mon, 25 Sep 2017 16:50:13 +0200

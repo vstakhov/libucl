@@ -30,3 +30,13 @@ libucl.pc
 
 # python extension
 python/build
+
+# debian package
+debian/.debhelper/
+
+# ./configure artifacts
+lua/libucl.rockspec
+
+# make test artifacts:
+tests/test_msgpack
+tests/test_streamline
