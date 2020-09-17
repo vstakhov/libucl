@@ -30,3 +30,6 @@ libucl.pc
 
 # python extension
 python/build
+
+# Default CMake build directory
+/build/
