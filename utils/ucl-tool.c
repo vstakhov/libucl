@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
 
   for (i = 1; i < argc; ++i) {
     parm = argv[i];
-    val = ((i + 1) < argc) ? argv[i + 1] : NULL;
+    val = ((i + 1) < argc) ? argv[++i] : NULL;
 
     if ((strcmp(parm, "--help") == 0) || (strcmp(parm, "-h") == 0)) {
       usage(argv[0], stdout);
