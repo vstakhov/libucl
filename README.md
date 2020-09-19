@@ -66,19 +66,25 @@ section {
 ```json
 {
     "param": "value",
-    "param1": "value1",
-    "flag": true,
-    "subsection": {
-        "host": [
-        {
-            "host": "hostname",
-            "port": 900
-        },
-        {
-            "host": "hostname",
-            "port": 901
+    "section": {
+        "param": "value",
+        "param1": "value1",
+        "flag": true,
+        "number": 10000,
+        "time": "0.2s",
+        "string": "something",
+        "subsection": {
+            "host": [
+                {
+                    "host": "hostname",
+                    "port": 900
+                },
+                {
+                    "host": "hostname",
+                    "port": 901
+                }
+            ]
         }
-        ]
     }
 }
 ```
