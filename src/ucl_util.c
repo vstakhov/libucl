@@ -866,6 +866,8 @@ ucl_fetch_url (const unsigned char *url, unsigned char **buf, size_t *buflen,
 	*buf = cbdata.buf;
 	*buflen = cbdata.buflen;
 
+	curl_easy_cleanup (curl);
+
 	return true;
 #else
 	ucl_create_err (err, "URL support is disabled");
