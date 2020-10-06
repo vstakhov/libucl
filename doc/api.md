@@ -243,7 +243,7 @@ return ret;
 
 # Emitting functions
 
-Libucl can transform UCL objects to a number of tectual formats:
+Libucl can transform UCL objects to a number of textual formats:
 
 - configuration (`UCL_EMIT_CONFIG`) - nginx like human readable configuration file where implicit arrays are transformed to the duplicate keys
 - compact json: `UCL_EMIT_JSON_COMPACT` - single line valid json without spaces
