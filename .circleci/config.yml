@@ -39,6 +39,24 @@ commands:
             sudo npm install --global coveralls
             coveralls <coverage.info
           fi
+  python:
+    description: "Build the Python bindings"
+    steps:
+      - run: |
+          sudo apt-get -qq install --no-install-recommends python3{-minimal,-pip,-dev}
+
+          python3 -m pip install --user --upgrade pip wheel setuptools
+          python3 python/setup.py sdist bdist_wheel
+
+          for dist in dist/*; do
+            python3 -m pip install --user --install-option build_ext --install-option "--library-dirs /usr/lib/x86_64-linux-gnu/" "$dist"
+            python3 -c "import ucl"
+            # relative path tests fail if we don't cd
+            pushd python
+            python3 -m unittest discover
+            popd
+            python3 -m pip uninstall -y ucl
+          done
 
 executors:
   debian:
@@ -64,6 +82,7 @@ jobs:
       - build_cmake
       - build_autotools
       - code_coverage
+      - python
 
 workflows:
   version: 2
