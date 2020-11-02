@@ -33,7 +33,7 @@ commands:
     steps:
       - run: |
           make clean clean-coverage coverage-lcov
-          lcov --no-external -b . -d . -c --output-file coverage.info
+          lcov --no-external -b src -d . -c --output-file coverage.info
           if [ ! -z "$COVERALLS_REPO_TOKEN" ]; then
             sudo apt-get -qq install npm
             sudo npm install --global coveralls
