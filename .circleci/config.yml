@@ -1,0 +1,76 @@
+version: 2.1
+
+commands:
+  setup:
+    description: "Checkout the repo and install needed build dependencies"
+    steps:
+      - checkout
+      - run: |
+          sudo apt-get -qq update
+          sudo apt-get -qq install lcov cmake
+  build_autotools:
+    description: "Build the lib with the traditional autotools system"
+    steps:
+      - run:
+          name: "Build"
+          command: |
+            ./autogen.sh
+            ./configure --enable-urls --enable-utils --enable-coverage
+            make
+      - run:
+          name: "Tests"
+          command: make check
+  build_cmake:
+    description: "Build the lib with the cmake build system"
+    steps:
+      - run: |
+          mkdir build_cmake
+          cd build_cmake
+          cmake -Wdev -Werror=dev -DENABLE_URL_INCLUDE=ON -DENABLE_UTILS=ON ..
+          make
+  code_coverage:
+    description: "Generate code coverage reports"
+    steps:
+      - run: |
+          make clean clean-coverage coverage-lcov
+          lcov --no-external -b src -d . -c --output-file coverage.info
+          if [ ! -z "$COVERALLS_REPO_TOKEN" ]; then
+            sudo apt-get -qq install npm
+            sudo npm install --global coveralls
+            coveralls <coverage.info
+          fi
+
+executors:
+  debian:
+    parameters:
+      release:
+        description: "The Debian release or branch to base the test image on"
+        type: string
+    docker:
+      - image: circleci/buildpack-deps:<<parameters.release>>
+
+jobs:
+  build:
+    parameters:
+      exec_name:
+        type: string
+      exec_release:
+        type: string
+    executor:
+      name: <<parameters.exec_name>>
+      release: <<parameters.exec_release>>
+    steps:
+      - setup
+      - build_cmake
+      - build_autotools
+      - code_coverage
+
+workflows:
+  version: 2
+  debian_compat:
+    jobs:
+      - build:
+          matrix:
+            parameters:
+              exec_name: [debian]
+              exec_release: [stable, testing]
