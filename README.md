@@ -369,7 +369,7 @@ bla'; # Read as valuebla
 
 ## Emitter
 
-Each UCL object can be serialized to one of the three supported formats:
+Each UCL object can be serialized to one of the four supported formats:
 
 * `JSON` - canonic json notation (with spaces indented structure);
 * `Compacted JSON` - compact json notation (without spaces or newlines);
