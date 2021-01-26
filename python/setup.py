@@ -12,6 +12,8 @@ import sys
 LIB_ROOT = os.path.abspath(os.path.join(__file__, os.pardir, os.pardir))  
 if os.getcwd() != LIB_ROOT:
     os.chdir(LIB_ROOT)
+if LIB_ROOT not in sys.path:
+    sys.path.append(LIB_ROOT)
 
 tests_require = []
 
