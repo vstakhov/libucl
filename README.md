@@ -374,7 +374,8 @@ Each UCL object can be serialized to one of the four supported formats:
 * `JSON` - canonic json notation (with spaces indented structure);
 * `Compacted JSON` - compact json notation (without spaces or newlines);
 * `Configuration` - nginx like notation;
-* `YAML` - yaml inlined notation.
+* `YAML` - yaml inlined notation;
+* `messagepack` - MessagePack binary format.
 
 ## Validation
 
