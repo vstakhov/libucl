@@ -1,6 +1,6 @@
 m4_define([maj_ver], [0])
 m4_define([med_ver], [8])
-m4_define([min_ver], [1])
+m4_define([min_ver], [2])
 m4_define([so_version], [6:0:1])
 m4_define([ucl_version], [maj_ver.med_ver.min_ver])
 
