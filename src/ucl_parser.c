@@ -1053,13 +1053,13 @@ ucl_lex_json_string (struct ucl_parser *parser,
 		}
 		else if (c == '\\') {
 			ucl_chunk_skipc (chunk, p);
-			c = *p;
 			if (p >= chunk->end) {
 				ucl_set_err (parser, UCL_ESYNTAX, "unfinished escape character",
 						&parser->err);
 				return false;
 			}
-			else if (ucl_test_character (c, UCL_CHARACTER_ESCAPE)) {
+			c = *p;
+			if (ucl_test_character (c, UCL_CHARACTER_ESCAPE)) {
 				if (c == 'u') {
 					ucl_chunk_skipc (chunk, p);
 					for (i = 0; i < 4 && p < chunk->end; i ++) {
