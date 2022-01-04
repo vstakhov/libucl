@@ -1828,6 +1828,11 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 					while (p < chunk->end && *p >= 'A' && *p <= 'Z') {
 						p ++;
 					}
+					if(p == chunk->end) {
+						ucl_set_err (parser, UCL_ESYNTAX,
+								"unterminated multiline value", &parser->err);
+						return false;
+					}
 					if (*p =='\n') {
 						/* Set chunk positions and start multiline parsing */
 						chunk->remain -= p - c + 1;
