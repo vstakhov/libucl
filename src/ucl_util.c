@@ -1919,7 +1919,7 @@ ucl_inherit_handler (const unsigned char *data, size_t len,
 
 	/* Some sanity checks */
 	if (parent == NULL || ucl_object_type (parent) != UCL_OBJECT) {
-		ucl_create_err (&parser->err, "Unable to find inherited object %*.s",
+		ucl_create_err (&parser->err, "Unable to find inherited object %.*s",
 				(int)len, data);
 		return false;
 	}
