@@ -395,6 +395,9 @@ ucl_check_variable (struct ucl_parser *parser, const char *ptr,
 			}
 			p ++;
 		}
+		if(p == end) {
+			(*out_len) ++;
+		}
 	}
 	else if (*ptr != '$') {
 		/* Not count escaped dollar sign */
