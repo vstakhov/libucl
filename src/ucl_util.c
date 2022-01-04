@@ -3594,9 +3594,10 @@ ucl_object_copy_internal (const ucl_object_t *other, bool allow_array)
 
 		/* deep copy of values stored */
 		if (other->trash_stack[UCL_TRASH_KEY] != NULL) {
-			new->trash_stack[UCL_TRASH_KEY] =
-					strdup (other->trash_stack[UCL_TRASH_KEY]);
+			new->trash_stack[UCL_TRASH_KEY] = NULL;
 			if (other->key == (const char *)other->trash_stack[UCL_TRASH_KEY]) {
+				new->trash_stack[UCL_TRASH_KEY] = malloc(other->keylen);
+				memcpy(new->trash_stack[UCL_TRASH_KEY], other->trash_stack[UCL_TRASH_KEY], other->keylen);
 				new->key = new->trash_stack[UCL_TRASH_KEY];
 			}
 		}
