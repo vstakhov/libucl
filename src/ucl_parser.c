@@ -520,7 +520,7 @@ ucl_expand_variable (struct ucl_parser *parser, unsigned char **dst,
 
 	p = src;
 	while (p != end) {
-		if (*p == '$') {
+		if (*p == '$' && p + 1 != end) {
 			p = ucl_check_variable (parser, p + 1, end - p - 1, &out_len, &vars_found);
 		}
 		else {
