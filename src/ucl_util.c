@@ -3596,8 +3596,9 @@ ucl_object_copy_internal (const ucl_object_t *other, bool allow_array)
 		if (other->trash_stack[UCL_TRASH_KEY] != NULL) {
 			new->trash_stack[UCL_TRASH_KEY] = NULL;
 			if (other->key == (const char *)other->trash_stack[UCL_TRASH_KEY]) {
-				new->trash_stack[UCL_TRASH_KEY] = malloc(other->keylen);
+				new->trash_stack[UCL_TRASH_KEY] = malloc(other->keylen + 1);
 				memcpy(new->trash_stack[UCL_TRASH_KEY], other->trash_stack[UCL_TRASH_KEY], other->keylen);
+				new->trash_stack[UCL_TRASH_KEY][other->keylen] = '\0';
 				new->key = new->trash_stack[UCL_TRASH_KEY];
 			}
 		}
