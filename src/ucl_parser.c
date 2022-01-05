@@ -47,6 +47,9 @@ struct ucl_parser_saved_state {
  */
 #define ucl_chunk_skipc(chunk, p)    \
 do {                                 \
+	if (p == chunk->end) {       \
+		break;                   \
+	}                            \
 	if (*(p) == '\n') {          \
 		(chunk)->line ++;    \
 		(chunk)->column = 0; \
