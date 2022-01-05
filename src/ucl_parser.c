@@ -424,13 +424,14 @@ ucl_check_variable (struct ucl_parser *parser, const char *ptr,
  * Expand a single variable
  * @param parser
  * @param ptr
- * @param remain
+ * @param in_len
  * @param dest
+ * @param out_len
  * @return
  */
 static const char *
 ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
-		size_t remain, unsigned char **dest)
+		size_t in_len, unsigned char **dest, size_t out_len)
 {
 	unsigned char *d = *dest, *dst;
 	const char *p = ptr + 1, *ret;
@@ -441,7 +442,8 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 	bool strict = false;
 
 	ret = ptr + 1;
-	remain --;
+	out_len --;
+	in_len --;
 
 	if (*p == '$') {
 		*d++ = *p++;
@@ -450,28 +452,31 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 	}
 	else if (*p == '{') {
 		p ++;
+		in_len --;
 		strict = true;
 		ret += 2;
-		remain -= 2;
+		out_len -= 2;
 	}
 
 	LL_FOREACH (parser->variables, var) {
-		if (remain >= var->var_len) {
+		if (out_len >= var->value_len && in_len >= (var->var_len + strict)) {
 			if (memcmp (p, var->var, var->var_len) == 0) {
-				memcpy (d, var->value, var->value_len);
-				ret += var->var_len;
-				d += var->value_len;
-				found = true;
-				break;
+				if (!strict || p[var->var_len] == '}') {
+					memcpy (d, var->value, var->value_len);
+					ret += var->var_len;
+					d += var->value_len;
+					found = true;
+					break;
+				}
 			}
 		}
 	}
 	if (!found) {
 		if (strict && parser->var_handler != NULL) {
-			if (parser->var_handler (p, remain, &dst, &dstlen, &need_free,
+			if (parser->var_handler (p, out_len, &dst, &dstlen, &need_free,
 							parser->var_data)) {
 				memcpy (d, dst, dstlen);
-				ret += remain;
+				ret += out_len;
 				d += dstlen;
 				found = true;
 				if (need_free) {
@@ -482,7 +487,7 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 
 		/* Leave variable as is */
 		if (!found) {
-			if (strict) {
+			if (strict && out_len >= 2) {
 				/* Copy '${' */
 				memcpy (d, ptr, 2);
 				d += 2;
@@ -512,7 +517,7 @@ ucl_expand_variable (struct ucl_parser *parser, unsigned char **dst,
 		const char *src, size_t in_len)
 {
 	const char *p, *end = src + in_len;
-	unsigned char *d;
+	unsigned char *d, *d_end;
 	size_t out_len = 0;
 	bool vars_found = false;
 
@@ -544,10 +549,11 @@ ucl_expand_variable (struct ucl_parser *parser, unsigned char **dst,
 	}
 
 	d = *dst;
+	d_end = d + out_len;
 	p = src;
-	while (p != end) {
-		if (*p == '$') {
-			p = ucl_expand_single_variable (parser, p, end - p, &d);
+	while (p != end && d != d_end) {
+		if (*p == '$' && p + 1 != end) {
+			p = ucl_expand_single_variable (parser, p, end - p, &d, d_end - d);
 		}
 		else {
 			*d++ = *p++;
