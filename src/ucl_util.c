@@ -3068,13 +3068,13 @@ ucl_object_type (const ucl_object_t *obj)
 ucl_object_t*
 ucl_object_fromstring (const char *str)
 {
-	return ucl_object_fromstring_common (str, 0, UCL_STRING_ESCAPE);
+	return ucl_object_fromstring_common (str, 0, UCL_STRING_RAW);
 }
 
 ucl_object_t *
 ucl_object_fromlstring (const char *str, size_t len)
 {
-	return ucl_object_fromstring_common (str, len, UCL_STRING_ESCAPE);
+	return ucl_object_fromstring_common (str, len, UCL_STRING_RAW);
 }
 
 ucl_object_t *
