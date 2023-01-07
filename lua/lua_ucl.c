@@ -479,7 +479,16 @@ ucl_object_lua_fromelt (lua_State *L, int idx, ucl_string_flags_t flags)
 		str = lua_tolstring (L, idx, &sz);
 
 		if (str) {
-			obj = ucl_object_fromstring_common (str, sz, flags);
+			/*
+			 * ucl_object_fromstring_common has a `logic` to use strlen if sz is zero
+			 * which is totally broken...
+			 */
+			if (sz > 0) {
+				obj = ucl_object_fromstring_common(str, sz, flags);
+			}
+			else {
+				obj = ucl_object_fromstring_common("", sz, flags);
+			}
 		}
 		else {
 			obj = ucl_object_typed_new (UCL_NULL);

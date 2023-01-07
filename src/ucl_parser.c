@@ -348,7 +348,6 @@ ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t rema
 		/* Call generic handler */
 		if (parser->var_handler (ptr, remain, &dst, &dstlen, &need_free,
 				parser->var_data)) {
-			*out_len = dstlen;
 			*found = true;
 			if (need_free) {
 				free (dst);
@@ -708,6 +707,8 @@ ucl_parser_add_container (ucl_object_t *obj, struct ucl_parser *parser,
 		if (nobj != obj) {
 			ucl_object_unref (obj);
 		}
+
+		UCL_FREE(sizeof (struct ucl_stack), st);
 
 		return NULL;
 	}
@@ -2933,7 +2934,9 @@ ucl_parser_add_chunk_full (struct ucl_parser *parser, const unsigned char *data,
 
 				if (!special_handler->handler (parser, data, len, &ndata, &nlen,
 						special_handler->user_data)) {
+					UCL_FREE(sizeof (struct ucl_chunk), chunk);
 					ucl_create_err (&parser->err, "call for external handler failed");
+
 					return false;
 				}
 
