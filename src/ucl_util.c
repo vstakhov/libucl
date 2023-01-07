@@ -1022,6 +1022,9 @@ ucl_include_url (const unsigned char *data, size_t len,
 	snprintf (urlbuf, sizeof (urlbuf), "%.*s", (int)len, data);
 
 	if (!ucl_fetch_url (urlbuf, &buf, &buflen, &parser->err, params->must_exist)) {
+		if (!params->must_exist) {
+			ucl_parser_clear_error (parser);
+		}
 		return !params->must_exist;
 	}
 
@@ -1132,6 +1135,8 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 			/* The case of fatal errors */
 			return false;
 		}
+
+		ucl_parser_clear_error (parser);
 
 		return true;
 	}
@@ -1851,6 +1856,10 @@ ucl_load_handler (const unsigned char *data, size_t len,
 		if (!ucl_fetch_file (load_file, &buf, &buflen, &parser->err,
 				!try_load)) {
 			free (load_file);
+
+			if (try_load) {
+				ucl_parser_clear_error (parser);
+			}
 
 			return (try_load || false);
 		}
