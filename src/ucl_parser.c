@@ -179,7 +179,7 @@ start:
 				if (!quoted) {
 					if (*p == '*') {
 						ucl_chunk_skipc (chunk, p);
-						if (*p == '/') {
+						if (chunk->remain > 0 && *p == '/') {
 							comments_nested --;
 							if (comments_nested == 0) {
 								if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
