@@ -46,7 +46,7 @@ if in_ucl_root:
 
 setup(
     name = 'ucl',
-    version = '0.8.1',
+    version = '0.8.2',
     description = 'ucl parser and emitter',
     ext_modules = [uclmodule],
     template=template, # no longer supported with setuptools but doesn't hurt
