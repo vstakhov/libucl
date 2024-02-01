@@ -1,4 +1,4 @@
-# LIBUCL
+# UCL - Universal Configuration Language
 
 **Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
 
@@ -22,15 +22,19 @@
 
 ## Introduction
 
-This document describes the main features and principles of the configuration
-language called `UCL` - universal configuration language.
+This repository provides the `C` library for parsing configurations written in `UCL` - universal configuration language. It also provides functions to operate with other formats:
+
+* `JSON`: read, write and pretty format
+* `Messagepack`: read and write
+* `S-Expressions`: read only (canonical form)
+* `Yaml`: limited write support (mainly for compatibility)
 
 If you are looking for the libucl API documentation you can find it at [this page](doc/api.md).
 
 ## Basic structure
 
-UCL is heavily infused by `nginx` configuration as the example of a convenient configuration
-system. However, UCL is fully compatible with `JSON` format and is able to parse json files.
+`UCL` is heavily infused by `nginx` configuration as the example of a convenient configuration
+system. However, `UCL` is fully compatible with `JSON` format and is able to parse json files.
 For example, you can write the same configuration in the following ways:
 
 * in nginx like:
@@ -230,7 +234,7 @@ UCL supports external macros both multiline and single line ones:
 ```
 
 Moreover, each macro can accept an optional list of arguments in braces. These
-arguments themselves are the UCL object that is parsed and passed to a macro as
+arguments themselves are the `UCL` object that is parsed and passed to a macro as
 options:
 
 ```nginx
