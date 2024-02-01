@@ -1,5 +1,21 @@
 # Version history
 
+## Libucl 0.9.0
+
+* 803b588 Breaking: Try to fix streamline embedding
+* 9eddef0 Fix: set p to endptr before checking
+* 25d3f51 Fix broken tests
+* ac644e2 Update makefile.yml
+* 0a5739e Create makefile.yml
+* 987389a Merge branch 'master' into vstakhov-gh-actions
+* 7433904 Import lua code from Rspamd
+* 3912614 Create cmake-multi-platform.yml
+* 3a04c92 lua: Push string with len
+* 2fefed6 Use `_WIN32` instead of `_MSC_VER`
+* aecf17e Avoid build failure trying to create setup.py link if it already exists.
+* 4ef9e6d Add inttypes.h for PRId64
+* dcb43f0 Fix excessive escaping when using ucl_object_fromstring()
+
 ## Libucl 0.5
 
 - Streamline emitter has been added, so it is now possible to output partial `ucl` objects
