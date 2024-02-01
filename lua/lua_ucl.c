@@ -82,6 +82,11 @@ static ucl_object_t* ucl_object_lua_fromelt (lua_State *L, int idx, ucl_string_f
 
 static void *ucl_null;
 
+struct _rspamd_lua_text {
+	const char *start;
+	unsigned int len;
+	unsigned int flags;
+};
 
 enum lua_ucl_push_flags {
 	LUA_UCL_DEFAULT_FLAGS = 0,
@@ -240,7 +245,7 @@ ucl_object_lua_push_scalar (lua_State *L, const ucl_object_t *obj,
 		lua_pushboolean (L, ucl_obj_toboolean (obj));
 		break;
 	case UCL_STRING:
-		lua_pushstring (L, ucl_obj_tostring (obj));
+		lua_pushlstring (L, ucl_obj_tostring (obj), obj->len);
 		break;
 	case UCL_INT:
 #if LUA_VERSION_NUM >= 501
@@ -510,6 +515,24 @@ ucl_object_lua_fromelt (lua_State *L, int idx, ucl_string_flags_t flags)
 		if (lua_topointer (L, idx) == ucl_null) {
 			obj = ucl_object_typed_new (UCL_NULL);
 		}
+		else {
+			/* Assume it is a text like object */
+			struct _rspamd_lua_text *t = lua_touserdata (L, idx);
+
+			if (t) {
+				if (t->len >0) {
+					obj = ucl_object_fromstring_common(t->start, t->len, 0);
+				}
+				else {
+					obj = ucl_object_fromstring_common("", 0, 0);
+				}
+
+				/* Binary text */
+				if (t->flags & (1u << 5u)) {
+					obj->flags |= UCL_OBJECT_BINARY;
+				}
+			}
+		}
 		break;
 	case LUA_TTABLE:
 	case LUA_TFUNCTION:
@@ -565,10 +588,10 @@ ucl_object_lua_import (lua_State *L, int idx)
 	t = lua_type (L, idx);
 	switch (t) {
 	case LUA_TTABLE:
-		obj = ucl_object_lua_fromtable (L, idx, 0);
+		obj = ucl_object_lua_fromtable (L, idx, UCL_STRING_RAW);
 		break;
 	default:
-		obj = ucl_object_lua_fromelt (L, idx, 0);
+		obj = ucl_object_lua_fromelt (L, idx, UCL_STRING_RAW);
 		break;
 	}
 
@@ -593,10 +616,10 @@ ucl_object_lua_import_escape (lua_State *L, int idx)
 	t = lua_type (L, idx);
 	switch (t) {
 	case LUA_TTABLE:
-		obj = ucl_object_lua_fromtable (L, idx, UCL_STRING_RAW);
+		obj = ucl_object_lua_fromtable (L, idx, UCL_STRING_ESCAPE);
 		break;
 	default:
-		obj = ucl_object_lua_fromelt (L, idx, UCL_STRING_RAW);
+		obj = ucl_object_lua_fromelt (L, idx, UCL_STRING_ESCAPE);
 		break;
 	}
 
@@ -607,12 +630,12 @@ static int
 lua_ucl_to_string (lua_State *L, const ucl_object_t *obj, enum ucl_emitter type)
 {
 	unsigned char *result;
-	size_t len;
+	size_t outlen;
 
-	result = ucl_object_emit_len (obj, type, &len);
+	result = ucl_object_emit_len (obj, type, &outlen);
 
 	if (result != NULL) {
-		lua_pushlstring (L, (const char *)result, len);
+		lua_pushlstring (L, (const char *)result, outlen);
 		free (result);
 	}
 	else {
@@ -635,7 +658,6 @@ lua_ucl_parser_init (lua_State *L)
 	parser = ucl_parser_new (flags);
 	if (parser == NULL) {
 		lua_pushnil (L);
-		return 1;
 	}
 
 	pparser = lua_newuserdata (L, sizeof (parser));
@@ -844,12 +866,6 @@ lua_ucl_parser_parse_string (lua_State *L)
 	return ret;
 }
 
-struct _rspamd_lua_text {
-	const char *start;
-	unsigned int len;
-	unsigned int flags;
-};
-
 /***
  * @method parser:parse_text(input)
  * Parse UCL object from text object (Rspamd specific).
@@ -865,7 +881,24 @@ lua_ucl_parser_parse_text (lua_State *L)
 	int ret = 2;
 
 	parser = lua_ucl_parser_get (L, 1);
-	t = lua_touserdata (L, 2);
+
+	if (lua_type (L, 2) == LUA_TUSERDATA) {
+		t = lua_touserdata (L, 2);
+	}
+	else if (lua_type (L, 2) == LUA_TSTRING) {
+		const gchar *s;
+		gsize len;
+		static struct _rspamd_lua_text st_t;
+
+		s = lua_tolstring (L, 2, &len);
+		st_t.start = s;
+		st_t.len = len;
+
+		t = &st_t;
+	}
+	else {
+		return luaL_error(L, "invalid argument as input, expected userdata or a string");
+	}
 
 	if (lua_type (L, 3) == LUA_TSTRING) {
 		type = lua_ucl_str_to_parse_type (lua_tostring (L, 3));
@@ -1436,10 +1469,11 @@ lua_ucl_to_format (lua_State *L)
 				format = UCL_EMIT_YAML;
 			}
 			else if (strcasecmp (strtype, "config") == 0 ||
-				strcasecmp (strtype, "ucl") == 0) {
+					 strcasecmp (strtype, "ucl") == 0) {
 				format = UCL_EMIT_CONFIG;
 			}
-			else if (strcasecmp (strtype, "msgpack") == 0) {
+			else if (strcasecmp (strtype, "msgpack") == 0 ||
+					 strcasecmp (strtype, "messagepack") == 0) {
 				format = UCL_EMIT_MSGPACK;
 			}
 		}
