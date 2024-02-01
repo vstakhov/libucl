@@ -266,6 +266,7 @@ ucl_emitter_common_start_array (struct ucl_emitter_context *ctx,
 				func->ucl_emitter_append_len (",\n", 2, func->ud);
 			}
 		}
+		ucl_add_tabs (func, ctx->indent, compact);
 	}
 
 	ucl_emitter_print_key (print_key, ctx, obj, compact);
@@ -325,6 +326,7 @@ ucl_emitter_common_start_object (struct ucl_emitter_context *ctx,
 				func->ucl_emitter_append_len (",\n", 2, func->ud);
 			}
 		}
+		ucl_add_tabs (func, ctx->indent, compact);
 	}
 
 	ucl_emitter_print_key (print_key, ctx, obj, compact);
