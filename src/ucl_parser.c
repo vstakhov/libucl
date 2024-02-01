@@ -833,12 +833,12 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 	}
 
 	char numbuf[128];
-	
+
 	if ((size_t)(p - c + 1) >= sizeof(numbuf)) {
 		*pos = start;
 		return EINVAL;
 	}
-	
+
 	if (is_neg) {
 		numbuf[0] = '-';
 		ucl_strlcpy (&numbuf[1], c, p - c + 1);
@@ -846,7 +846,7 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 	else {
 		ucl_strlcpy (numbuf, c, p - c + 1);
 	}
-	
+
 	errno = 0;
 	if (need_double) {
 		dv = strtod (numbuf, &endptr);
@@ -879,6 +879,7 @@ ucl_maybe_parse_number (ucl_object_t *obj,
 	}
 
 	if (endptr < end && endptr != start) {
+		p = endptr;
 		switch (*p) {
 		case 'm':
 		case 'M':
