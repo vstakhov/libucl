@@ -474,11 +474,11 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
 	case UCL_OBJECT:
-		ucl_emitter_common_start_object (ctx, obj, false, print_key, compact);
+		ucl_emitter_common_start_object (ctx, obj, true, print_key, compact);
 		ucl_emitter_common_end_object (ctx, obj, compact);
 		break;
 	case UCL_ARRAY:
-		ucl_emitter_common_start_array (ctx, obj, false, print_key, compact);
+		ucl_emitter_common_start_array (ctx, obj, true, print_key, compact);
 		ucl_emitter_common_end_array (ctx, obj, compact);
 		break;
 	case UCL_USERDATA:
