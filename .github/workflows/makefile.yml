@@ -12,7 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: leafo/gh-actions-lua@v10
+    - name: Install Lua
+      run: sudo apt-get install -y liblua5.4-dev lua5.4
+
     - uses: actions/checkout@v3
 
     - name: configure
