@@ -1372,12 +1372,8 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
 
 	p = chunk->pos;
 
-	if (*p == '.') {
-		/* It is macro actually */
-		if (!(parser->flags & UCL_PARSER_DISABLE_MACRO)) {
-			ucl_chunk_skipc (chunk, p);
-		}
-
+	if (*p == '.' && !(parser->flags & UCL_PARSER_DISABLE_MACRO)) {
+		ucl_chunk_skipc (chunk, p);
 		parser->prev_state = parser->state;
 		parser->state = UCL_STATE_MACRO_NAME;
 		*end_of_object = false;
@@ -1415,7 +1411,7 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
 				*end_of_object = true;
 				return true;
 			}
-			else if (*p == '.') {
+			else if (*p == '.' && !(parser->flags & UCL_PARSER_DISABLE_MACRO)) {
 				ucl_chunk_skipc (chunk, p);
 				parser->prev_state = parser->state;
 				parser->state = UCL_STATE_MACRO_NAME;
