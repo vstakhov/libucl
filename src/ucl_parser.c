@@ -1388,6 +1388,7 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
 				if (!ucl_skip_comments (parser)) {
 					return false;
 				}
+				got_content = true;
 				p = chunk->pos;
 			}
 			else if (ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
