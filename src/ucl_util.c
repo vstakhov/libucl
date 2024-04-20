@@ -1100,6 +1100,11 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 	ucl_hash_t *container = NULL;
 	struct ucl_stack *st = NULL;
 
+	if (parser->state == UCL_STATE_ERROR) {
+		/* Return immediately if we are in the error state... */
+		return false;
+	}
+
 	snprintf (filebuf, sizeof (filebuf), "%.*s", (int)len, data);
 	if (ucl_realpath (filebuf, realbuf) == NULL) {
 		if (params->soft_fail) {

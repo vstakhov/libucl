@@ -2691,6 +2691,9 @@ ucl_state_machine (struct ucl_parser *parser)
 				return false;
 			}
 			break;
+		case UCL_STATE_ERROR:
+			/* Already in the error state */
+			return false;
 		default:
 			ucl_set_err (parser, UCL_EINTERNAL,
 					"internal error: parser is in an unknown state", &parser->err);
