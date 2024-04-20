@@ -1821,6 +1821,9 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 		case '{':
 			obj = ucl_parser_get_container (parser);
 			if (obj == NULL) {
+				parser->state = UCL_STATE_ERROR;
+				ucl_set_err(parser, UCL_ESYNTAX, "object value must be a part of an object",
+					&parser->err);
 				return false;
 			}
 			/* We have a new object */
@@ -1842,6 +1845,9 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 		case '[':
 			obj = ucl_parser_get_container (parser);
 			if (obj == NULL) {
+				parser->state = UCL_STATE_ERROR;
+				ucl_set_err(parser, UCL_ESYNTAX, "array value must be a part of an object",
+					&parser->err);
 				return false;
 			}
 			/* We have a new array */
@@ -1873,6 +1879,12 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			break;
 		case '<':
 			obj = ucl_parser_get_container (parser);
+			if (obj == NULL) {
+				parser->state = UCL_STATE_ERROR;
+				ucl_set_err(parser, UCL_ESYNTAX, "multiline value must be a part of an object",
+						&parser->err);
+				return false;
+			}
 			/* We have something like multiline value, which must be <<[A-Z]+\n */
 			if (chunk->end - p > 3) {
 				if (memcmp (p, "<<", 2) == 0) {
@@ -1922,6 +1934,13 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 parse_string:
 			if (obj == NULL) {
 				obj = ucl_parser_get_container (parser);
+			}
+
+			if (obj == NULL) {
+				parser->state = UCL_STATE_ERROR;
+				ucl_set_err(parser, UCL_ESYNTAX, "value must be a part of an object",
+					&parser->err);
+				return false;
 			}
 
 			/* Parse atom */
