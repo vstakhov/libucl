@@ -1360,13 +1360,13 @@ ucl_parser_process_object_element (struct ucl_parser *parser, ucl_object_t *nobj
  */
 static bool
 ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
-		bool *next_key, bool *end_of_object)
+		bool *next_key, bool *end_of_object, bool *got_content)
 {
 	const unsigned char *p, *c = NULL, *end, *t;
 	const char *key = NULL;
 	bool got_quote = false, got_eq = false, got_semicolon = false,
 			need_unescape = false, ucl_escape = false, var_expand = false,
-			got_content = false, got_sep = false;
+			got_sep = false;
 	ucl_object_t *nobj;
 	ssize_t keylen;
 
@@ -1397,13 +1397,13 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
 				/* The first symbol */
 				c = p;
 				ucl_chunk_skipc (chunk, p);
-				got_content = true;
+				*got_content = true;
 			}
 			else if (*p == '"') {
 				/* JSON style key */
 				c = p + 1;
 				got_quote = true;
-				got_content = true;
+				*got_content = true;
 				ucl_chunk_skipc (chunk, p);
 			}
 			else if (*p == '}') {
@@ -1428,7 +1428,7 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
 			/* Parse the body of a key */
 			if (!got_quote) {
 				if (ucl_test_character (*p, UCL_CHARACTER_KEY)) {
-					got_content = true;
+					*got_content = true;
 					ucl_chunk_skipc (chunk, p);
 				}
 				else if (ucl_test_character (*p, UCL_CHARACTER_KEY_SEP)) {
@@ -1454,11 +1454,11 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk,
 		}
 	}
 
-	if (p >= chunk->end && got_content) {
+	if (p >= chunk->end && *got_content) {
 		ucl_set_err (parser, UCL_ESYNTAX, "unfinished key", &parser->err);
 		return false;
 	}
-	else if (!got_content) {
+	else if (!*got_content) {
 		return true;
 	}
 	*end_of_object = false;
@@ -2430,7 +2430,7 @@ ucl_state_machine (struct ucl_parser *parser)
 	unsigned char *macro_escaped;
 	size_t macro_len = 0;
 	struct ucl_macro *macro = NULL;
-	bool next_key = false, end_of_object = false, ret;
+	bool next_key = false, end_of_object = false, got_content = false, ret;
 
 	if (parser->top_obj == NULL) {
 		parser->state = UCL_STATE_INIT;
@@ -2519,7 +2519,10 @@ ucl_state_machine (struct ucl_parser *parser)
 				parser->state = UCL_STATE_ERROR;
 				return false;
 			}
-			if (!ucl_parse_key (parser, chunk, &next_key, &end_of_object)) {
+
+			got_content = false;
+
+			if (!ucl_parse_key (parser, chunk, &next_key, &end_of_object, &got_content)) {
 				parser->prev_state = parser->state;
 				parser->state = UCL_STATE_ERROR;
 				return false;
@@ -2542,7 +2545,8 @@ ucl_state_machine (struct ucl_parser *parser)
 						return false;
 					}
 				}
-				else {
+				else if (got_content) {
+					/* Do not switch state if we have not read any content */
 					parser->state = UCL_STATE_VALUE;
 				}
 			}
