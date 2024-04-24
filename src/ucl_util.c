@@ -3391,10 +3391,20 @@ ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
 		head = elt;
 	}
 	else {
-		elt->prev = head->prev;
-		head->prev->next = elt;
-		head->prev = elt;
-		elt->next = NULL;
+		if (head->type == UCL_USERDATA) {
+			/* Userdata objects are VERY special! */
+			struct ucl_object_userdata *ud = (struct ucl_object_userdata *)head;
+			elt->prev = ud->obj.prev;
+			ud->obj.prev->next = elt;
+			ud->obj.prev = elt;
+			elt->next = NULL;
+		}
+		else {
+			elt->prev = head->prev;
+			head->prev->next = elt;
+			head->prev = elt;
+			elt->next = NULL;
+		}
 	}
 
 	return head;
@@ -3604,11 +3614,15 @@ ucl_object_copy_internal (const ucl_object_t *other, bool allow_array)
 	ucl_object_t *new;
 	ucl_object_iter_t it = NULL;
 	const ucl_object_t *cur;
+	size_t sz = sizeof(*new);
 
-	new = malloc (sizeof (*new));
+	if (other->type == UCL_USERDATA) {
+		sz = sizeof (struct ucl_object_userdata);
+	}
+	new = malloc (sz);
 
 	if (new != NULL) {
-		memcpy (new, other, sizeof (*new));
+		memcpy (new, other, sz);
 		if (other->flags & UCL_OBJECT_EPHEMERAL) {
 			/* Copied object is always non ephemeral */
 			new->flags &= ~UCL_OBJECT_EPHEMERAL;
