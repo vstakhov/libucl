@@ -1494,7 +1494,7 @@ UCL_EXTERN struct ucl_emitter_context* ucl_object_emit_streamline_new (
  * @param ctx streamlined context
  * @param obj container object
  */
-UCL_EXTERN void ucl_object_emit_streamline_start_container (
+UCL_EXTERN bool ucl_object_emit_streamline_start_container (
 		struct ucl_emitter_context *ctx, const ucl_object_t *obj);
 /**
  * Add a complete UCL object to streamlined output

@@ -87,7 +87,7 @@ ucl_object_emit_streamline_new (const ucl_object_t *obj,
 	return (struct ucl_emitter_context *)sctx;
 }
 
-void
+bool
 ucl_object_emit_streamline_start_container (struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj)
 {
@@ -113,12 +113,20 @@ ucl_object_emit_streamline_start_container (struct ucl_emitter_context *ctx,
 			st->is_array = true;
 			sctx->ops->ucl_emitter_start_array (ctx, obj, top == NULL, print_key);
 		}
-		else {
+		else if (obj != NULL && obj->type == UCL_OBJECT) {
 			st->is_array = false;
 			sctx->ops->ucl_emitter_start_object (ctx, obj, top == NULL, print_key);
 		}
+		else {
+			/* API MISUSE */
+			free (st);
+
+			return false;
+		}
 		LL_PREPEND (sctx->containers, st);
 	}
+
+	return true;
 }
 
 void
