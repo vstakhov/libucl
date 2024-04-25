@@ -1146,9 +1146,14 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 
 
 			/* Insert value to the container and check if we have finished array */
-			if (!ucl_msgpack_insert_object (parser, NULL, 0,
+			if (parser->cur_obj) {
+				if (!ucl_msgpack_insert_object(parser, NULL, 0,
 					parser->cur_obj)) {
-				return false;
+					return false;
+				}
+			}
+			else {
+				/* We have parsed ext, ignore it */
 			}
 
 			if (ucl_msgpack_is_container_finished (container)) {
@@ -1207,10 +1212,12 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 
 			assert (key != NULL && keylen > 0);
 
-			if (!ucl_msgpack_insert_object (parser, key, keylen,
+			if (parser->cur_obj) {
+				if (!ucl_msgpack_insert_object(parser, key, keylen,
 					parser->cur_obj)) {
 
-				return false;
+					return false;
+				}
 			}
 
 			key = NULL;
@@ -1299,9 +1306,11 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 
 
 		/* Insert value to the container and check if we have finished array */
-		if (!ucl_msgpack_insert_object (parser, NULL, 0,
+		if (parser->cur_obj) {
+			if (!ucl_msgpack_insert_object(parser, NULL, 0,
 				parser->cur_obj)) {
-			return false;
+				return false;
+			}
 		}
 		break;
 	case finish_array_value:
@@ -1633,6 +1642,8 @@ ucl_msgpack_parse_ignore (struct ucl_parser *parser,
 		ucl_create_err (&parser->err, "bad type: %x", (unsigned)fmt);
 		return -1;
 	}
+
+	parser->cur_obj = NULL;
 
 	return len;
 }
