@@ -3375,7 +3375,7 @@ unsigned int
 ucl_array_index_of (ucl_object_t *top, ucl_object_t *elt)
 {
 	if (top->type != UCL_ARRAY) {
-		return NULL;
+		return (unsigned int)(-1);
 	}
 
 	UCL_ARRAY_GET (vec, top);
