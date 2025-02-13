@@ -2947,7 +2947,7 @@ ucl_object_lookup_path_char (const ucl_object_t *top, const char *path_in, const
 	char *err_str;
 	unsigned index;
 
-	if (path_in == NULL || top == NULL) {
+	if (path_in == NULL || top == NULL || sep == '\0') {
 		return NULL;
 	}
 
