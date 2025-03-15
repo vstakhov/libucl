@@ -764,7 +764,10 @@ ucl_msgpack_get_container (struct ucl_parser *parser,
 {
 	struct ucl_stack *stack;
 
-	assert (obj_parser != NULL);
+	 if (obj_parser == NULL) {
+                ucl_create_err (&parser->err, "no msgpack_parser");
+                return NULL;
+        }
 
 	if (obj_parser->flags & MSGPACK_FLAG_CONTAINER) {
 		/*
