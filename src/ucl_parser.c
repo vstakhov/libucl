@@ -3165,7 +3165,7 @@ ucl_parser_add_string (struct ucl_parser *parser, const char *data,
 bool
 ucl_set_include_path (struct ucl_parser *parser, ucl_object_t *paths)
 {
-	if (parser == NULL || paths == NULL) {
+	if (parser == NULL || paths == NULL || paths->type != UCL_ARRAY) {
 		return false;
 	}
 
