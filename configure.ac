@@ -4,9 +4,11 @@ m4_define([min_ver], [2])
 m4_define([so_version], [9:0:2])
 m4_define([ucl_version], [maj_ver.med_ver.min_ver])
 
+AC_PREREQ([2.70])
+
 AC_INIT([libucl],[ucl_version],[https://github.com/vstakhov/libucl],[libucl])
 AC_CONFIG_SRCDIR([configure.ac])
-AM_INIT_AUTOMAKE([1.11 foreign -Wall -Wportability no-dist-gzip dist-xz])
+AM_INIT_AUTOMAKE([foreign -Wall -Wportability no-dist-gzip dist-xz 1.14])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 UCL_VERSION=ucl_version
@@ -15,8 +17,7 @@ SO_VERSION=so_version
 AC_SUBST(UCL_VERSION)
 AC_SUBST(SO_VERSION)
 
-AC_PROG_CC_C99
-AM_PROG_CC_C_O
+AC_PROG_CC
 AM_PROG_AR
 LT_INIT
 AC_CONFIG_MACRO_DIR([m4])
