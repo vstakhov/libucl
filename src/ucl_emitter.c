@@ -256,17 +256,9 @@ ucl_emitter_common_start_array (struct ucl_emitter_context *ctx,
 	bool first_key = true;
 
 	if (ctx->id != UCL_EMIT_CONFIG && !first) {
-		if (compact) {
-			func->ucl_emitter_append_character (',', 1, func->ud);
+		if (ctx->id == UCL_EMIT_YAML && ctx->indent == 0) {
+			func->ucl_emitter_append_len ("\n", 1, func->ud);
 		}
-		else {
-			if (ctx->id == UCL_EMIT_YAML && ctx->indent == 0) {
-				func->ucl_emitter_append_len ("\n", 1, func->ud);
-			} else {
-				func->ucl_emitter_append_len (",\n", 2, func->ud);
-			}
-		}
-		ucl_add_tabs (func, ctx->indent, compact);
 	}
 
 	ucl_emitter_print_key (print_key, ctx, obj, compact);
