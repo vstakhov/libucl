@@ -2501,8 +2501,10 @@ ucl_state_machine (struct ucl_parser *parser)
 
 			}
 			break;
-		case UCL_STATE_KEY:
 		case UCL_STATE_KEY_OBRACE:
+			parser->stack->e.params.flags |= UCL_STACK_HAS_OBRACE;
+			/* FALLTHROUGHT */
+		case UCL_STATE_KEY:
 			/* Skip any spaces */
 			while (p < chunk->end && ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 				ucl_chunk_skipc (chunk, p);
