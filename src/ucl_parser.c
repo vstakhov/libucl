@@ -2060,8 +2060,12 @@ ucl_parse_after_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 						return false;
 					}
 
-					parser->stack = st->next;
-					UCL_FREE (sizeof (struct ucl_stack), st);
+					if ((st->e.params.flags & UCL_STACK_AUTOMATIC)) {
+						st->e.params.flags = 0;
+					} else {
+						parser->stack = st->next;
+						UCL_FREE (sizeof (struct ucl_stack), st);
+					}
 
 					if (parser->cur_obj) {
 						ucl_attach_comment (parser, parser->cur_obj, true);
@@ -2501,8 +2505,10 @@ ucl_state_machine (struct ucl_parser *parser)
 
 			}
 			break;
-		case UCL_STATE_KEY:
 		case UCL_STATE_KEY_OBRACE:
+			parser->stack->e.params.flags |= UCL_STACK_HAS_OBRACE | UCL_STACK_AUTOMATIC;
+			/* FALLTHROUGHT */
+		case UCL_STATE_KEY:
 			/* Skip any spaces */
 			while (p < chunk->end && ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 				ucl_chunk_skipc (chunk, p);
