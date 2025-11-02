@@ -651,7 +651,7 @@ void ucl_parser_free(struct ucl_parser *parser)
 	}
 
 	if (parser->cur_file) {
-		free(parser->cur_file);
+		UCL_FREE(strlen(parser->cur_file) + 1, parser->cur_file);
 	}
 
 	if (parser->comments) {
@@ -1040,12 +1040,12 @@ ucl_include_url(const unsigned char *data, size_t len,
 						   urlbuf,
 						   ERR_error_string(ERR_get_error(), NULL));
 			if (siglen > 0) {
-				ucl_munmap(sigbuf, siglen);
+				free(sigbuf);
 			}
 			return false;
 		}
 		if (siglen > 0) {
-			ucl_munmap(sigbuf, siglen);
+			free(sigbuf);
 		}
 #endif
 	}
@@ -1382,7 +1382,7 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 
 		/* Restore old file vars */
 		if (parser->cur_file) {
-			free(parser->cur_file);
+			UCL_FREE(strlen(parser->cur_file) + 1, parser->cur_file);
 		}
 
 		parser->cur_file = old_curfile;
@@ -1989,10 +1989,10 @@ bool ucl_parser_set_filevars(struct ucl_parser *parser, const char *filename, bo
 		}
 
 		if (parser->cur_file) {
-			free(parser->cur_file);
+			UCL_FREE(strlen(parser->cur_file) + 1, parser->cur_file);
 		}
 
-		parser->cur_file = strdup(realbuf);
+		parser->cur_file = UCL_STRDUP(realbuf);
 
 		/* Define variables */
 		ucl_parser_register_variable(parser, "FILENAME", realbuf);
@@ -2087,7 +2087,7 @@ bool ucl_parser_add_fd_full(struct ucl_parser *parser, int fd,
 	}
 
 	if (parser->cur_file) {
-		free(parser->cur_file);
+		UCL_FREE(strlen(parser->cur_file) + 1, parser->cur_file);
 	}
 	parser->cur_file = NULL;
 	len = st.st_size;
@@ -3625,7 +3625,7 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 	if (other->type == UCL_USERDATA) {
 		sz = sizeof(struct ucl_object_userdata);
 	}
-	new = malloc(sz);
+	new = UCL_ALLOC(sz);
 
 	if (new != NULL) {
 		memcpy(new, other, sz);
@@ -3642,7 +3642,7 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 		if (other->trash_stack[UCL_TRASH_KEY] != NULL) {
 			new->trash_stack[UCL_TRASH_KEY] = NULL;
 			if (other->key == (const char *) other->trash_stack[UCL_TRASH_KEY]) {
-				new->trash_stack[UCL_TRASH_KEY] = malloc(other->keylen + 1);
+				new->trash_stack[UCL_TRASH_KEY] = UCL_ALLOC(other->keylen + 1);
 				memcpy(new->trash_stack[UCL_TRASH_KEY], other->trash_stack[UCL_TRASH_KEY], other->keylen);
 				new->trash_stack[UCL_TRASH_KEY][other->keylen] = '\0';
 				new->key = new->trash_stack[UCL_TRASH_KEY];
@@ -3650,7 +3650,7 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 		}
 		if (other->trash_stack[UCL_TRASH_VALUE] != NULL) {
 			new->trash_stack[UCL_TRASH_VALUE] =
-				strdup(other->trash_stack[UCL_TRASH_VALUE]);
+				UCL_STRDUP(other->trash_stack[UCL_TRASH_VALUE]);
 			if (new->type == UCL_STRING) {
 				new->value.sv = new->trash_stack[UCL_TRASH_VALUE];
 			}
