@@ -16,17 +16,16 @@ macro(add_ucl_test testname sourcefile wrapper)
 	add_executable(${testname} ${sourcefile})
 	target_include_directories(${testname} PRIVATE ${COMMON_TEST_INCLUDES})
 	target_link_libraries(${testname} PRIVATE ${COMMON_TEST_LIBS})
-	add_test(NAME ${testname} COMMAND ${CMAKE_SOURCE_DIR}/tests/${wrapper})
-	set_tests_properties(${testname} PROPERTIES ENVIRONMENT "${TEST_ENV_VARS}")
+	IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+		add_test(NAME ${testname} COMMAND ${CMAKE_SOURCE_DIR}/tests/${wrapper})
+		set_tests_properties(${testname} PROPERTIES ENVIRONMENT "${TEST_ENV_VARS}")
+	ENDIF()
 endmacro()
 
-# None of the  tests are currently written with Windows-portability in mind...
-IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+# Build test binaries always (not just for testing)
 add_ucl_test(test_basic test_basic.c basic.test)
-
 add_ucl_test(test_speed test_speed.c speed.test)
 add_ucl_test(test_schema test_schema.c schema.test)
 add_ucl_test(test_msgpack test_msgpack.c msgpack.test)
 add_ucl_test(test_generate test_generate.c generate.test)
-ENDIF(CMAKE_SYSTEM_NAME STRNEQUAL "Windows")
 
