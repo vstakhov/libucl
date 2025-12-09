@@ -1675,7 +1675,7 @@ ucl_parse_multiline_string(struct ucl_parser *parser,
 			}
 			else if (memcmp(p, term, term_len) == 0) {
 				tend = p + term_len;
-				if (*tend != '\n' && *tend != ';' && *tend != ',') {
+				if (tend < chunk->end && *tend != '\n' && *tend != ';' && *tend != ',') {
 					/* Incomplete terminator */
 					ucl_chunk_skipc(chunk, p);
 					continue;
