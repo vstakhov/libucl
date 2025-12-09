@@ -1010,7 +1010,7 @@ int ucl_maybe_parse_number(ucl_object_t *obj,
 			while (p < end && ucl_test_character(*p, UCL_CHARACTER_WHITESPACE)) {
 				p++;
 			}
-			if (ucl_lex_is_atom_end(*p))
+			if (p == end || ucl_lex_is_atom_end(*p))
 				goto set_obj;
 			break;
 		}
