@@ -1253,6 +1253,15 @@ bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *
 			tobj = __DECONST(ucl_object_t *, ucl_hash_search_obj(cur->value.ov, nobj));
 
 			if (tobj != NULL) {
+				/*
+				 * Check if we have found an object in the same container.
+				 * If not, we should probably ignore it as we cannot replace it
+				 * effectively and we definitely should not unref it.
+				 */
+				if (cur->value.ov != container) {
+					tobj = NULL;
+					continue;
+				}
 				break;
 			}
 		}
