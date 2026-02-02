@@ -2435,9 +2435,7 @@ ucl_object_insert_key_common(ucl_object_t *top, ucl_object_t *elt,
 	if (found == NULL) {
 		top->value.ov = ucl_hash_insert_object(top->value.ov, elt, false);
 		top->len++;
-		if (replace) {
-			ret = false;
-		}
+		/* Key was inserted - return true regardless of replace flag */
 	}
 	else {
 		if (replace) {
