@@ -3028,6 +3028,16 @@ bool ucl_object_reserve(ucl_object_t *obj, size_t reserved)
 	if (obj->type == UCL_ARRAY) {
 		UCL_ARRAY_GET(vec, obj);
 
+		if (vec == NULL) {
+			/* Allocate array storage if not present (e.g., copied empty array) */
+			vec = UCL_ALLOC(sizeof(*vec));
+			if (vec == NULL) {
+				return false;
+			}
+			kv_init(*vec);
+			obj->value.av = (void *)vec;
+		}
+
 		if (vec->m < reserved) {
 			/* Preallocate some space for arrays */
 			kv_resize_safe(ucl_object_t *, *vec, reserved, e0);
