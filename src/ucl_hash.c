@@ -610,6 +610,9 @@ ucl_hash_cmp_case_sens(const void *a, const void *b)
 
 void ucl_hash_sort(ucl_hash_t *hashlin, enum ucl_object_keys_sort_flags fl)
 {
+	if (hashlin == NULL) {
+		return;
+	}
 
 	if (fl & UCL_SORT_KEYS_ICASE) {
 		DL_SORT(hashlin->head, ucl_hash_cmp_icase);
