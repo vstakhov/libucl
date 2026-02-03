@@ -3657,8 +3657,9 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 		}
 
 		if (other->type == UCL_ARRAY || other->type == UCL_OBJECT) {
-			/* reset old value */
+			/* reset old value and length since we will re-add elements below */
 			memset(&new->value, 0, sizeof(new->value));
+			new->len = 0;
 
 			while ((cur = ucl_object_iterate(other, &it, true)) != NULL) {
 				if (other->type == UCL_ARRAY) {
