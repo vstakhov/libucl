@@ -236,6 +236,9 @@ main (int argc, char **argv)
 	/* No such key */
 	found = ucl_object_lookup_path (obj, "key9..key1");
 	assert (found == NULL);
+	/* Empty string and \0 sep */
+	found = ucl_object_lookup_path_char (obj, "", '\0');
+	assert (found == NULL);
 
 	/* Test iteration */
 	it = ucl_object_iterate_new (obj);
