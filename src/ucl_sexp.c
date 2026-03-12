@@ -163,7 +163,7 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 			break;
 
 		case read_value:
-			if ((uint64_t) (end - p) > len || len == 0) {
+			if ((uint64_t) (end - p) < len || len == 0) {
 				ucl_create_err(&parser->err, "invalid length: %llu, %ld "
 											 "remain",
 							   (long long unsigned) len, (long) (end - p));
