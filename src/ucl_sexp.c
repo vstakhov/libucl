@@ -50,7 +50,6 @@
 				break;                        \
 			default:                          \
 				len = 0;                      \
-				mult = 1;                     \
 				state = read_length;          \
 				break;                        \
 			}                                 \
@@ -62,7 +61,7 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 	const unsigned char *p, *end;
 	ucl_object_t *obj;
 	struct ucl_stack *st;
-	uint64_t len = 0, mult = 1;
+	uint64_t len = 0;
 	enum {
 		start_parse,
 		read_obrace,
@@ -142,8 +141,7 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 				state = read_value;
 			}
 			else if (*p >= '0' && *p <= '9') {
-				len += (*p - '0') * mult;
-				mult *= 10;
+				len = len * 10 + (*p - '0');
 
 				if (len > UINT32_MAX) {
 					ucl_create_err(&parser->err, "too big length of an "
@@ -198,14 +196,16 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 			st = parser->stack;
 			parser->stack = st->next;
 
-			if (parser->stack->obj->type == UCL_ARRAY) {
-				ucl_array_append(parser->stack->obj, st->obj);
-			}
-			else {
-				ucl_create_err(&parser->err, "bad container object, array "
-											 "expected");
-				state = parse_err;
-				continue;
+			if (parser->stack != NULL) {
+				if (parser->stack->obj->type == UCL_ARRAY) {
+					ucl_array_append(parser->stack->obj, st->obj);
+				}
+				else {
+					ucl_create_err(&parser->err, "bad container object, array "
+												 "expected");
+					state = parse_err;
+					continue;
+				}
 			}
 
 			free(st);
