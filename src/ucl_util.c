@@ -2017,6 +2017,7 @@ bool ucl_parser_add_file_full(struct ucl_parser *parser, const char *filename,
 	size_t len;
 	bool ret;
 	char realbuf[PATH_MAX];
+	int saved_flags;
 
 	if (ucl_realpath(filename, realbuf) == NULL) {
 		ucl_create_err(&parser->err, "cannot open file %s: %s",
@@ -2030,8 +2031,20 @@ bool ucl_parser_add_file_full(struct ucl_parser *parser, const char *filename,
 	}
 
 	ucl_parser_set_filevars(parser, realbuf, false);
+
+	/*
+	 * Temporarily disable ZEROCOPY mode for file parsing since the file
+	 * buffer will be unmapped after parsing. Using ZEROCOPY would leave
+	 * dangling pointers to the unmapped memory, causing crashes if
+	 * subsequent parsing operations trigger a hash table resize.
+	 */
+	saved_flags = parser->flags;
+	parser->flags &= ~UCL_PARSER_ZEROCOPY;
+
 	ret = ucl_parser_add_chunk_full(parser, buf, len, priority, strat,
 									parse_type);
+
+	parser->flags = saved_flags;
 
 	if (len > 0) {
 		ucl_munmap(buf, len);
@@ -2071,6 +2084,7 @@ bool ucl_parser_add_fd_full(struct ucl_parser *parser, int fd,
 	size_t len;
 	bool ret;
 	struct stat st;
+	int saved_flags;
 
 	if (fstat(fd, &st) == -1) {
 		ucl_create_err(&parser->err, "cannot stat fd %d: %s",
@@ -2091,8 +2105,20 @@ bool ucl_parser_add_fd_full(struct ucl_parser *parser, int fd,
 	}
 	parser->cur_file = NULL;
 	len = st.st_size;
+
+	/*
+	 * Temporarily disable ZEROCOPY mode for fd parsing since the buffer
+	 * will be unmapped after parsing. Using ZEROCOPY would leave
+	 * dangling pointers to the unmapped memory, causing crashes if
+	 * subsequent parsing operations trigger a hash table resize.
+	 */
+	saved_flags = parser->flags;
+	parser->flags &= ~UCL_PARSER_ZEROCOPY;
+
 	ret = ucl_parser_add_chunk_full(parser, buf, len, priority, strat,
 									parse_type);
+
+	parser->flags = saved_flags;
 
 	if (len > 0) {
 		ucl_munmap(buf, len);
