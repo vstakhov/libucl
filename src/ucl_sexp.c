@@ -178,6 +178,13 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 				ucl_copy_value_trash(obj);
 			}
 
+			if (parser->stack == NULL) {
+				ucl_object_unref(obj);
+				ucl_create_err(&parser->err, "value outside of any list");
+				state = parse_err;
+				continue;
+			}
+
 			ucl_array_append(parser->stack->obj, obj);
 			p += len;
 			NEXT_STATE;
@@ -216,12 +223,32 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 
 		case parse_err:
 		default:
+			/* Clean up orphaned stack objects that were never appended
+			 * to the tree. The outermost frame's obj == parser->top_obj
+			 * and will be freed by ucl_parser_free; all others are
+			 * orphaned and must be explicitly released here. */
+			while (parser->stack != NULL) {
+				struct ucl_stack *st_err = parser->stack;
+				parser->stack = st_err->next;
+				if (st_err->obj != NULL && st_err->obj != parser->top_obj) {
+					ucl_object_unref(st_err->obj);
+				}
+				free(st_err);
+			}
 			return false;
 		}
 	}
 
 	if (state != read_ebrace) {
 		ucl_create_err(&parser->err, "invalid finishing state: %d", state);
+		while (parser->stack != NULL) {
+			struct ucl_stack *st_err = parser->stack;
+			parser->stack = st_err->next;
+			if (st_err->obj != NULL && st_err->obj != parser->top_obj) {
+				ucl_object_unref(st_err->obj);
+			}
+			free(st_err);
+		}
 		return false;
 	}
 
