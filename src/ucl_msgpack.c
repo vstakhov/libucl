@@ -1568,6 +1568,10 @@ ucl_msgpack_parse_ignore(struct ucl_parser *parser,
 		return -1;
 	}
 
+	if (len > remain) {
+		return -1;
+	}
+
 	parser->cur_obj = NULL;
 
 	return len;
