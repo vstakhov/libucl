@@ -315,6 +315,72 @@ test_err_unclosed(void)
 }
 
 /* ------------------------------------------------------------------ */
+/* Issue #365 regression tests                                         */
+/* ------------------------------------------------------------------ */
+
+/*
+ * ()3:abc — value after outermost list is closed.
+ * Before fix: NULL pointer dereference (parser->stack is NULL when
+ * read_value tries to ucl_array_append).
+ */
+static void
+test_err_value_after_close(void)
+{
+	const unsigned char input[] = {'(', ')', '3', ':', 'a', 'b', 'c'};
+	CHECK(parse_fails(input, sizeof(input)),
+		  "should reject value outside any list (issue #365 bug A)");
+}
+
+/*
+ * (( — two unclosed lists.
+ * Before fix: memory leak — inner stack object never appended to parent
+ * and never freed. The parse must fail without leaking.
+ */
+static void
+test_err_unclosed_nested(void)
+{
+	const unsigned char input[] = {'(', '('};
+	CHECK(parse_fails(input, sizeof(input)),
+		  "should reject unclosed nested lists without leaking (issue #365 bug B)");
+}
+
+/*
+ * ((( — three unclosed lists, deeper nesting of the same leak pattern.
+ */
+static void
+test_err_unclosed_deeply_nested(void)
+{
+	const unsigned char input[] = {'(', '(', '('};
+	CHECK(parse_fails(input, sizeof(input)),
+		  "should reject deeply unclosed lists without leaking");
+}
+
+/*
+ * ()( — empty list followed by opening brace with no close.
+ * Variant of bug A: after closing (), trailing ( pushes a new frame
+ * but it never closes.
+ */
+static void
+test_err_open_after_close(void)
+{
+	const unsigned char input[] = {'(', ')', '('};
+	CHECK(parse_fails(input, sizeof(input)),
+		  "should reject unclosed list after close");
+}
+
+/*
+ * ((3:abc — inner element present but lists never closed.
+ * The inner array has a child; verify the child is also freed.
+ */
+static void
+test_err_unclosed_with_data(void)
+{
+	const unsigned char input[] = {'(', '(', '3', ':', 'a', 'b', 'c'};
+	CHECK(parse_fails(input, sizeof(input)),
+		  "should reject unclosed lists with data without leaking");
+}
+
+/* ------------------------------------------------------------------ */
 
 int
 main(void)
@@ -334,6 +400,13 @@ main(void)
 	test_err_zero_length();
 	test_err_extra_brace();
 	test_err_unclosed();
+
+	/* Issue #365 regression tests */
+	test_err_value_after_close();
+	test_err_unclosed_nested();
+	test_err_unclosed_deeply_nested();
+	test_err_open_after_close();
+	test_err_unclosed_with_data();
 
 	if (failed) {
 		fprintf(stderr, "%d test(s) FAILED\n", failed);
