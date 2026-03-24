@@ -33,4 +33,5 @@ ENDIF()
 add_ucl_test(test_msgpack test_msgpack.c msgpack.test)
 add_ucl_test(test_generate test_generate.c generate.test)
 add_ucl_test(test_csexp test_csexp.c csexp.test)
+add_ucl_test(test_msgpack_malformed test_msgpack_malformed.c msgpack_malformed.test)
 
