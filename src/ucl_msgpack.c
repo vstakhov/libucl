@@ -149,9 +149,9 @@ void ucl_emitter_print_int_msgpack(struct ucl_emitter_context *ctx, int64_t val)
 		/* Bithack abs */
 		uval = ((val ^ (val >> 63)) - (val >> 63));
 
-		if (val > -(1 << 5)) {
+		if (val >= -32) {
 			len = 1;
-			buf[0] = (mask_negative | uval) & 0xff;
+			buf[0] = (uint8_t)(int8_t)val;
 		}
 		else if (uval <= INT8_MAX) {
 			uint8_t v = (uint8_t) val;
@@ -1386,7 +1386,7 @@ ucl_msgpack_parse_int(struct ucl_parser *parser,
 		len = 1;
 		break;
 	case msgpack_negative_fixint:
-		obj->value.iv = -(*pos & 0x1f);
+		obj->value.iv = (int8_t)*pos;
 		len = 1;
 		break;
 	case msgpack_uint8:
