@@ -960,15 +960,24 @@ ucl_msgpack_consume(struct ucl_parser *parser)
 				case 1:
 					len = *p;
 					break;
-				case 2:
-					len = FROM_BE16(*(uint16_t *) p);
+				case 2: {
+					uint16_t tmp;
+					memcpy(&tmp, p, sizeof(tmp));
+					len = FROM_BE16(tmp);
 					break;
-				case 4:
-					len = FROM_BE32(*(uint32_t *) p);
+				}
+				case 4: {
+					uint32_t tmp;
+					memcpy(&tmp, p, sizeof(tmp));
+					len = FROM_BE32(tmp);
 					break;
-				case 8:
-					len = FROM_BE64(*(uint64_t *) p);
+				}
+				case 8: {
+					uint64_t tmp;
+					memcpy(&tmp, p, sizeof(tmp));
+					len = FROM_BE64(tmp);
 					break;
+				}
 				default:
 					ucl_create_err(&parser->err, "invalid length of the length field: %u",
 								   (unsigned) obj_parser->len);
