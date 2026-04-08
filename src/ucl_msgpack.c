@@ -693,6 +693,18 @@ ucl_msgpack_get_container(struct ucl_parser *parser,
 		/*
 		 * Insert new container to the stack
 		 */
+		unsigned int depth = 0;
+		struct ucl_stack *sp;
+		for (sp = parser->stack; sp != NULL; sp = sp->next) {
+			depth++;
+		}
+		if (depth >= UCL_MAX_NESTING) {
+			ucl_create_err(&parser->err,
+						   "msgpack containers are nested too deep (over %d)",
+						   UCL_MAX_NESTING);
+			return NULL;
+		}
+
 		if (parser->stack == NULL) {
 			parser->stack = calloc(1, sizeof(struct ucl_stack));
 
