@@ -3,6 +3,7 @@
 **Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
 
 - [Introduction](#introduction)
+- [Security considerations](#security-considerations)
 - [Basic structure](#basic-structure)
 - [Improvements to the json notation](#improvements-to-the-json-notation)
 	- [General syntax sugar](#general-syntax-sugar)
@@ -30,6 +31,14 @@ This repository provides the `C` library for parsing configurations written in `
 * `Yaml`: limited write support (mainly for compatibility)
 
 If you are looking for the libucl API documentation you can find it at [this page](doc/api.md).
+
+## Security considerations
+
+Libucl with all features enabled (macros, `.include` directives, file I/O, URL includes) is designed for parsing **trusted inputs** such as configuration files controlled by the system administrator. It is **NOT** designed to handle untrusted or adversarial input safely.
+
+Features like `.include` can read arbitrary files from the filesystem, macros can trigger external actions, and URL includes can make network requests. These are powerful capabilities for configuration management but are inherently unsafe when exposed to attacker-controlled data.
+
+If you need to parse untrusted input, either use libucl in pure JSON mode without macros, or disable dangerous features (e.g. do not register macro handlers, disable URL includes) and enforce strict nesting depth limits via the parser API.
 
 ## Basic structure
 
