@@ -2260,6 +2260,13 @@ ucl_parse_macro_value(struct ucl_parser *parser,
 
 	p = chunk->pos;
 
+	if (p >= chunk->end) {
+		ucl_set_err(parser, UCL_ESYNTAX,
+					"unexpected end of input while parsing macro value",
+					&parser->err);
+		return false;
+	}
+
 	switch (*p) {
 	case '"':
 		/* We have macro value encoded in quotes */
@@ -2291,6 +2298,12 @@ ucl_parse_macro_value(struct ucl_parser *parser,
 				break;
 			}
 			ucl_chunk_skipc(chunk, p);
+		}
+		if (p >= chunk->end) {
+			ucl_set_err(parser, UCL_ESYNTAX,
+						"unterminated macro value, missing '}'",
+						&parser->err);
+			return false;
 		}
 		*macro_start = c;
 		*macro_len = p - c;
