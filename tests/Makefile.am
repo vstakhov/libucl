@@ -5,7 +5,8 @@ TESTS = basic.test \
 		generate.test \
 		schema.test \
 		msgpack.test \
-		speed.test
+		speed.test \
+		roundtrip.test
 
 TESTS_ENVIRONMENT = $(SH) \
 			TEST_DIR=$(top_srcdir)/tests \
@@ -41,5 +42,9 @@ test_msgpack_SOURCES = test_msgpack.c
 test_msgpack_LDADD = $(common_test_ldadd)
 test_msgpack_CFLAGS = $(common_test_cflags)
 
+test_roundtrip_SOURCES = test_roundtrip.c
+test_roundtrip_LDADD = $(common_test_ldadd)
+test_roundtrip_CFLAGS = $(common_test_cflags)
+
 check_PROGRAMS = test_basic test_speed test_generate test_schema \
-		 test_streamline test_msgpack
+		 test_streamline test_msgpack test_roundtrip
