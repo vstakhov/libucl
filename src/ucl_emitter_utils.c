@@ -1,4 +1,6 @@
-/* Copyright (c) 2014, Vsevolod Stakhov
+/* SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2014, Vsevolod Stakhov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
