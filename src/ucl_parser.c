@@ -3030,7 +3030,9 @@ bool ucl_parser_add_chunk_full(struct ucl_parser *parser, const unsigned char *d
 				if (!special_handler->handler(parser, data, len, &ndata, &nlen,
 											  special_handler->user_data)) {
 					UCL_FREE(sizeof(struct ucl_chunk), chunk);
-					ucl_create_err(&parser->err, "call for external handler failed");
+					if (parser->err == NULL) {
+						ucl_create_err(&parser->err, "call for external handler failed");
+					}
 
 					return false;
 				}
