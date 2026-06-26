@@ -625,6 +625,7 @@ ucl_emit_msgpack_elt(struct ucl_emitter_context *ctx,
 	case UCL_USERDATA:
 		ud = (struct ucl_object_userdata *) obj;
 		ucl_emitter_print_key_msgpack(print_key, ctx, obj);
+		ud_out = "null";
 
 		if (ud->emitter) {
 			ud_out = ud->emitter(obj->value.ud);
@@ -632,7 +633,7 @@ ucl_emit_msgpack_elt(struct ucl_emitter_context *ctx,
 				ud_out = "null";
 			}
 		}
-		ucl_emitter_print_string_msgpack(ctx, obj->value.sv, obj->len);
+		ucl_emitter_print_string_msgpack(ctx, ud_out, strlen(ud_out));
 		break;
 	}
 }
