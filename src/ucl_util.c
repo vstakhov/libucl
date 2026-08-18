@@ -2189,7 +2189,13 @@ ucl_strnstr(const char *s, const char *find, int len)
 		mlen = strlen(find);
 		do {
 			do {
-				if ((sc = *s++) == 0 || len-- < mlen)
+				if (len <= mlen)
+					return (NULL);
+
+				sc = *s++;
+				len--;
+
+				if (sc == '\0')
 					return (NULL);
 			} while (sc != c);
 		} while (strncmp(s, find, mlen) != 0);
