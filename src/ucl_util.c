@@ -2218,7 +2218,13 @@ ucl_strncasestr(const char *s, const char *find, int len)
 		mlen = strlen(find);
 		do {
 			do {
-				if ((sc = *s++) == 0 || len-- == 0)
+				if (len <= mlen)
+					return (NULL);
+
+				sc = *s++;
+				len--;
+
+				if (sc == '\0')
 					return (NULL);
 			} while (tolower(sc) != c);
 		} while (strncasecmp(s, find, mlen) != 0);
