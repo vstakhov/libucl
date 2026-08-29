@@ -1,6 +1,8 @@
 /* tree.h -- AVL trees (in the spirit of BSD's 'queue.h')	-*- C -*-	*/
 
-/* Copyright (c) 2005 Ian Piumarta
+/* SPDX-License-Identifier: LicenseRef-scancode-ian-piumarta
+ *
+ * Copyright (c) 2005 Ian Piumarta
  * 
  * All rights reserved.
  * 
