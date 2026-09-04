@@ -3683,10 +3683,28 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 			}
 		}
 		if (other->trash_stack[UCL_TRASH_VALUE] != NULL) {
-			new->trash_stack[UCL_TRASH_VALUE] =
-				UCL_STRDUP(other->trash_stack[UCL_TRASH_VALUE]);
 			if (new->type == UCL_STRING) {
+				/*
+				 * A string value can carry embedded NUL bytes when it was
+				 * built with ucl_object_fromlstring(); its real extent is
+				 * tracked by new->len (copied above from other->len), not
+				 * by a terminating NUL. UCL_STRDUP stops at the first NUL
+				 * it sees, so on such a value it can hand back a shorter
+				 * allocation than the length ucl_object_emit() will later
+				 * read against. Duplicate the exact byte range instead,
+				 * the same way the key is duplicated a few lines up.
+				 */
+				new->trash_stack[UCL_TRASH_VALUE] = UCL_ALLOC(new->len + 1);
+				if (new->trash_stack[UCL_TRASH_VALUE] != NULL) {
+					memcpy(new->trash_stack[UCL_TRASH_VALUE],
+						   other->trash_stack[UCL_TRASH_VALUE], new->len);
+					new->trash_stack[UCL_TRASH_VALUE][new->len] = '\0';
+				}
 				new->value.sv = new->trash_stack[UCL_TRASH_VALUE];
+			}
+			else {
+				new->trash_stack[UCL_TRASH_VALUE] =
+					UCL_STRDUP(other->trash_stack[UCL_TRASH_VALUE]);
 			}
 		}
 
