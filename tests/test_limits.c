@@ -465,6 +465,140 @@ test_msgpack_limits(void)
 }
 
 /*
+ * Without UCL_PARSER_ZEROCOPY the parser owns a copy of every string, so the
+ * objects have to outlive the buffer they were parsed from. Binary strings are
+ * not NUL terminated and take their own copying path, which used to leave the
+ * value pointing into that buffer.
+ */
+static ucl_object_t *
+parse_msgpack_from_heap(const char *doc, size_t len)
+{
+	struct ucl_parser *p = make_parser(NULL);
+	unsigned char *buf = malloc(len);
+	ucl_object_t *top;
+	bool ok;
+
+	assert(buf != NULL);
+	memcpy(buf, doc, len);
+
+	ok = ucl_parser_add_chunk_full(p, buf, len,
+								   ucl_parser_get_default_priority(p),
+								   UCL_DUPLICATE_APPEND, UCL_PARSE_MSGPACK);
+	top = ok ? ucl_parser_get_object(p) : NULL;
+
+	/* Everything the value may legitimately point at is now gone */
+	ucl_parser_free(p);
+	free(buf);
+
+	return top;
+}
+
+/* fixmap{"b": bin8 holding `payload`} */
+static char *
+msgpack_binary(const char *payload, size_t payload_len, size_t *len)
+{
+	char *res = malloc(payload_len + 5);
+
+	assert(res != NULL);
+	res[0] = '\x81';
+	res[1] = '\xa1';
+	res[2] = 'b';
+	res[3] = '\xc4';
+	res[4] = (char) payload_len;
+	memcpy(res + 5, payload, payload_len);
+	*len = payload_len + 5;
+
+	return res;
+}
+
+static void
+test_binary_string_ownership(void)
+{
+	static const char payload[] = "\x01\x02\x03\x04";
+	ucl_object_t *top;
+	const ucl_object_t *bin;
+	const char *val;
+	size_t doc_len, len;
+	char *doc;
+
+	doc = msgpack_binary(payload, 4, &doc_len);
+	top = parse_msgpack_from_heap(doc, doc_len);
+	free(doc);
+	assert(top != NULL);
+
+	bin = ucl_object_lookup(top, "b");
+	assert(bin != NULL);
+	assert((bin->flags & UCL_OBJECT_BINARY) != 0);
+
+	len = 0;
+	val = ucl_object_tolstring(bin, &len);
+	assert(val != NULL);
+	assert(len == 4);
+	assert(memcmp(val, payload, 4) == 0);
+
+	ucl_object_unref(top);
+
+	/* An empty binary string owns nothing and must not reference the input */
+	doc = msgpack_binary("", 0, &doc_len);
+	top = parse_msgpack_from_heap(doc, doc_len);
+	free(doc);
+	assert(top != NULL);
+
+	bin = ucl_object_lookup(top, "b");
+	assert(bin != NULL);
+
+	len = 1;
+	val = ucl_object_tolstring(bin, &len);
+	assert(val != NULL);
+	assert(len == 0);
+
+	ucl_object_unref(top);
+}
+
+/*
+ * A zero length value carries no payload, so reading its type consumes the
+ * last byte of the document and the state machine finishes the value after its
+ * loop rather than inside it. That tail used to insert without a key, which an
+ * array does not mind and a map cannot accept.
+ */
+static void
+test_map_ending_in_empty_value(void)
+{
+	ucl_object_t *top;
+	const ucl_object_t *b;
+	char *doc;
+	size_t doc_len;
+
+	/* fixmap{"b": fixstr of 0} */
+	top = parse_msgpack_from_heap("\x81\xa1" "b" "\xa0", 4);
+	assert(top != NULL);
+	b = ucl_object_lookup(top, "b");
+	assert(b != NULL);
+	assert(ucl_object_type(b) == UCL_STRING);
+	assert(b->len == 0);
+	ucl_object_unref(top);
+
+	/* fixmap{"b": bin8 of 0} */
+	doc = msgpack_binary("", 0, &doc_len);
+	top = parse_msgpack_from_heap(doc, doc_len);
+	free(doc);
+	assert(top != NULL);
+	b = ucl_object_lookup(top, "b");
+	assert(b != NULL);
+	assert(b->len == 0);
+	ucl_object_unref(top);
+
+	/* fixmap{"b": [""]} - the array must not inherit the map's key */
+	top = parse_msgpack_from_heap("\x81\xa1" "b" "\x91\xa0", 5);
+	assert(top != NULL);
+	b = ucl_object_lookup(top, "b");
+	assert(b != NULL);
+	assert(ucl_object_type(b) == UCL_ARRAY);
+	assert(ucl_array_size(b) == 1);
+	ucl_object_unref(top);
+}
+
+/*
  * The destructor walks an explicit worklist, so a tree far deeper than the
  * C stack could survive must still be released without recursing.
  */
@@ -558,6 +692,8 @@ int main(int argc, char **argv)
 	test_string_and_key_limits();
 	test_limits_accessors();
 	test_msgpack_limits();
+	test_binary_string_ownership();
+	test_map_ending_in_empty_value();
 	test_deep_destruction();
 	test_shared_subtree();
 	test_implicit_array_chain();

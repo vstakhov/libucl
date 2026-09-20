@@ -727,6 +727,12 @@ ucl_msgpack_get_container(struct ucl_parser *parser,
 			return NULL;
 		}
 
+		/*
+		 * These frames are popped by ucl_parser_pop_container and by
+		 * ucl_parser_free, both of which release them with UCL_FREE, so they
+		 * have to come from UCL_ALLOC. UCL_ALLOC has no zeroing counterpart,
+		 * hence the explicit memset that calloc used to cover.
+		 */
 		if (parser->stack == NULL) {
 			parser->stack = UCL_ALLOC(sizeof(struct ucl_stack));
 
@@ -1306,9 +1312,18 @@ ucl_msgpack_consume(struct ucl_parser *parser)
 		CONSUME_RET;
 
 
-		/* Insert value to the container and check if we have finished array */
+		/*
+		 * Insert value to the container and check if we have finished array.
+		 * A zero length value has no payload of its own, so reading its type
+		 * consumes the last byte of the chunk and the loop ends before the
+		 * value state runs; the pair is completed here instead. An array does
+		 * not care about the key, but a map does, and the key read just
+		 * before is still the one this value belongs to.
+		 */
 		if (parser->cur_obj) {
-			if (!ucl_msgpack_insert_object(parser, NULL, 0,
+			if (!ucl_msgpack_insert_object(parser,
+										   state == read_assoc_value ? key : NULL,
+										   state == read_assoc_value ? (size_t) keylen : 0,
 										   parser->cur_obj)) {
 				return false;
 			}
@@ -1439,10 +1454,34 @@ ucl_msgpack_parse_string(struct ucl_parser *parser,
 		}
 
 		if (obj->flags & UCL_OBJECT_BINARY) {
-			obj->trash_stack[UCL_TRASH_VALUE] = UCL_ALLOC(len);
+			/*
+			 * Binary strings are not NUL terminated, so they cannot go
+			 * through ucl_copy_value_trash; copy them the way its own binary
+			 * branch does. The value has to be moved onto the copy: without
+			 * that the object keeps pointing into the input buffer, which the
+			 * caller is free to release once parsing returns, and the trash
+			 * slot being taken stops ucl_copy_value_trash from ever repairing
+			 * it. An empty string owns nothing and gets a literal, so that it
+			 * does not reference the input either.
+			 */
+			if (len > 0) {
+				/* Released by ucl_object_dtor_free through UCL_FREE */
+				obj->trash_stack[UCL_TRASH_VALUE] = UCL_ALLOC(len);
 
-			if (obj->trash_stack[UCL_TRASH_VALUE] != NULL) {
+				if (obj->trash_stack[UCL_TRASH_VALUE] == NULL) {
+					ucl_create_err(&parser->err, "no memory");
+					parser->err_code = UCL_EINTERNAL;
+					ucl_object_unref(obj);
+
+					return -1;
+				}
+
 				memcpy(obj->trash_stack[UCL_TRASH_VALUE], pos, len);
+				obj->value.sv = obj->trash_stack[UCL_TRASH_VALUE];
+				obj->flags |= UCL_OBJECT_ALLOCATED_VALUE;
+			}
+			else {
+				obj->value.sv = "";
 			}
 		}
 		else {
