@@ -36,6 +36,13 @@ add_ucl_test(test_csexp test_csexp.c csexp.test)
 add_ucl_test(test_msgpack_malformed test_msgpack_malformed.c msgpack_malformed.test)
 add_ucl_test(test_roundtrip test_roundtrip.c roundtrip.test)
 
+add_executable(test_limits test_limits.c)
+target_include_directories(test_limits PRIVATE ${COMMON_TEST_INCLUDES})
+target_link_libraries(test_limits PRIVATE ${COMMON_TEST_LIBS})
+IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	add_test(NAME test_limits COMMAND test_limits)
+ENDIF()
+
 add_executable(test_strnstr test_strnstr.c)
 target_include_directories(test_strnstr PRIVATE ${COMMON_TEST_INCLUDES})
 target_link_libraries(test_strnstr PRIVATE ${COMMON_TEST_LIBS})

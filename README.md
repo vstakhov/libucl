@@ -38,7 +38,26 @@ Libucl with all features enabled (macros, `.include` directives, file I/O, URL i
 
 Features like `.include` can read arbitrary files from the filesystem, macros can trigger external actions, and URL includes can make network requests. These are powerful capabilities for configuration management but are inherently unsafe when exposed to attacker-controlled data.
 
-If you need to parse untrusted input, either use libucl in pure JSON mode without macros, or disable dangerous features (e.g. do not register macro handlers, disable URL includes) and enforce strict nesting depth limits via the parser API.
+If you need to parse untrusted input, either use libucl in pure JSON mode without macros, or disable dangerous features (e.g. do not register macro handlers, disable URL includes) and bound the structural cost of the parse.
+
+For the latter, create the parser with `UCL_PARSER_SAFE_FLAGS` (no macros, no file variables, no time suffixes, no implicit arrays) and set explicit budgets with `ucl_parser_set_limits()`:
+
+```c
+struct ucl_parser_limits limits = {
+	.max_depth = 64,                 /* nesting depth of objects and arrays */
+	.max_nodes = 1000000,            /* elements in the resulting tree */
+	.max_alloc = 64 * 1024 * 1024,   /* bytes attributed to the tree */
+	.max_key_length = 1024,
+	.max_string_length = 16 * 1024 * 1024,
+};
+struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_SAFE_FLAGS);
+
+ucl_parser_set_limits(parser, &limits);
+```
+
+A zero value means "no limit" for that field. Only `max_depth` is set by default (to `1024`), since the other budgets would reject large but perfectly valid inputs. Exceeding a limit aborts the parse with `UCL_ELIMIT`, or `UCL_ENESTED` for the depth limit. The limits apply to the UCL, JSON and MessagePack parsers alike; MessagePack in particular amplifies harder than text, as a whole container costs a single byte.
+
+From Lua, `ucl.untrusted_parser([limits])` creates a parser with these budgets already applied, and `parser:set_limits()` / `parser:get_limits()` adjust them on any parser.
 
 ## Basic structure
 

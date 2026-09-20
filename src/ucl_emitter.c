@@ -195,7 +195,7 @@ ucl_emitter_common_end_object(struct ucl_emitter_context *ctx,
 
 	if (UCL_EMIT_IDENT_TOP_OBJ(ctx, obj)) {
 		ctx->indent--;
-		if (compact) {
+		if (compact || obj->len == 0) {
 			func->ucl_emitter_append_character('}', 1, func->ud);
 		}
 		else {
@@ -223,7 +223,7 @@ ucl_emitter_common_end_array(struct ucl_emitter_context *ctx,
 	const struct ucl_emitter_functions *func = ctx->func;
 
 	ctx->indent--;
-	if (compact) {
+	if (compact || obj->len == 0) {
 		func->ucl_emitter_append_character(']', 1, func->ud);
 	}
 	else {
@@ -270,7 +270,7 @@ ucl_emitter_common_start_array(struct ucl_emitter_context *ctx,
 
 	ucl_emitter_print_key(print_key, ctx, obj, compact);
 
-	if (compact) {
+	if (compact || obj->len == 0) {
 		func->ucl_emitter_append_character('[', 1, func->ud);
 	}
 	else {
@@ -333,7 +333,7 @@ ucl_emitter_common_start_object(struct ucl_emitter_context *ctx,
 	 * <ident_level + 1><object content>
 	 */
 	if (UCL_EMIT_IDENT_TOP_OBJ(ctx, obj)) {
-		if (compact) {
+		if (compact || obj->len == 0) {
 			func->ucl_emitter_append_character('{', 1, func->ud);
 		}
 		else {

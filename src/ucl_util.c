@@ -185,10 +185,14 @@ char *basename(char *path)
 #define ucl_realpath realpath
 #endif
 
-typedef void (*ucl_object_dtor)(ucl_object_t *obj);
-static void ucl_object_free_internal(ucl_object_t *obj, bool allow_rec,
-									 ucl_object_dtor dtor);
-static void ucl_object_dtor_unref(ucl_object_t *obj);
+static void ucl_object_dtor_free(ucl_object_t *obj);
+
+static void
+ucl_object_dtor_free_ud(void *obj, void *ud)
+{
+	(void) ud;
+	ucl_object_dtor_free((ucl_object_t *) obj);
+}
 
 static void
 ucl_object_dtor_free(ucl_object_t *obj)
@@ -215,83 +219,207 @@ ucl_object_dtor_free(ucl_object_t *obj)
 }
 
 /*
- * This is a helper function that performs exactly the same as
- * `ucl_object_unref` but it doesn't iterate over elements allowing
- * to use it for individual elements of arrays and multiple values
+ * Destroying a UCL tree is a graph traversal: releasing a container releases
+ * its children, which may be containers themselves. Doing that on the C stack
+ * makes cleanup depth proportional to the nesting depth of the document, so a
+ * deeply nested (and possibly attacker supplied) input could exhaust the stack
+ * while being freed - long after the parser had returned successfully.
+ *
+ * So the traversal is explicit instead. An object only reaches the worklist
+ * once its last reference is gone, which means it is already detached from the
+ * tree and nothing else can observe it; its `next` pointer is therefore free
+ * for us to reuse as the worklist link. That keeps destruction allocation free
+ * and its stack usage constant.
+ */
+struct ucl_dtor_worklist {
+	ucl_object_t *head;
+};
+
+static inline void
+ucl_dtor_worklist_push(struct ucl_dtor_worklist *wl, ucl_object_t *obj)
+{
+	obj->next = wl->head;
+	wl->head = obj;
+}
+
+static inline ucl_object_t *
+ucl_dtor_worklist_pop(struct ucl_dtor_worklist *wl)
+{
+	ucl_object_t *obj = wl->head;
+
+	if (obj != NULL) {
+		wl->head = obj->next;
+		obj->next = NULL;
+	}
+
+	return obj;
+}
+
+/*
+ * Drop one reference to `obj` and queue it for destruction if that was the
+ * last one. `obj` must already be unlinked from whatever contained it.
  */
 static void
-ucl_object_dtor_unref_single(ucl_object_t *obj)
+ucl_dtor_worklist_unref(void *ptr, void *ud)
 {
-	if (obj != NULL) {
+	ucl_object_t *obj = (ucl_object_t *) ptr;
+	struct ucl_dtor_worklist *wl = (struct ucl_dtor_worklist *) ud;
+
+	if (obj == NULL) {
+		return;
+	}
+
 #ifdef HAVE_ATOMIC_BUILTINS
-		unsigned int rc = __sync_sub_and_fetch(&obj->ref, 1);
-		if (rc == 0) {
+	if (__sync_sub_and_fetch(&obj->ref, 1) == 0) {
 #else
-		if (--obj->ref == 0) {
+	if (--obj->ref == 0) {
 #endif
-			ucl_object_free_internal(obj, false, ucl_object_dtor_unref);
-		}
+		ucl_dtor_worklist_push(wl, obj);
 	}
 }
 
-static void
-ucl_object_dtor_unref(ucl_object_t *obj)
+/*
+ * Queue every element of an implicit-array chain starting at `obj`. The chain
+ * links are read before each element is unreffed, since unreffing may reuse
+ * them for the worklist.
+ */
+static inline void
+ucl_dtor_worklist_unref_chain(struct ucl_dtor_worklist *wl, ucl_object_t *obj)
 {
-	if (obj->ref == 0) {
-		ucl_object_dtor_free(obj);
-	}
-	else {
-		/* This may cause dtor unref being called one more time */
-		ucl_object_dtor_unref_single(obj);
-	}
-}
-
-static void
-ucl_object_free_internal(ucl_object_t *obj, bool allow_rec, ucl_object_dtor dtor)
-{
-	ucl_object_t *tmp, *sub;
+	ucl_object_t *tmp;
 
 	while (obj != NULL) {
-		if (obj->type == UCL_ARRAY) {
-			UCL_ARRAY_GET(vec, obj);
-			unsigned int i;
+		tmp = obj->next;
+		ucl_dtor_worklist_unref(obj, wl);
+		obj = tmp;
+	}
+}
+
+/*
+ * Release a whole subtree. `obj` must have already reached zero references;
+ * with `allow_rec` its implicit-array siblings are released as well.
+ */
+static void
+ucl_object_free_internal(ucl_object_t *obj, bool allow_rec)
+{
+	struct ucl_dtor_worklist wl = {NULL};
+	ucl_object_t *cur, *sub, *tmp;
+
+	if (obj == NULL) {
+		return;
+	}
+
+	/*
+	 * The head is dead already, so it goes straight onto the worklist; its
+	 * siblings still hold a reference each and have to be unreffed properly.
+	 * Save the link first, pushing overwrites it.
+	 */
+	tmp = obj->next;
+	ucl_dtor_worklist_push(&wl, obj);
+
+	if (allow_rec) {
+		ucl_dtor_worklist_unref_chain(&wl, tmp);
+	}
+
+	while ((cur = ucl_dtor_worklist_pop(&wl)) != NULL) {
+		if (cur->type == UCL_ARRAY) {
+			UCL_ARRAY_GET(vec, cur);
 
 			if (vec != NULL) {
+				unsigned int i;
+
 				for (i = 0; i < vec->n; i++) {
 					sub = kv_A(*vec, i);
-					if (sub != NULL) {
-						tmp = sub;
-						while (sub) {
-							tmp = sub->next;
-							dtor(sub);
-							sub = tmp;
-						}
-					}
+					ucl_dtor_worklist_unref_chain(&wl, sub);
 				}
+
 				kv_destroy(*vec);
 				UCL_FREE(sizeof(*vec), vec);
 			}
-			obj->value.av = NULL;
-		}
-		else if (obj->type == UCL_OBJECT) {
-			if (obj->value.ov != NULL) {
-				ucl_hash_destroy(obj->value.ov, (ucl_hash_free_func) dtor);
-			}
-			obj->value.ov = NULL;
-		}
-		tmp = obj->next;
-		dtor(obj);
-		obj = tmp;
 
-		if (!allow_rec) {
-			break;
+			cur->value.av = NULL;
 		}
+		else if (cur->type == UCL_OBJECT) {
+			if (cur->value.ov != NULL) {
+				ucl_hash_destroy(cur->value.ov, ucl_dtor_worklist_unref, &wl);
+			}
+
+			cur->value.ov = NULL;
+		}
+
+		ucl_object_dtor_free(cur);
 	}
+}
+
+/*
+ * Release `obj` along with the objects it directly holds, without descending
+ * into them and without touching reference counts. Only valid for objects
+ * that are known not to be shared - parser trash and the deprecated
+ * ucl_object_free() below.
+ */
+static void
+ucl_object_free_shallow(ucl_object_t *obj)
+{
+	ucl_object_t *sub, *tmp;
+
+	if (obj->type == UCL_ARRAY) {
+		UCL_ARRAY_GET(vec, obj);
+
+		if (vec != NULL) {
+			unsigned int i;
+
+			for (i = 0; i < vec->n; i++) {
+				sub = kv_A(*vec, i);
+
+				while (sub != NULL) {
+					tmp = sub->next;
+					ucl_object_dtor_free(sub);
+					sub = tmp;
+				}
+			}
+
+			kv_destroy(*vec);
+			UCL_FREE(sizeof(*vec), vec);
+		}
+
+		obj->value.av = NULL;
+	}
+	else if (obj->type == UCL_OBJECT) {
+		if (obj->value.ov != NULL) {
+			ucl_hash_destroy(obj->value.ov, ucl_object_dtor_free_ud, NULL);
+		}
+
+		obj->value.ov = NULL;
+	}
+
+	ucl_object_dtor_free(obj);
+}
+
+void ucl_array_detach_elements(ucl_object_t *ar)
+{
+	if (ar == NULL || ar->type != UCL_ARRAY) {
+		return;
+	}
+
+	UCL_ARRAY_GET(vec, ar);
+
+	if (vec != NULL) {
+		vec->n = 0;
+	}
+
+	ar->len = 0;
 }
 
 void ucl_object_free(ucl_object_t *obj)
 {
-	ucl_object_free_internal(obj, true, ucl_object_dtor_free);
+	ucl_object_t *tmp;
+
+	/* Deprecated: shallow and refcount blind, use ucl_object_unref() instead */
+	while (obj != NULL) {
+		tmp = obj->next;
+		ucl_object_free_shallow(obj);
+		obj = tmp;
+	}
 }
 
 size_t
@@ -500,7 +628,7 @@ ucl_copy_key_trash(const ucl_object_t *obj)
 	}
 	if (obj->trash_stack[UCL_TRASH_KEY] == NULL && obj->key != NULL) {
 		deconst = __DECONST(ucl_object_t *, obj);
-		deconst->trash_stack[UCL_TRASH_KEY] = malloc(obj->keylen + 1);
+		deconst->trash_stack[UCL_TRASH_KEY] = UCL_ALLOC(obj->keylen + 1);
 		if (deconst->trash_stack[UCL_TRASH_KEY] != NULL) {
 			memcpy(deconst->trash_stack[UCL_TRASH_KEY], obj->key, obj->keylen);
 			deconst->trash_stack[UCL_TRASH_KEY][obj->keylen] = '\0';
@@ -535,7 +663,7 @@ void ucl_chunk_free(struct ucl_chunk *chunk)
 		chunk->special_handlers = NULL;
 
 		if (chunk->fname) {
-			free(chunk->fname);
+			UCL_FREE(strlen(chunk->fname) + 1, chunk->fname);
 		}
 
 		UCL_FREE(sizeof(*chunk), chunk);
@@ -556,7 +684,7 @@ ucl_copy_value_trash(const ucl_object_t *obj)
 
 			/* Special case for strings */
 			if (obj->flags & UCL_OBJECT_BINARY) {
-				deconst->trash_stack[UCL_TRASH_VALUE] = malloc(obj->len);
+				deconst->trash_stack[UCL_TRASH_VALUE] = UCL_ALLOC(obj->len);
 				if (deconst->trash_stack[UCL_TRASH_VALUE] != NULL) {
 					memcpy(deconst->trash_stack[UCL_TRASH_VALUE],
 						   obj->value.sv,
@@ -565,7 +693,7 @@ ucl_copy_value_trash(const ucl_object_t *obj)
 				}
 			}
 			else {
-				deconst->trash_stack[UCL_TRASH_VALUE] = malloc(obj->len + 1);
+				deconst->trash_stack[UCL_TRASH_VALUE] = UCL_ALLOC(obj->len + 1);
 				if (deconst->trash_stack[UCL_TRASH_VALUE] != NULL) {
 					memcpy(deconst->trash_stack[UCL_TRASH_VALUE],
 						   obj->value.sv,
@@ -619,11 +747,11 @@ void ucl_parser_free(struct ucl_parser *parser)
 
 	LL_FOREACH_SAFE(parser->stack, stack, stmp)
 	{
-		free(stack);
+		UCL_FREE(sizeof(struct ucl_stack), stack);
 	}
 	HASH_ITER(hh, parser->macroes, macro, mtmp)
 	{
-		free(macro->name);
+		UCL_FREE(strlen(macro->name) + 1, macro->name);
 		HASH_DEL(parser->macroes, macro);
 		UCL_FREE(sizeof(struct ucl_macro), macro);
 	}
@@ -637,13 +765,13 @@ void ucl_parser_free(struct ucl_parser *parser)
 	}
 	LL_FOREACH_SAFE(parser->variables, var, vtmp)
 	{
-		free(var->value);
-		free(var->var);
+		UCL_FREE(var->value_len + 1, var->value);
+		UCL_FREE(var->var_len + 1, var->var);
 		UCL_FREE(sizeof(struct ucl_variable), var);
 	}
 	LL_FOREACH_SAFE(parser->trash_objs, tr, trtmp)
 	{
-		ucl_object_free_internal(tr, false, ucl_object_dtor_free);
+		ucl_object_free_shallow(tr);
 	}
 
 	if (parser->err != NULL) {
@@ -764,7 +892,7 @@ ucl_curl_write_callback(void *contents, size_t size, size_t nmemb, void *ud)
 	struct ucl_curl_cbdata *cbdata = ud;
 	size_t realsize = size * nmemb;
 
-	cbdata->buf = realloc(cbdata->buf, cbdata->buflen + realsize + 1);
+	cbdata->buf = UCL_REALLOC(cbdata->buf, cbdata->buflen + realsize + 1);
 	if (cbdata->buf == NULL) {
 		return 0;
 	}
@@ -810,7 +938,7 @@ bool ucl_fetch_url(const unsigned char *url, unsigned char **buf, size_t *buflen
 	}
 
 	*buflen = us.size;
-	*buf = malloc(*buflen);
+	*buf = UCL_ALLOC(*buflen);
 	if (*buf == NULL) {
 		ucl_create_err(err, "cannot allocate buffer for URL %s: %s",
 					   url, strerror(errno));
@@ -857,7 +985,7 @@ bool ucl_fetch_url(const unsigned char *url, unsigned char **buf, size_t *buflen
 		}
 		curl_easy_cleanup(curl);
 		if (cbdata.buf) {
-			free(cbdata.buf);
+			UCL_FREE(cbdata.buflen, cbdata.buf);
 		}
 		return false;
 	}
@@ -1040,12 +1168,12 @@ ucl_include_url(const unsigned char *data, size_t len,
 						   urlbuf,
 						   ERR_error_string(ERR_get_error(), NULL));
 			if (siglen > 0) {
-				free(sigbuf);
+				UCL_FREE(siglen, sigbuf);
 			}
 			return false;
 		}
 		if (siglen > 0) {
-			free(sigbuf);
+			UCL_FREE(siglen, sigbuf);
 		}
 #endif
 	}
@@ -1065,7 +1193,7 @@ ucl_include_url(const unsigned char *data, size_t len,
 	}
 
 	parser->state = prev_state;
-	free(buf);
+	UCL_FREE(buflen, buf);
 
 	return res;
 }
@@ -1359,6 +1487,7 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 		st->e.params.line = parser->stack->e.params.line;
 		st->chunk = parser->chunks;
 		LL_PREPEND(parser->stack, st);
+		parser->cur_depth++;
 		parser->cur_obj = nest_obj;
 	}
 
@@ -1368,8 +1497,7 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 	if (res) {
 		/* Stop nesting the include, take 1 level off the stack */
 		if (params->prefix != NULL && nest_obj != NULL) {
-			parser->stack = st->next;
-			UCL_FREE(sizeof(struct ucl_stack), st);
+			ucl_parser_pop_container(parser, st);
 		}
 
 		/* Remove chunk from the stack */
@@ -1390,14 +1518,14 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 		{
 			if (strcmp(cur_var->var, "CURDIR") == 0 && old_curdir) {
 				DL_DELETE(parser->variables, cur_var);
-				free(cur_var->var);
-				free(cur_var->value);
+				UCL_FREE(cur_var->var_len + 1, cur_var->var);
+				UCL_FREE(cur_var->value_len + 1, cur_var->value);
 				UCL_FREE(sizeof(struct ucl_variable), cur_var);
 			}
 			else if (strcmp(cur_var->var, "FILENAME") == 0 && old_filename) {
 				DL_DELETE(parser->variables, cur_var);
-				free(cur_var->var);
-				free(cur_var->value);
+				UCL_FREE(cur_var->var_len + 1, cur_var->var);
+				UCL_FREE(cur_var->value_len + 1, cur_var->value);
 				UCL_FREE(sizeof(struct ucl_variable), cur_var);
 			}
 		}
@@ -2430,7 +2558,7 @@ ucl_object_insert_key_common(ucl_object_t *top, ucl_object_t *elt,
 	if (elt->trash_stack[UCL_TRASH_KEY] != NULL &&
 		key != (const char *) elt->trash_stack[UCL_TRASH_KEY]) {
 		/* Remove copied key */
-		free(elt->trash_stack[UCL_TRASH_KEY]);
+		UCL_FREE(elt->keylen + 1, elt->trash_stack[UCL_TRASH_KEY]);
 		elt->trash_stack[UCL_TRASH_KEY] = NULL;
 		elt->flags &= ~UCL_OBJECT_ALLOCATED_KEY;
 	}
@@ -3737,7 +3865,7 @@ void ucl_object_unref(ucl_object_t *obj)
 #else
 		if (--obj->ref == 0) {
 #endif
-			ucl_object_free_internal(obj, true, ucl_object_dtor_unref);
+			ucl_object_free_internal(obj, true);
 		}
 	}
 }
