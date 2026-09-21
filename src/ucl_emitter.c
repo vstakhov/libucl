@@ -556,7 +556,7 @@ ucl_emit_msgpack_elt(struct ucl_emitter_context *ctx,
 {
 	ucl_object_iter_t it;
 	struct ucl_object_userdata *ud;
-	const char *ud_out;
+	const char *ud_out = "null";
 	const ucl_object_t *cur, *celt;
 
 	switch (obj->type) {
@@ -630,11 +630,18 @@ ucl_emit_msgpack_elt(struct ucl_emitter_context *ctx,
 
 		if (ud->emitter) {
 			ud_out = ud->emitter(obj->value.ud);
+
 			if (ud_out == NULL) {
 				ud_out = "null";
 			}
 		}
-		ucl_emitter_print_string_msgpack(ctx, obj->value.sv, obj->len);
+
+		/*
+		 * Userdata has no representation of its own, so what goes out is
+		 * whatever its emitter renders; obj->value holds an opaque pointer,
+		 * not a string, and its length is zero
+		 */
+		ucl_emitter_print_string_msgpack(ctx, ud_out, strlen(ud_out));
 		break;
 	}
 }

@@ -819,6 +819,8 @@ ucl_msgpack_insert_object(struct ucl_parser *parser,
 	else if (container->obj->type == UCL_OBJECT) {
 		if (key == NULL || keylen == 0) {
 			ucl_create_err(&parser->err, "cannot insert object with no key");
+			ucl_object_unref(obj);
+
 			return false;
 		}
 
@@ -829,10 +831,21 @@ ucl_msgpack_insert_object(struct ucl_parser *parser,
 			ucl_copy_key_trash(obj);
 		}
 
-		ucl_parser_process_object_element(parser, obj);
+		if (!ucl_parser_process_object_element(parser, obj)) {
+			/*
+			 * None of its failure paths take ownership of the element, and
+			 * ignoring them used to lose both the error - UCL_DUPLICATE_ERROR
+			 * never reported anything for msgpack - and the object
+			 */
+			ucl_object_unref(obj);
+
+			return false;
+		}
 	}
 	else {
 		ucl_create_err(&parser->err, "bad container type");
+		ucl_object_unref(obj);
+
 		return false;
 	}
 
@@ -1354,6 +1367,39 @@ ucl_msgpack_consume(struct ucl_parser *parser)
 	return true;
 }
 
+/*
+ * Release whatever was built before the parse went wrong. While containers
+ * are still open the bottom frame holds the root; once they have all been
+ * closed the last one popped is the root, and ucl_msgpack_get_next_container
+ * leaves it in parser->cur_obj. Every other object is already attached to its
+ * parent, so unreferencing the root takes the whole tree with it.
+ *
+ * Without this the tree leaks, as ucl_parser_free only unreferences
+ * parser->top_obj and that is not set until the parse succeeds.
+ */
+static void
+ucl_msgpack_release_tree(struct ucl_parser *parser)
+{
+	ucl_object_t *root = parser->cur_obj;
+	struct ucl_stack *frame;
+
+	for (frame = parser->stack; frame != NULL; frame = frame->next) {
+		if (frame->obj != NULL) {
+			root = frame->obj;
+		}
+	}
+
+	while (parser->stack != NULL) {
+		ucl_parser_pop_container(parser, parser->stack);
+	}
+
+	parser->cur_obj = NULL;
+
+	if (root != NULL) {
+		ucl_object_unref(root);
+	}
+}
+
 bool ucl_parse_msgpack(struct ucl_parser *parser)
 {
 	ucl_object_t *container = NULL;
@@ -1366,6 +1412,21 @@ bool ucl_parse_msgpack(struct ucl_parser *parser)
 	assert(parser->chunks->remain != 0);
 
 	p = parser->chunks->begin;
+
+	/*
+	 * A msgpack document carries its own root, so a second one has nowhere
+	 * to go: there is no defined way to merge it into a tree that is already
+	 * built. Saying so is better than parsing it and dropping it on the
+	 * floor, which is what happened before - the result was discarded along
+	 * with everything it allocated.
+	 */
+	if (parser->stack == NULL && parser->top_obj != NULL) {
+		ucl_create_err(&parser->err,
+					   "msgpack documents cannot be concatenated: the parser "
+					   "already holds a top level object");
+
+		return false;
+	}
 
 	if (parser->stack) {
 		container = parser->stack->obj;
@@ -1385,8 +1446,13 @@ bool ucl_parse_msgpack(struct ucl_parser *parser)
 
 	ret = ucl_msgpack_consume(parser);
 
-	if (ret && parser->top_obj == NULL) {
-		parser->top_obj = parser->cur_obj;
+	if (ret) {
+		if (parser->top_obj == NULL) {
+			parser->top_obj = parser->cur_obj;
+		}
+	}
+	else {
+		ucl_msgpack_release_tree(parser);
 	}
 
 	return ret;
@@ -1570,7 +1636,21 @@ ucl_msgpack_parse_int(struct ucl_parser *parser,
 	case msgpack_uint64:
 		memcpy(&uiv64, pos, sizeof(uiv64));
 		uiv64 = FROM_BE64(uiv64);
-		obj->value.iv = uiv64;
+
+		if (uiv64 > (uint64_t) INT64_MAX) {
+			/*
+			 * ucl keeps integers as int64, and wrapping the value round to a
+			 * negative number is worse than refusing to read it
+			 */
+			ucl_create_err(&parser->err,
+						   "msgpack integer does not fit into int64: %ju",
+						   (uintmax_t) uiv64);
+			ucl_object_unref(obj);
+
+			return -1;
+		}
+
+		obj->value.iv = (int64_t) uiv64;
 		len = 8;
 		break;
 	default:

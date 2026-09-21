@@ -242,6 +242,96 @@ test_unknown_format(void)
 }
 
 /* ------------------------------------------------------------------ */
+/* Correctness fixes that came out of the cbor work                     */
+/* ------------------------------------------------------------------ */
+
+/*
+ * A uint64 above INT64_MAX used to wrap round to a negative number rather
+ * than being refused
+ */
+static void
+test_uint64_overflow(void)
+{
+	/* 0x91 = fixarray(1), 0xcf = uint64, value 2^64 - 1 */
+	const unsigned char input[] = {0x91, 0xcf, 0xff, 0xff, 0xff, 0xff,
+								   0xff, 0xff, 0xff, 0xff};
+	CHECK(parse_msgpack_fails(input, sizeof(input)),
+		  "uint64 that does not fit into int64 should fail");
+}
+
+/* INT64_MAX itself still has to go through */
+static void
+test_uint64_max_ok(void)
+{
+	const unsigned char input[] = {0x91, 0xcf, 0x7f, 0xff, 0xff, 0xff,
+								   0xff, 0xff, 0xff, 0xff};
+	CHECK(parse_msgpack_ok(input, sizeof(input)),
+		  "uint64 holding INT64_MAX should succeed");
+}
+
+/*
+ * A second document used to be parsed and then dropped, taking everything it
+ * allocated with it
+ */
+static void
+test_no_concatenation(void)
+{
+	/* 0x81 = fixmap(1) { "a": 1 } */
+	const unsigned char doc[] = {0x81, 0xa1, 'a', 0x01};
+	struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_DISABLE_MACRO);
+	ucl_object_t *obj;
+
+	if (!ucl_parser_add_chunk_full(parser, doc, sizeof(doc), 0,
+								   UCL_DUPLICATE_APPEND, UCL_PARSE_MSGPACK)) {
+		ucl_parser_free(parser);
+		FAIL("%s", "first document should parse");
+	}
+
+	if (ucl_parser_add_chunk_full(parser, doc, sizeof(doc), 0,
+								  UCL_DUPLICATE_APPEND, UCL_PARSE_MSGPACK)) {
+		ucl_parser_free(parser);
+		FAIL("%s", "second document should be refused, not dropped");
+	}
+
+	obj = ucl_parser_get_object(parser);
+
+	if (obj == NULL) {
+		ucl_parser_free(parser);
+		FAIL("%s", "the first document should survive the refusal");
+	}
+
+	ucl_object_unref(obj);
+	ucl_parser_free(parser);
+}
+
+/*
+ * Userdata used to emit obj->value, which holds an opaque pointer and a
+ * length of zero, instead of what its emitter renders
+ */
+static void
+test_userdata_emit(void)
+{
+	/* fixarray(1) holding fixstr(4) "null", the rendering with no emitter */
+	const unsigned char expect[] = {0x91, 0xa4, 'n', 'u', 'l', 'l'};
+	ucl_object_t *top = ucl_object_typed_new(UCL_ARRAY);
+	unsigned char *out;
+	size_t len = 0;
+
+	ucl_array_append(top, ucl_object_new_userdata(NULL, NULL, NULL));
+	out = ucl_object_emit_len(top, UCL_EMIT_MSGPACK, &len);
+
+	if (out == NULL || len != sizeof(expect) ||
+		memcmp(out, expect, sizeof(expect)) != 0) {
+		free(out);
+		ucl_object_unref(top);
+		FAIL("%s", "userdata should emit what its emitter renders");
+	}
+
+	free(out);
+	ucl_object_unref(top);
+}
+
+/* ------------------------------------------------------------------ */
 
 int
 main(void)
@@ -261,6 +351,12 @@ main(void)
 	test_truncated_map_key();
 	test_truncated_int();
 	test_unknown_format();
+
+	/* Correctness fixes */
+	test_uint64_overflow();
+	test_uint64_max_ok();
+	test_no_concatenation();
+	test_userdata_emit();
 
 	if (failed) {
 		fprintf(stderr, "%d test(s) FAILED\n", failed);
