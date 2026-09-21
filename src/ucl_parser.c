@@ -367,7 +367,7 @@ ucl_check_variable_safe(struct ucl_parser *parser, const char *ptr, size_t remai
 		if (parser->var_handler(ptr, remain, &dst, &dstlen, &need_free,
 								parser->var_data)) {
 			*found = true;
-			*out_len = dstlen;
+			*out_len += dstlen;
 
 			if (need_free) {
 				free(dst);
