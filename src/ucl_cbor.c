@@ -1337,6 +1337,20 @@ bool ucl_parse_cbor(struct ucl_parser *parser)
 	p = parser->chunks->begin;
 
 	/*
+	 * A cbor document carries its own root, so a second one has nowhere to
+	 * go: there is no defined way to merge it into a tree that is already
+	 * built. Saying so is better than parsing it and dropping it on the
+	 * floor, which would leak everything it allocated.
+	 */
+	if (parser->stack == NULL && parser->top_obj != NULL) {
+		ucl_create_err(&parser->err,
+					   "cbor documents cannot be concatenated: the parser "
+					   "already holds a top level object");
+
+		return false;
+	}
+
+	/*
 	 * Unless a container is still open from an earlier chunk, the document
 	 * has to start with one: ucl has nowhere to keep a bare scalar. A leading
 	 * tag is allowed through, as the self-described cbor tag is a common

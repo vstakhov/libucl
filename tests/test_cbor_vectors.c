@@ -408,6 +408,69 @@ test_framing(void)
 	REJECTS("truncated nested array", 0x81, 0x82, 0x01);
 }
 
+/*
+ * A cbor document carries its own root, so a second one has to be refused
+ * rather than parsed and dropped
+ */
+static void
+test_no_concatenation(void)
+{
+	static const unsigned char first[] = {0xa1, 0x61, 0x61, 0x01};
+	static const unsigned char second[] = {0x82, 0x01, 0x02};
+	struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_DISABLE_MACRO);
+	ucl_object_t *obj;
+
+	if (!ucl_parser_add_chunk_full(parser, first, sizeof(first), 0,
+								   UCL_DUPLICATE_APPEND, UCL_PARSE_CBOR)) {
+		FAIL("concatenation: first document was rejected");
+		ucl_parser_free(parser);
+
+		return;
+	}
+
+	if (ucl_parser_add_chunk_full(parser, second, sizeof(second), 0,
+								  UCL_DUPLICATE_APPEND, UCL_PARSE_CBOR)) {
+		FAIL("concatenation: second document was accepted and lost");
+	}
+
+	obj = ucl_parser_get_object(parser);
+
+	if (obj == NULL) {
+		FAIL("concatenation: the first document did not survive");
+	}
+	else {
+		ucl_object_unref(obj);
+	}
+
+	ucl_parser_free(parser);
+}
+
+/* Userdata has to go out as whatever its emitter renders */
+static void
+test_userdata(void)
+{
+	ucl_object_t *top = ucl_object_typed_new(UCL_ARRAY);
+	unsigned char *out;
+	size_t outlen;
+
+	ucl_array_append(top, ucl_object_new_userdata(NULL, NULL, NULL));
+	out = ucl_object_emit_len(top, UCL_EMIT_CBOR, &outlen);
+
+	/*
+	 * With no emitter attached the object renders as the literal "null",
+	 * which is four bytes of text rather than the empty string the raw
+	 * value pointer used to produce
+	 */
+	if (out == NULL || outlen != 6 || out[0] != 0x81 || out[1] != 0x64 ||
+		memcmp(out + 2, "null", 4) != 0) {
+		FAIL("userdata: got %zu bytes, expected the rendered string",
+			 out == NULL ? (size_t) 0 : outlen);
+	}
+
+	free(out);
+	ucl_object_unref(top);
+}
+
 static void
 test_roundtrip(void)
 {
@@ -506,6 +569,8 @@ int main(int argc, char **argv)
 	test_tags();
 	test_keys();
 	test_framing();
+	test_no_concatenation();
+	test_userdata();
 	test_roundtrip();
 	test_limits();
 

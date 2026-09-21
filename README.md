@@ -42,7 +42,9 @@ CBOR input has to be requested explicitly with `UCL_PARSE_CBOR`: its head bytes 
 * tags (major type 6) are dropped and the item they wrap is decoded in their place;
 * map keys may be text strings, byte strings or integers, and an integer key becomes its decimal spelling, since UCL keys are strings;
 * byte strings decode to UCL strings carrying `UCL_OBJECT_BINARY`, and are written back out as byte strings;
-* simple values other than `false`, `true` and `null` decode to a null object, and integers outside the range of `int64_t` are rejected.
+* simple values other than `false`, `true` and `null` decode to a null object, and integers outside the range of `int64_t` are rejected;
+* a CBOR map head states how many pairs follow, so on **output** a key that holds an implicit array (the same key seen more than once) contributes only its first value and the rest are dropped. This is lossy, and it is the same restriction MessagePack output has;
+* a CBOR document carries its own root, so a parser that already holds a top level object will refuse a second one rather than discard it.
 
 ## Security considerations
 

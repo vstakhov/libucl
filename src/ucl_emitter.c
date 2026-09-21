@@ -745,14 +745,22 @@ ucl_emit_cbor_elt(struct ucl_emitter_context *ctx,
 	case UCL_USERDATA:
 		ud = (struct ucl_object_userdata *) obj;
 		ucl_emitter_print_key_cbor(print_key, ctx, obj);
+		/*
+		 * Userdata has no representation of its own, so what goes out is
+		 * whatever its emitter renders; obj->value holds an opaque pointer,
+		 * not a string
+		 */
+		ud_out = "null";
 
 		if (ud->emitter) {
 			ud_out = ud->emitter(obj->value.ud);
+
 			if (ud_out == NULL) {
 				ud_out = "null";
 			}
 		}
-		ucl_emitter_print_string_cbor(ctx, obj->value.sv, obj->len);
+
+		ucl_emitter_print_string_cbor(ctx, ud_out, strlen(ud_out));
 		break;
 	}
 }
