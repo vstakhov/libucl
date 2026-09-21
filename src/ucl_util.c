@@ -2275,10 +2275,14 @@ ucl_strlcpy(char *dst, const char *src, size_t siz)
 size_t
 ucl_strlcpy_unsafe(char *dst, const char *src, size_t siz)
 {
-	memcpy(dst, src, siz - 1);
-	dst[siz - 1] = '\0';
+    if (siz == 0) {
+        return 0;
+    }
 
-	return siz - 1;
+    memcpy(dst, src, siz - 1);
+    dst[siz - 1] = '\0';
+
+    return siz - 1;
 }
 
 size_t
