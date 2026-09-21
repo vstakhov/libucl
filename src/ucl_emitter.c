@@ -63,6 +63,7 @@ UCL_EMIT_TYPE_OPS(json_compact);
 UCL_EMIT_TYPE_OPS(config);
 UCL_EMIT_TYPE_OPS(yaml);
 UCL_EMIT_TYPE_OPS(msgpack);
+UCL_EMIT_TYPE_OPS(cbor);
 
 #define UCL_EMIT_TYPE_CONTENT(type) {                         \
 	.ucl_emitter_write_elt = ucl_emit_##type##_elt,           \
@@ -76,7 +77,8 @@ const struct ucl_emitter_operations ucl_standartd_emitter_ops[] = {
 	[UCL_EMIT_JSON_COMPACT] = UCL_EMIT_TYPE_CONTENT(json_compact),
 	[UCL_EMIT_CONFIG] = UCL_EMIT_TYPE_CONTENT(config),
 	[UCL_EMIT_YAML] = UCL_EMIT_TYPE_CONTENT(yaml),
-	[UCL_EMIT_MSGPACK] = UCL_EMIT_TYPE_CONTENT(msgpack)};
+	[UCL_EMIT_MSGPACK] = UCL_EMIT_TYPE_CONTENT(msgpack),
+	[UCL_EMIT_CBOR] = UCL_EMIT_TYPE_CONTENT(cbor)};
 
 /*
  * Utility to check whether we need a top object
@@ -660,6 +662,124 @@ ucl_emit_msgpack_end_object(struct ucl_emitter_context *ctx,
 static void
 ucl_emit_msgpack_end_array(struct ucl_emitter_context *ctx,
 						   const ucl_object_t *obj)
+{
+}
+
+/*
+ * Cbor shares msgpack's shape: both write a container head carrying the
+ * element count and then the elements themselves, with nothing to close.
+ */
+static void
+ucl_emit_cbor_elt(struct ucl_emitter_context *ctx,
+				  const ucl_object_t *obj, bool _first, bool print_key)
+{
+	ucl_object_iter_t it;
+	struct ucl_object_userdata *ud;
+	const char *ud_out;
+	const ucl_object_t *cur, *celt;
+
+	switch (obj->type) {
+	case UCL_INT:
+		ucl_emitter_print_key_cbor(print_key, ctx, obj);
+		ucl_emitter_print_int_cbor(ctx, ucl_object_toint(obj));
+		break;
+
+	case UCL_FLOAT:
+	case UCL_TIME:
+		ucl_emitter_print_key_cbor(print_key, ctx, obj);
+		ucl_emitter_print_double_cbor(ctx, ucl_object_todouble(obj));
+		break;
+
+	case UCL_BOOLEAN:
+		ucl_emitter_print_key_cbor(print_key, ctx, obj);
+		ucl_emitter_print_bool_cbor(ctx, ucl_object_toboolean(obj));
+		break;
+
+	case UCL_STRING:
+		ucl_emitter_print_key_cbor(print_key, ctx, obj);
+
+		if (obj->flags & UCL_OBJECT_BINARY) {
+			ucl_emitter_print_binary_string_cbor(ctx, obj->value.sv, obj->len);
+		}
+		else {
+			ucl_emitter_print_string_cbor(ctx, obj->value.sv, obj->len);
+		}
+		break;
+
+	case UCL_NULL:
+		ucl_emitter_print_key_cbor(print_key, ctx, obj);
+		ucl_emitter_print_null_cbor(ctx);
+		break;
+
+	case UCL_OBJECT:
+		ucl_emitter_print_key_cbor(print_key, ctx, obj);
+		ucl_emit_cbor_start_obj(ctx, obj, false, print_key);
+		it = NULL;
+
+		while ((cur = ucl_object_iterate(obj, &it, true)) != NULL) {
+			LL_FOREACH(cur, celt)
+			{
+				ucl_emit_cbor_elt(ctx, celt, false, true);
+				/*
+				 * A cbor map head states how many pairs follow, so a
+				 * multi-value key can only contribute its first element;
+				 * the rest are dropped, as they are for msgpack
+				 */
+				break;
+			}
+		}
+
+		break;
+
+	case UCL_ARRAY:
+		ucl_emitter_print_key_cbor(print_key, ctx, obj);
+		ucl_emit_cbor_start_array(ctx, obj, false, print_key);
+		it = NULL;
+
+		while ((cur = ucl_object_iterate(obj, &it, true)) != NULL) {
+			ucl_emit_cbor_elt(ctx, cur, false, false);
+		}
+
+		break;
+
+	case UCL_USERDATA:
+		ud = (struct ucl_object_userdata *) obj;
+		ucl_emitter_print_key_cbor(print_key, ctx, obj);
+
+		if (ud->emitter) {
+			ud_out = ud->emitter(obj->value.ud);
+			if (ud_out == NULL) {
+				ud_out = "null";
+			}
+		}
+		ucl_emitter_print_string_cbor(ctx, obj->value.sv, obj->len);
+		break;
+	}
+}
+
+static void
+ucl_emit_cbor_start_obj(struct ucl_emitter_context *ctx,
+						const ucl_object_t *obj, bool _first, bool _print_key)
+{
+	ucl_emitter_print_object_cbor(ctx, obj->len);
+}
+
+static void
+ucl_emit_cbor_start_array(struct ucl_emitter_context *ctx,
+						  const ucl_object_t *obj, bool _first, bool _print_key)
+{
+	ucl_emitter_print_array_cbor(ctx, obj->len);
+}
+
+static void
+ucl_emit_cbor_end_object(struct ucl_emitter_context *ctx,
+						 const ucl_object_t *obj)
+{
+}
+
+static void
+ucl_emit_cbor_end_array(struct ucl_emitter_context *ctx,
+						const ucl_object_t *obj)
 {
 }
 

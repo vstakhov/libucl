@@ -47,7 +47,8 @@ static const struct ucl_emitter_context ucl_standard_emitters[] = {
 	[UCL_EMIT_JSON_COMPACT] = {.name = "json_compact", .id = UCL_EMIT_JSON_COMPACT, .func = NULL, .ops = &ucl_standartd_emitter_ops[UCL_EMIT_JSON_COMPACT]},
 	[UCL_EMIT_CONFIG] = {.name = "config", .id = UCL_EMIT_CONFIG, .func = NULL, .ops = &ucl_standartd_emitter_ops[UCL_EMIT_CONFIG]},
 	[UCL_EMIT_YAML] = {.name = "yaml", .id = UCL_EMIT_YAML, .func = NULL, .ops = &ucl_standartd_emitter_ops[UCL_EMIT_YAML]},
-	[UCL_EMIT_MSGPACK] = {.name = "msgpack", .id = UCL_EMIT_MSGPACK, .func = NULL, .ops = &ucl_standartd_emitter_ops[UCL_EMIT_MSGPACK]}};
+	[UCL_EMIT_MSGPACK] = {.name = "msgpack", .id = UCL_EMIT_MSGPACK, .func = NULL, .ops = &ucl_standartd_emitter_ops[UCL_EMIT_MSGPACK]},
+	[UCL_EMIT_CBOR] = {.name = "cbor", .id = UCL_EMIT_CBOR, .func = NULL, .ops = &ucl_standartd_emitter_ops[UCL_EMIT_CBOR]}};
 
 static inline void
 _ucl_emitter_free(void *p)

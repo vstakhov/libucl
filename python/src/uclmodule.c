@@ -303,6 +303,7 @@ init_macros(PyObject *mod)
 	PyModule_AddIntMacro(mod, UCL_EMIT_CONFIG);
 	PyModule_AddIntMacro(mod, UCL_EMIT_YAML);
 	PyModule_AddIntMacro(mod, UCL_EMIT_MSGPACK);
+	PyModule_AddIntMacro(mod, UCL_EMIT_CBOR);
 
 	SchemaError = PyErr_NewException("ucl.SchemaError", NULL, NULL);
 	Py_INCREF(SchemaError);

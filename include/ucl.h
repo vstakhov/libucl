@@ -153,6 +153,7 @@ typedef enum ucl_emitter {
 	UCL_EMIT_CONFIG,       /**< Emit human readable config format */
 	UCL_EMIT_YAML,         /**< Emit embedded YAML format */
 	UCL_EMIT_MSGPACK,      /**< Emit msgpack output */
+	UCL_EMIT_CBOR,         /**< Emit CBOR (RFC 8949) output */
 	UCL_EMIT_MAX           /**< Unsupported emitter type */
 } ucl_emitter_t;
 
@@ -234,7 +235,12 @@ enum ucl_parse_type {
 	UCL_PARSE_UCL = 0, /**< Default ucl format */
 	UCL_PARSE_MSGPACK, /**< Message pack input format */
 	UCL_PARSE_CSEXP,   /**< Canonical S-expressions */
-	UCL_PARSE_AUTO     /**< Try to detect parse type */
+	UCL_PARSE_AUTO,    /**< Try to detect parse type */
+	/*
+	 * Appended after UCL_PARSE_AUTO on purpose, so that the values of the
+	 * types that came before it stay what they have always been
+	 */
+	UCL_PARSE_CBOR /**< CBOR (RFC 8949) input format */
 };
 
 /**

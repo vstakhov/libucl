@@ -3270,7 +3270,18 @@ bool ucl_parser_add_chunk_full(struct ucl_parser *parser, const unsigned char *d
 
 		if (parse_type == UCL_PARSE_AUTO && len > 0) {
 			/* We need to detect parse type by the first symbol */
-			if ((*data & 0x80) == 0x80) {
+			if (len >= 3 && data[0] == 0xd9 && data[1] == 0xd9 &&
+				data[2] == 0xf7) {
+				/*
+				 * The self-described cbor tag, 55799. Cbor and msgpack are
+				 * otherwise indistinguishable from their first byte - both
+				 * spend 0x80 to 0xbf on short containers and strings - so
+				 * this prefix is the only thing that tells them apart, and
+				 * cbor without it has to be requested explicitly.
+				 */
+				parse_type = UCL_PARSE_CBOR;
+			}
+			else if ((*data & 0x80) == 0x80) {
 				parse_type = UCL_PARSE_MSGPACK;
 			}
 			else if (*data == '(') {
@@ -3312,6 +3323,8 @@ bool ucl_parser_add_chunk_full(struct ucl_parser *parser, const unsigned char *d
 				return ucl_state_machine(parser);
 			case UCL_PARSE_MSGPACK:
 				return ucl_parse_msgpack(parser);
+			case UCL_PARSE_CBOR:
+				return ucl_parse_cbor(parser);
 			case UCL_PARSE_CSEXP:
 				return ucl_parse_csexp(parser);
 			}
