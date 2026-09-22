@@ -412,6 +412,26 @@ test_merge_container_type_mismatch(void)
 		0x82,
 		0xa1, 0x61, 0x91, 0x07,
 		0xa1, 0x61, 0x91, 0x08};
+	/*
+	 * Empty containers at the very end of input: the finishing state used
+	 * to ignore the type check's verdict and report success with the error
+	 * string attached
+	 */
+	/* {"a": [7], "a": {}} */
+	static const unsigned char empty_map_into_array[] = {
+		0x82,
+		0xa1, 0x61, 0x91, 0x07,
+		0xa1, 0x61, 0x80};
+	/* {"a": {"x":1}, "a": []} */
+	static const unsigned char empty_array_into_map[] = {
+		0x82,
+		0xa1, 0x61, 0x81, 0xa1, 0x78, 0x01,
+		0xa1, 0x61, 0x90};
+	/* {"a": {"x":1}, "a": {}} merges to {"a":{"x":1}} */
+	static const unsigned char empty_map_into_map[] = {
+		0x82,
+		0xa1, 0x61, 0x81, 0xa1, 0x78, 0x01,
+		0xa1, 0x61, 0x80};
 	static const struct {
 		const char *what;
 		const unsigned char *data;
@@ -422,7 +442,13 @@ test_merge_container_type_mismatch(void)
 		{"array into map", array_into_map, sizeof(array_into_map), true},
 		{"map into map", map_into_map, sizeof(map_into_map), false},
 		{"array into array", array_into_array, sizeof(array_into_array),
-		 false}};
+		 false},
+		{"empty map into array", empty_map_into_array,
+		 sizeof(empty_map_into_array), true},
+		{"empty array into map", empty_array_into_map,
+		 sizeof(empty_array_into_map), true},
+		{"empty map into map", empty_map_into_map,
+		 sizeof(empty_map_into_map), false}};
 	size_t i;
 
 	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {

@@ -1302,6 +1302,12 @@ ucl_msgpack_consume(struct ucl_parser *parser)
 
 		ret = obj_parser->func(parser, container, len, obj_parser->fmt,
 							   p, remain);
+		/*
+		 * The callback can still fail here: an empty container merged into
+		 * an existing one of the other kind is rejected inside it, and
+		 * ignoring that reported success with an error string attached
+		 */
+		CONSUME_RET;
 		break;
 
 	case read_array_value:
