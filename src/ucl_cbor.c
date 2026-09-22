@@ -1241,8 +1241,21 @@ ucl_cbor_consume(struct ucl_parser *parser)
 				/*
 				 * The value may have merged into an older object of the same
 				 * key, releasing this one, so the stack must follow whoever
-				 * now holds it
+				 * now holds it. A merge only makes sense between containers
+				 * of the same kind: this container's elements are about to be
+				 * decoded as pairs or as single values depending on the
+				 * incoming item, so an older container of the other kind
+				 * would quietly decode one as the other.
 				 */
+				if (survivor->type != (is_map ? UCL_OBJECT : UCL_ARRAY)) {
+					ucl_create_err(&parser->err,
+								   "cannot merge a cbor %s into an %s",
+								   is_map ? "map" : "array",
+								   is_map ? "array" : "object");
+
+					goto fail;
+				}
+
 				obj = survivor;
 			}
 			else {

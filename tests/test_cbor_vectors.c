@@ -599,6 +599,60 @@ test_merge(void)
 }
 
 /*
+ * Merging across container kinds used to decode the incoming container as
+ * the survivor's kind: map keys became array elements and array elements
+ * became integer keyed map entries, silently for indefinite containers.
+ */
+static void
+test_merge_container_type_mismatch(void)
+{
+	/* {"a": [7], "a": {"x":1}}, definite and indefinite */
+	static const unsigned char map_into_array_def[] = {
+		0xa2,
+		0x61, 0x61, 0x81, 0x07,
+		0x61, 0x61, 0xa1, 0x61, 0x78, 0x01};
+	static const unsigned char map_into_array_indef[] = {
+		0xa2,
+		0x61, 0x61, 0x81, 0x07,
+		0x61, 0x61, 0xbf, 0x61, 0x78, 0x01, 0xff};
+	/* {"a": {"x":1}, "a": [9,9]}, definite and indefinite */
+	static const unsigned char array_into_map_def[] = {
+		0xa2,
+		0x61, 0x61, 0xa1, 0x61, 0x78, 0x01,
+		0x61, 0x61, 0x82, 0x09, 0x09};
+	static const unsigned char array_into_map_indef[] = {
+		0xa2,
+		0x61, 0x61, 0xa1, 0x61, 0x78, 0x01,
+		0x61, 0x61, 0x9f, 0x09, 0x09, 0xff};
+	static const struct {
+		const char *what;
+		const unsigned char *data;
+		size_t len;
+	} cases[] = {
+		{"map into array (definite)", map_into_array_def,
+		 sizeof(map_into_array_def)},
+		{"map into array (indefinite)", map_into_array_indef,
+		 sizeof(map_into_array_indef)},
+		{"array into map (definite)", array_into_map_def,
+		 sizeof(array_into_map_def)},
+		{"array into map (indefinite)", array_into_map_indef,
+		 sizeof(array_into_map_indef)}};
+	size_t i;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_DISABLE_MACRO);
+
+		if (ucl_parser_add_chunk_full(parser, cases[i].data, cases[i].len, 0,
+									  UCL_DUPLICATE_MERGE, UCL_PARSE_CBOR)) {
+			FAIL("merge mismatch %s: accepted a cross-kind merge",
+				 cases[i].what);
+		}
+
+		ucl_parser_free(parser);
+	}
+}
+
+/*
  * A ucl chunk leaves its implicit top object on the parser stack, and a cbor
  * document fed after it used to be parsed into that foreign container. The
  * mixed state must be refused instead, without disturbing the ucl parser.
@@ -662,6 +716,7 @@ int main(int argc, char **argv)
 	test_roundtrip();
 	test_limits();
 	test_merge();
+	test_merge_container_type_mismatch();
 	test_after_ucl_open_object();
 
 	if (failed > 0) {

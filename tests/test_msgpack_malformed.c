@@ -383,6 +383,67 @@ test_after_ucl_open_object(void)
 	ucl_parser_free(parser);
 }
 
+/*
+ * Merging across container kinds used to decode the incoming container as
+ * the survivor's kind: map keys were dropped on the way into an array, and
+ * array elements reached a map with no key at all. Same-kind merges must
+ * keep working.
+ */
+static void
+test_merge_container_type_mismatch(void)
+{
+	/* {"a": [7], "a": {"x":1}} */
+	static const unsigned char map_into_array[] = {
+		0x82,
+		0xa1, 0x61, 0x91, 0x07,
+		0xa1, 0x61, 0x81, 0xa1, 0x78, 0x01};
+	/* {"a": {"x":1}, "a": [9,9]} */
+	static const unsigned char array_into_map[] = {
+		0x82,
+		0xa1, 0x61, 0x81, 0xa1, 0x78, 0x01,
+		0xa1, 0x61, 0x92, 0x09, 0x09};
+	/* {"a": {"x":1}, "a": {"y":2}} merges to {"a":{"x":1,"y":2}} */
+	static const unsigned char map_into_map[] = {
+		0x82,
+		0xa1, 0x61, 0x81, 0xa1, 0x78, 0x01,
+		0xa1, 0x61, 0x81, 0xa1, 0x79, 0x02};
+	/* {"a": [7], "a": [8]} merges to {"a":[7,8]} */
+	static const unsigned char array_into_array[] = {
+		0x82,
+		0xa1, 0x61, 0x91, 0x07,
+		0xa1, 0x61, 0x91, 0x08};
+	static const struct {
+		const char *what;
+		const unsigned char *data;
+		size_t len;
+		bool must_fail;
+	} cases[] = {
+		{"map into array", map_into_array, sizeof(map_into_array), true},
+		{"array into map", array_into_map, sizeof(array_into_map), true},
+		{"map into map", map_into_map, sizeof(map_into_map), false},
+		{"array into array", array_into_array, sizeof(array_into_array),
+		 false}};
+	size_t i;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_DISABLE_MACRO);
+		bool ok;
+
+		ok = ucl_parser_add_chunk_full(parser, cases[i].data, cases[i].len,
+									   0, UCL_DUPLICATE_MERGE,
+									   UCL_PARSE_MSGPACK);
+
+		if (ok != !cases[i].must_fail) {
+			ucl_parser_free(parser);
+			FAIL("merge %s: %s", cases[i].what,
+				 ok ? "accepted a cross-kind merge" :
+					  "rejected a same-kind merge");
+		}
+
+		ucl_parser_free(parser);
+	}
+}
+
 /* ------------------------------------------------------------------ */
 
 int
@@ -410,6 +471,7 @@ main(void)
 	test_no_concatenation();
 	test_userdata_emit();
 	test_after_ucl_open_object();
+	test_merge_container_type_mismatch();
 
 	if (failed) {
 		fprintf(stderr, "%d test(s) FAILED\n", failed);

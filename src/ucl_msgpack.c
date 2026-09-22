@@ -1473,6 +1473,20 @@ ucl_msgpack_parse_map(struct ucl_parser *parser,
 					  struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 					  const unsigned char *pos, size_t remain)
 {
+	/*
+	 * A merge may have handed the value to an older container of the other
+	 * kind: a map decodes its elements as key/value pairs and an array as
+	 * single values, so mixing the two would quietly decode one as the
+	 * other - map keys would be dropped on the way into an array, and array
+	 * elements would arrive at a map with no key at all.
+	 */
+	if (parser->cur_obj->type != UCL_OBJECT) {
+		ucl_create_err(&parser->err,
+					   "cannot merge a msgpack map into an array");
+
+		return -1;
+	}
+
 	container->obj = parser->cur_obj;
 
 	return 0;
@@ -1483,6 +1497,14 @@ ucl_msgpack_parse_array(struct ucl_parser *parser,
 						struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 						const unsigned char *pos, size_t remain)
 {
+	/* The mirror image of the check in ucl_msgpack_parse_map */
+	if (parser->cur_obj->type != UCL_ARRAY) {
+		ucl_create_err(&parser->err,
+					   "cannot merge a msgpack array into an object");
+
+		return -1;
+	}
+
 	container->obj = parser->cur_obj;
 
 	return 0;
