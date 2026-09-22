@@ -331,6 +331,58 @@ test_userdata_emit(void)
 	ucl_object_unref(top);
 }
 
+/*
+ * A ucl chunk leaves its implicit top object on the parser stack, and that
+ * object is also parser->top_obj. A failing msgpack chunk used to run
+ * ucl_msgpack_release_tree over those frames, unref that object and leave
+ * ucl_parser_free to unref it a second time. The mixed state must be refused
+ * instead, without disturbing the ucl parser's own bookkeeping.
+ */
+static void
+test_after_ucl_open_object(void)
+{
+	/* 0x92 0x01 = array(2) with a single element, truncated */
+	const unsigned char bad[] = {0x92, 0x01};
+	struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_DISABLE_MACRO);
+	ucl_object_t *obj;
+	const ucl_object_t *elt;
+
+	if (!ucl_parser_add_string(parser, "a = 1\n", 6)) {
+		ucl_parser_free(parser);
+		FAIL("%s", "the ucl chunk should parse");
+	}
+
+	if (ucl_parser_add_chunk_full(parser, bad, sizeof(bad),
+								  0, UCL_DUPLICATE_APPEND, UCL_PARSE_MSGPACK)) {
+		ucl_parser_free(parser);
+		FAIL("%s", "msgpack after an open ucl object should be refused");
+	}
+
+	/* The refusal must leave the ucl parser intact and usable */
+	if (!ucl_parser_add_string(parser, "b = 2\n", 6)) {
+		ucl_parser_free(parser);
+		FAIL("%s", "the ucl parser should survive the refused msgpack chunk");
+	}
+
+	obj = ucl_parser_get_object(parser);
+
+	if (obj == NULL) {
+		ucl_parser_free(parser);
+		FAIL("%s", "no object after the mixed chunks");
+	}
+
+	elt = ucl_object_lookup(obj, "b");
+
+	if (elt == NULL || ucl_object_toint(elt) != 2) {
+		ucl_object_unref(obj);
+		ucl_parser_free(parser);
+		FAIL("%s", "the chunk after the refusal was lost");
+	}
+
+	ucl_object_unref(obj);
+	ucl_parser_free(parser);
+}
+
 /* ------------------------------------------------------------------ */
 
 int
@@ -357,6 +409,7 @@ main(void)
 	test_uint64_max_ok();
 	test_no_concatenation();
 	test_userdata_emit();
+	test_after_ucl_open_object();
 
 	if (failed) {
 		fprintf(stderr, "%d test(s) FAILED\n", failed);

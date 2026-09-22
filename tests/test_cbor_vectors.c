@@ -558,6 +558,94 @@ test_limits(void)
 	ucl_parser_free(parser);
 }
 
+/*
+ * With UCL_DUPLICATE_MERGE, a duplicate key holding a container merges the
+ * fresh container into the existing one and releases the fresh object. The
+ * parser used to keep inserting into the released one.
+ */
+static void
+test_merge(void)
+{
+	/* {"a": {"x":1}, "a": {"y":2}} */
+	static const unsigned char doc[] = {
+		0xa2,
+		0x61, 0x61, 0xa1, 0x61, 0x78, 0x01, /* "a": {"x": 1} */
+		0x61, 0x61, 0xa1, 0x61, 0x79, 0x02  /* "a": {"y": 2} */
+	};
+	struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_DISABLE_MACRO);
+	ucl_object_t *obj;
+	unsigned char *json;
+
+	if (!ucl_parser_add_chunk_full(parser, doc, sizeof(doc), 0,
+								   UCL_DUPLICATE_MERGE, UCL_PARSE_CBOR)) {
+		FAIL("merge: %s", ucl_parser_get_error(parser));
+		ucl_parser_free(parser);
+
+		return;
+	}
+
+	obj = ucl_parser_get_object(parser);
+	json = ucl_object_emit(obj, UCL_EMIT_JSON_COMPACT);
+
+	if (json == NULL ||
+		strcmp((const char *) json, "{\"a\":{\"x\":1,\"y\":2}}") != 0) {
+		FAIL("merge: got %s, expected the containers united",
+			 json ? (const char *) json : "(null)");
+	}
+
+	free(json);
+	ucl_object_unref(obj);
+	ucl_parser_free(parser);
+}
+
+/*
+ * A ucl chunk leaves its implicit top object on the parser stack, and a cbor
+ * document fed after it used to be parsed into that foreign container. The
+ * mixed state must be refused instead, without disturbing the ucl parser.
+ */
+static void
+test_after_ucl_open_object(void)
+{
+	static const unsigned char doc[] = {0x80}; /* [] */
+	struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_DISABLE_MACRO);
+	ucl_object_t *obj;
+	const ucl_object_t *elt;
+
+	if (!ucl_parser_add_string(parser, "a = 1\n", 6)) {
+		ucl_parser_free(parser);
+		FAIL("%s", "the ucl chunk should parse");
+	}
+
+	if (ucl_parser_add_chunk_full(parser, doc, sizeof(doc), 0,
+								  UCL_DUPLICATE_APPEND, UCL_PARSE_CBOR)) {
+		ucl_parser_free(parser);
+		FAIL("%s", "cbor after an open ucl object should be refused");
+	}
+
+	if (!ucl_parser_add_string(parser, "b = 2\n", 6)) {
+		ucl_parser_free(parser);
+		FAIL("%s", "the ucl parser should survive the refused cbor chunk");
+	}
+
+	obj = ucl_parser_get_object(parser);
+
+	if (obj == NULL) {
+		ucl_parser_free(parser);
+		FAIL("%s", "no object after the mixed chunks");
+	}
+
+	elt = ucl_object_lookup(obj, "b");
+
+	if (elt == NULL || ucl_object_toint(elt) != 2) {
+		ucl_object_unref(obj);
+		ucl_parser_free(parser);
+		FAIL("%s", "the chunk after the refusal was lost");
+	}
+
+	ucl_object_unref(obj);
+	ucl_parser_free(parser);
+}
+
 int main(int argc, char **argv)
 {
 	test_integers();
@@ -573,6 +661,8 @@ int main(int argc, char **argv)
 	test_userdata();
 	test_roundtrip();
 	test_limits();
+	test_merge();
+	test_after_ucl_open_object();
 
 	if (failed > 0) {
 		fprintf(stderr, "%d cbor test(s) failed\n", failed);

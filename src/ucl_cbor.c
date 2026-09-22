@@ -492,11 +492,17 @@ ucl_cbor_push_container(struct ucl_parser *parser, ucl_object_t *obj,
  * Insert a finished value into the container on top of the stack. On failure
  * the object is released here, so callers never have to unwind it themselves.
  * `key_is_temp` marks a key that lives in scratch storage and therefore has
- * to be copied even in zero-copy mode.
+ * to be copied even in zero-copy mode. `inserted`, when not NULL, receives
+ * the object carrying the value once the insertion is done: merging a
+ * duplicate key, or losing a priority contest to an older one, can hand that
+ * role to an existing object and release the fresh one, so a caller that
+ * goes on using the value - a container receiving more elements - has to
+ * switch over to it.
  */
 static bool
 ucl_cbor_insert_object(struct ucl_parser *parser, const unsigned char *key,
-					   size_t keylen, bool key_is_temp, ucl_object_t *obj)
+					   size_t keylen, bool key_is_temp, ucl_object_t *obj,
+					   ucl_object_t **inserted)
 {
 	struct ucl_stack *container = parser->stack;
 
@@ -506,6 +512,10 @@ ucl_cbor_insert_object(struct ucl_parser *parser, const unsigned char *key,
 
 	if (container->obj->type == UCL_ARRAY) {
 		ucl_array_append(container->obj, obj);
+
+		if (inserted != NULL) {
+			*inserted = obj;
+		}
 	}
 	else if (container->obj->type == UCL_OBJECT) {
 		if (key == NULL || keylen == 0) {
@@ -533,6 +543,14 @@ ucl_cbor_insert_object(struct ucl_parser *parser, const unsigned char *key,
 			ucl_object_unref(obj);
 
 			return false;
+		}
+
+		/*
+		 * process_object_element leaves the surviving object in cur_obj,
+		 * which may not be the one handed in once a merge has taken it
+		 */
+		if (inserted != NULL) {
+			*inserted = parser->cur_obj;
 		}
 	}
 	else {
@@ -991,7 +1009,7 @@ ucl_cbor_consume(struct ucl_parser *parser)
 	unsigned char *key_alloc = NULL;
 	char intkey[UCL_CBOR_INTKEY_MAX];
 	size_t keylen = 0;
-	bool have_key = false, key_is_temp = false, got_top;
+	bool have_key = false, key_is_temp = false;
 	ucl_object_t *root = NULL, *obj;
 	struct ucl_stack *container;
 	struct ucl_cbor_head head;
@@ -999,14 +1017,12 @@ ucl_cbor_consume(struct ucl_parser *parser)
 
 	p = parser->chunks->begin;
 	remain = parser->chunks->remain;
-	/* A container left over from an earlier chunk already counts as the top */
-	got_top = (parser->stack != NULL);
 
 	while (remain > 0) {
 		ucl_cbor_unwind(parser);
 		container = parser->stack;
 
-		if (container == NULL && got_top) {
+		if (container == NULL && root != NULL) {
 			ucl_create_err(&parser->err,
 						   "trailing data after the top level cbor object");
 			goto fail;
@@ -1215,10 +1231,19 @@ ucl_cbor_consume(struct ucl_parser *parser)
 			}
 
 			if (container != NULL) {
+				ucl_object_t *survivor = NULL;
+
 				if (!ucl_cbor_insert_object(parser, key, keylen, key_is_temp,
-											obj)) {
+											obj, &survivor)) {
 					goto fail;
 				}
+
+				/*
+				 * The value may have merged into an older object of the same
+				 * key, releasing this one, so the stack must follow whoever
+				 * now holds it
+				 */
+				obj = survivor;
 			}
 			else {
 				/*
@@ -1227,7 +1252,6 @@ ucl_cbor_consume(struct ucl_parser *parser)
 				 * release everything built so far.
 				 */
 				root = obj;
-				got_top = true;
 			}
 
 			p += head.hdrlen;
@@ -1264,7 +1288,8 @@ ucl_cbor_consume(struct ucl_parser *parser)
 			goto fail;
 		}
 
-		if (!ucl_cbor_insert_object(parser, key, keylen, key_is_temp, obj)) {
+		if (!ucl_cbor_insert_object(parser, key, keylen, key_is_temp, obj,
+									NULL)) {
 			goto fail;
 		}
 
@@ -1291,14 +1316,12 @@ ucl_cbor_consume(struct ucl_parser *parser)
 		goto fail;
 	}
 
-	if (!got_top) {
+	if (root == NULL) {
 		ucl_create_err(&parser->err, "empty cbor input");
 		goto fail;
 	}
 
-	if (root != NULL) {
-		parser->cur_obj = root;
-	}
+	parser->cur_obj = root;
 
 	return true;
 
@@ -1337,12 +1360,28 @@ bool ucl_parse_cbor(struct ucl_parser *parser)
 	p = parser->chunks->begin;
 
 	/*
+	 * A cbor parse never leaves frames behind: a success unwinds every
+	 * container and a failure drops them all in ucl_cbor_discard_stack.
+	 * Frames still on the stack therefore belong to another parser - the ucl
+	 * state machine's implicit top object, whose frames count elements in a
+	 * different union member. Continuing such a container from cbor cannot
+	 * work, so refuse rather than corrupt its bookkeeping.
+	 */
+	if (parser->stack != NULL) {
+		ucl_create_err(&parser->err,
+					   "cbor cannot continue inside a container opened by "
+					   "another parser");
+
+		return false;
+	}
+
+	/*
 	 * A cbor document carries its own root, so a second one has nowhere to
 	 * go: there is no defined way to merge it into a tree that is already
 	 * built. Saying so is better than parsing it and dropping it on the
 	 * floor, which would leak everything it allocated.
 	 */
-	if (parser->stack == NULL && parser->top_obj != NULL) {
+	if (parser->top_obj != NULL) {
 		ucl_create_err(&parser->err,
 					   "cbor documents cannot be concatenated: the parser "
 					   "already holds a top level object");
@@ -1351,22 +1390,19 @@ bool ucl_parse_cbor(struct ucl_parser *parser)
 	}
 
 	/*
-	 * Unless a container is still open from an earlier chunk, the document
-	 * has to start with one: ucl has nowhere to keep a bare scalar. A leading
-	 * tag is allowed through, as the self-described cbor tag is a common
-	 * prefix and the consumer skips it.
+	 * The document has to start with a container: ucl has nowhere to keep a
+	 * bare scalar. A leading tag is allowed through, as the self-described
+	 * cbor tag is a common prefix and the consumer skips it.
 	 */
-	if (parser->stack == NULL) {
-		major = *p >> 5;
+	major = *p >> 5;
 
-		if (major != UCL_CBOR_ARRAY && major != UCL_CBOR_MAP &&
-			major != UCL_CBOR_TAG) {
-			ucl_create_err(&parser->err,
-						   "bad top level object for cbor: an array or a map "
-						   "is required");
+	if (major != UCL_CBOR_ARRAY && major != UCL_CBOR_MAP &&
+		major != UCL_CBOR_TAG) {
+		ucl_create_err(&parser->err,
+					   "bad top level object for cbor: an array or a map "
+					   "is required");
 
-			return false;
-		}
+		return false;
 	}
 
 	ret = ucl_cbor_consume(parser);

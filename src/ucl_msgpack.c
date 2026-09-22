@@ -1402,7 +1402,6 @@ ucl_msgpack_release_tree(struct ucl_parser *parser)
 
 bool ucl_parse_msgpack(struct ucl_parser *parser)
 {
-	ucl_object_t *container = NULL;
 	const unsigned char *p;
 	bool ret;
 
@@ -1414,13 +1413,31 @@ bool ucl_parse_msgpack(struct ucl_parser *parser)
 	p = parser->chunks->begin;
 
 	/*
+	 * A msgpack parse never leaves frames behind: a success unwinds every
+	 * container and a failure drops them all in ucl_msgpack_release_tree.
+	 * Frames still on the stack therefore belong to another parser - the ucl
+	 * state machine's implicit top object, whose frames count elements in a
+	 * different union member and whose object the ucl parser owns as its
+	 * top_obj. Continuing such a container from msgpack cannot work, and
+	 * worse: on a later failure release_tree would unref that bottom frame's
+	 * object, and ucl_parser_free would unref it a second time.
+	 */
+	if (parser->stack != NULL) {
+		ucl_create_err(&parser->err,
+					   "msgpack cannot continue inside a container opened "
+					   "by another parser");
+
+		return false;
+	}
+
+	/*
 	 * A msgpack document carries its own root, so a second one has nowhere
 	 * to go: there is no defined way to merge it into a tree that is already
 	 * built. Saying so is better than parsing it and dropping it on the
 	 * floor, which is what happened before - the result was discarded along
 	 * with everything it allocated.
 	 */
-	if (parser->stack == NULL && parser->top_obj != NULL) {
+	if (parser->top_obj != NULL) {
 		ucl_create_err(&parser->err,
 					   "msgpack documents cannot be concatenated: the parser "
 					   "already holds a top level object");
@@ -1428,20 +1445,13 @@ bool ucl_parse_msgpack(struct ucl_parser *parser)
 		return false;
 	}
 
-	if (parser->stack) {
-		container = parser->stack->obj;
-	}
-
 	/*
-	 * When we start parsing message pack chunk, we must ensure that we
-	 * have either a valid container or the top object inside message pack is
-	 * of container type
+	 * When we start parsing message pack chunk, we must ensure that the top
+	 * object inside message pack is of container type
 	 */
-	if (container == NULL) {
-		if ((*p & 0x80) != 0x80 && !(*p >= 0xdc && *p <= 0xdf)) {
-			ucl_create_err(&parser->err, "bad top level object for msgpack");
-			return false;
-		}
+	if ((*p & 0x80) != 0x80 && !(*p >= 0xdc && *p <= 0xdf)) {
+		ucl_create_err(&parser->err, "bad top level object for msgpack");
+		return false;
 	}
 
 	ret = ucl_msgpack_consume(parser);
