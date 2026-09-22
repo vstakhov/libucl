@@ -904,6 +904,9 @@ lua_ucl_str_to_parse_type (const char *str)
 		if (strcasecmp (str, "msgpack") == 0) {
 			type = UCL_PARSE_MSGPACK;
 		}
+		else if (strcasecmp (str, "cbor") == 0) {
+			type = UCL_PARSE_CBOR;
+		}
 		else if (strcasecmp (str, "sexp") == 0 ||
 				strcasecmp (str, "csexp") == 0) {
 			type = UCL_PARSE_CSEXP;
@@ -1685,6 +1688,9 @@ lua_ucl_to_format (lua_State *L)
 			else if (strcasecmp (strtype, "msgpack") == 0 ||
 					 strcasecmp (strtype, "messagepack") == 0) {
 				format = UCL_EMIT_MSGPACK;
+			}
+			else if (strcasecmp (strtype, "cbor") == 0) {
+				format = UCL_EMIT_CBOR;
 			}
 		}
 

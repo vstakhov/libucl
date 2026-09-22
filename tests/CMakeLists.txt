@@ -34,6 +34,8 @@ add_ucl_test(test_msgpack test_msgpack.c msgpack.test)
 add_ucl_test(test_generate test_generate.c generate.test)
 add_ucl_test(test_csexp test_csexp.c csexp.test)
 add_ucl_test(test_msgpack_malformed test_msgpack_malformed.c msgpack_malformed.test)
+add_ucl_test(test_cbor test_cbor.c cbor.test)
+add_ucl_test(test_cbor_vectors test_cbor_vectors.c cbor_vectors.test)
 add_ucl_test(test_roundtrip test_roundtrip.c roundtrip.test)
 
 add_executable(test_limits test_limits.c)
