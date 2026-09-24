@@ -479,6 +479,26 @@ ucl_maybe_parse_boolean(ucl_object_t *obj, const unsigned char *start, size_t le
 			val = true;
 		}
 	}
+	else if (len == 1) {
+		switch (p[0]) {
+		case '0':
+		case 'F':
+		case 'f':
+		case 'N':
+		case 'n':
+			ret = true;
+			val = false;
+			break;
+		case '1':
+		case 'T':
+		case 't':
+		case 'Y':
+		case 'y':
+			ret = true;
+			val = true;
+			break;
+		}
+	}
 
 	if (ret && obj != NULL) {
 		obj->type = UCL_BOOLEAN;
