@@ -3361,7 +3361,7 @@ bool ucl_parser_add_chunk(struct ucl_parser *parser, const unsigned char *data,
 bool ucl_parser_insert_chunk(struct ucl_parser *parser, const unsigned char *data,
 							 size_t len)
 {
-	if (parser == NULL || parser->top_obj == NULL) {
+	if (parser == NULL || parser->top_obj == NULL || parser->stack == NULL) {
 		return false;
 	}
 
