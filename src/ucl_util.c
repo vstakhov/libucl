@@ -3089,8 +3089,8 @@ ucl_object_lookup_path_char(const ucl_object_t *top, const char *path_in, const 
 	found = NULL;
 	p = path_in;
 
-	/* Skip leading dots */
-	while (*p == sep) {
+	/* Skip leading dots (a NUL separator must not skip the terminator) */
+	while (*p != '\0' && *p == sep) {
 		p++;
 	}
 
