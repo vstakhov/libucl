@@ -2958,7 +2958,7 @@ ucl_object_iterate_new(const ucl_object_t *obj)
 	return (ucl_object_iter_t) it;
 }
 
-bool ucl_object_iter_chk_excpn(ucl_object_iter_t *it)
+bool ucl_object_iter_chk_excpn(ucl_object_iter_t it)
 {
 	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER(it);
 
