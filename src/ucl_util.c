@@ -786,6 +786,11 @@ void ucl_parser_free(struct ucl_parser *parser)
 		ucl_object_unref(parser->comments);
 	}
 
+	if (parser->last_comment) {
+		/* saved but never attached: parsing stopped with an error */
+		ucl_object_unref(parser->last_comment);
+	}
+
 	UCL_FREE(sizeof(struct ucl_parser), parser);
 }
 

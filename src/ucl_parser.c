@@ -2963,6 +2963,7 @@ ucl_state_machine(struct ucl_parser *parser)
 		}
 		else {
 			ucl_object_unref(parser->last_comment);
+			parser->last_comment = NULL;
 		}
 	}
 
