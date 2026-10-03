@@ -412,14 +412,15 @@ void ucl_array_detach_elements(ucl_object_t *ar)
 
 void ucl_object_free(ucl_object_t *obj)
 {
-	ucl_object_t *tmp;
-
-	/* Deprecated: shallow and refcount blind, use ucl_object_unref() instead */
-	while (obj != NULL) {
-		tmp = obj->next;
-		ucl_object_free_shallow(obj);
-		obj = tmp;
-	}
+	/*
+	 * Deprecated: refcount blind, use ucl_object_unref() instead.
+	 *
+	 * Release the whole subtree recursively (via the worklist based
+	 * ucl_object_free_internal) rather than only the direct children.
+	 * A shallow free drops the hash tables of nested containers and
+	 * leaks their entire subtrees, so it must not be used here.
+	 */
+	ucl_object_free_internal(obj, true);
 }
 
 size_t

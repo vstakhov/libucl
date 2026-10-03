@@ -9,7 +9,8 @@ TESTS = basic.test \
 		cbor_vectors.test \
 		speed.test \
 		roundtrip.test \
-		test_strnstr
+		test_strnstr \
+		test_object_free
 
 TESTS_ENVIRONMENT = $(SH) \
 			TEST_DIR=$(top_srcdir)/tests \
@@ -59,8 +60,12 @@ test_roundtrip_CFLAGS = $(common_test_cflags)
 
 check_PROGRAMS = test_basic test_speed test_generate test_schema \
 		 test_streamline test_msgpack test_cbor test_cbor_vectors \
-		 test_roundtrip test_strnstr
+		 test_roundtrip test_strnstr test_object_free
 
 test_strnstr_SOURCES = test_strnstr.c
 test_strnstr_LDADD = $(common_test_ldadd)
 test_strnstr_CFLAGS = $(common_test_cflags)
+
+test_object_free_SOURCES = test_object_free.c
+test_object_free_LDADD = $(common_test_ldadd)
+test_object_free_CFLAGS = $(common_test_cflags)
