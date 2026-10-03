@@ -915,7 +915,7 @@ UCL_EXTERN ucl_object_iter_t ucl_object_iterate_new(const ucl_object_t *obj)
  * @param iter opaque iterator
  * @return true if exception has occured, false otherwise
  */
-UCL_EXTERN bool ucl_object_iter_chk_excpn(ucl_object_iter_t *it);
+UCL_EXTERN bool ucl_object_iter_chk_excpn(ucl_object_iter_t it);
 
 /**
  * Reset initialized iterator to a new object
