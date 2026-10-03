@@ -2706,13 +2706,18 @@ ucl_state_machine(struct ucl_parser *parser)
 					}
 				}
 
-				if (parser->top_obj == NULL) {
+				/*
+				 * An empty chunk creates the top object without a stack frame:
+				 * reuse that object as the root container instead of parsing
+				 * into a NULL stack.
+				 */
+				if (parser->top_obj == NULL || parser->stack == NULL) {
 					if (parser->state == UCL_STATE_VALUE) {
-						obj = ucl_parser_add_container(NULL, parser, true, 0,
+						obj = ucl_parser_add_container(parser->top_obj, parser, true, 0,
 													   seen_obrace);
 					}
 					else {
-						obj = ucl_parser_add_container(NULL, parser, false, 0,
+						obj = ucl_parser_add_container(parser->top_obj, parser, false, 0,
 													   seen_obrace);
 					}
 
