@@ -285,6 +285,7 @@ struct ucl_parser {
 	uint64_t cur_nodes;
 	uint64_t cur_alloc;
 	uint32_t cur_depth;
+	bool top_obj_is_placeholder; /* Created by an empty initial chunk. */
 	UT_string *err;
 };
 

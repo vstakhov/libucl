@@ -2708,18 +2708,13 @@ ucl_state_machine(struct ucl_parser *parser)
 					}
 				}
 
-				/*
-				 * An empty chunk creates the top object without a stack frame:
-				 * reuse that object as the root container instead of parsing
-				 * into a NULL stack.
-				 */
-				if (parser->top_obj == NULL || parser->stack == NULL) {
+				if (parser->top_obj == NULL) {
 					if (parser->state == UCL_STATE_VALUE) {
-						obj = ucl_parser_add_container(parser->top_obj, parser, true, 0,
+						obj = ucl_parser_add_container(NULL, parser, true, 0,
 													   seen_obrace);
 					}
 					else {
-						obj = ucl_parser_add_container(parser->top_obj, parser, false, 0,
+						obj = ucl_parser_add_container(NULL, parser, false, 0,
 													   seen_obrace);
 					}
 
@@ -3324,6 +3319,18 @@ bool ucl_parser_add_chunk_full(struct ucl_parser *parser, const unsigned char *d
 		}
 
 		if (len > 0) {
+			/*
+			 * An empty first chunk exposes an object without starting a parse.
+			 * Replace that placeholder so the first nonempty chunk determines
+			 * the root type and priority, and accounts for the root's cost.
+			 * Real roots, including completed empty containers, stay intact.
+			 */
+			if (parser->top_obj_is_placeholder) {
+				ucl_object_unref(parser->top_obj);
+				parser->top_obj = NULL;
+				parser->top_obj_is_placeholder = false;
+			}
+
 			/* Need to parse something */
 			switch (parse_type) {
 			default:
@@ -3345,6 +3352,7 @@ bool ucl_parser_add_chunk_full(struct ucl_parser *parser, const unsigned char *d
 				 * read something
 				 */
 				parser->top_obj = ucl_object_new_full(UCL_OBJECT, priority);
+				parser->top_obj_is_placeholder = true;
 			}
 
 			return true;
