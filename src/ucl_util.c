@@ -4152,8 +4152,14 @@ void ucl_comments_add(ucl_object_t *comments, const ucl_object_t *obj,
 					  const char *comment)
 {
 	if (comments && obj && comment) {
-		ucl_object_insert_key(comments, ucl_object_fromstring(comment),
-							  (const char *) &obj, sizeof(void *), true);
+		ucl_object_t *nobj = ucl_object_fromstring(comment);
+
+		if (nobj != NULL &&
+			!ucl_object_insert_key(comments, nobj, (const char *) &obj,
+								   sizeof(void *), true)) {
+			/* comments is not an object: do not leak the new comment */
+			ucl_object_unref(nobj);
+		}
 	}
 }
 
