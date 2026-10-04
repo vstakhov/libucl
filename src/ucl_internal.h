@@ -657,6 +657,75 @@ void ucl_emitter_print_key_msgpack(bool print_key,
 								   const ucl_object_t *obj);
 
 /**
+ * Print integer to the cbor output
+ * @param ctx
+ * @param val
+ */
+void ucl_emitter_print_int_cbor(struct ucl_emitter_context *ctx,
+								int64_t val);
+/**
+ * Print double to the cbor output
+ * @param ctx
+ * @param val
+ */
+void ucl_emitter_print_double_cbor(struct ucl_emitter_context *ctx,
+								   double val);
+/**
+ * Print boolean to the cbor output
+ * @param ctx
+ * @param val
+ */
+void ucl_emitter_print_bool_cbor(struct ucl_emitter_context *ctx,
+								 bool val);
+/**
+ * Print string to the cbor output
+ * @param ctx
+ * @param s
+ * @param len
+ */
+void ucl_emitter_print_string_cbor(struct ucl_emitter_context *ctx,
+								   const char *s, size_t len);
+
+/**
+ * Print binary string to the cbor output
+ * @param ctx
+ * @param s
+ * @param len
+ */
+void ucl_emitter_print_binary_string_cbor(struct ucl_emitter_context *ctx,
+										  const char *s, size_t len);
+
+/**
+ * Print array preamble for cbor
+ * @param ctx
+ * @param len
+ */
+void ucl_emitter_print_array_cbor(struct ucl_emitter_context *ctx,
+								  size_t len);
+
+/**
+ * Print object preamble for cbor
+ * @param ctx
+ * @param len
+ */
+void ucl_emitter_print_object_cbor(struct ucl_emitter_context *ctx,
+								   size_t len);
+/**
+ * Print NULL to the cbor output
+ * @param ctx
+ */
+void ucl_emitter_print_null_cbor(struct ucl_emitter_context *ctx);
+/**
+ * Print object's key if needed to the cbor output
+ * @param print_key
+ * @param ctx
+ * @param obj
+ */
+void ucl_emitter_print_key_cbor(bool print_key,
+								struct ucl_emitter_context *ctx,
+								const ucl_object_t *obj);
+
+/**
  * Fetch URL into a buffer
  * @param url url to fetch
  * @param buf pointer to buffer (must be freed by callee)
@@ -699,6 +768,13 @@ bool ucl_parser_process_object_element(struct ucl_parser *parser,
  * @return
  */
 bool ucl_parse_msgpack(struct ucl_parser *parser);
+
+/**
+ * Parse cbor chunk
+ * @param parser
+ * @return
+ */
+bool ucl_parse_cbor(struct ucl_parser *parser);
 
 bool ucl_parse_csexp(struct ucl_parser *parser);
 

@@ -367,7 +367,7 @@ ucl_check_variable_safe(struct ucl_parser *parser, const char *ptr, size_t remai
 		if (parser->var_handler(ptr, remain, &dst, &dstlen, &need_free,
 								parser->var_data)) {
 			*found = true;
-			*out_len = dstlen;
+			*out_len += dstlen;
 
 			if (need_free) {
 				free(dst);
@@ -453,7 +453,7 @@ ucl_expand_single_variable(struct ucl_parser *parser, const char *ptr,
 						   size_t in_len, unsigned char **dest, size_t out_len)
 {
 	unsigned char *d = *dest, *dst;
-	const char *p = ptr + 1, *ret;
+	const char *p = ptr + 1, *ret, *var_end;
 	struct ucl_variable *var;
 	size_t dstlen;
 	bool need_free = false;
@@ -492,10 +492,12 @@ ucl_expand_single_variable(struct ucl_parser *parser, const char *ptr,
 	}
 
 	if (!found) {
-		if (strict && parser->var_handler != NULL) {
+		if (strict && parser->var_handler != NULL &&
+			(var_end = memchr(p, '}', in_len)) != NULL) {
 			dstlen = out_len;
 
-			if (parser->var_handler(p, in_len, &dst, &dstlen, &need_free,
+			/* Use the same variable name as the length-counting pass. */
+			if (parser->var_handler(p, var_end - p, &dst, &dstlen, &need_free,
 									parser->var_data)) {
 				if (dstlen > out_len) {
 					/* We do not have enough space! */
@@ -505,7 +507,7 @@ ucl_expand_single_variable(struct ucl_parser *parser, const char *ptr,
 				}
 				else {
 					memcpy(d, dst, dstlen);
-					ret += in_len;
+					ret = var_end + 1;
 					d += dstlen;
 					found = true;
 
@@ -2968,6 +2970,7 @@ ucl_state_machine(struct ucl_parser *parser)
 		}
 		else {
 			ucl_object_unref(parser->last_comment);
+			parser->last_comment = NULL;
 		}
 	}
 
@@ -3275,7 +3278,18 @@ bool ucl_parser_add_chunk_full(struct ucl_parser *parser, const unsigned char *d
 
 		if (parse_type == UCL_PARSE_AUTO && len > 0) {
 			/* We need to detect parse type by the first symbol */
-			if ((*data & 0x80) == 0x80) {
+			if (len >= 3 && data[0] == 0xd9 && data[1] == 0xd9 &&
+				data[2] == 0xf7) {
+				/*
+				 * The self-described cbor tag, 55799. Cbor and msgpack are
+				 * otherwise indistinguishable from their first byte - both
+				 * spend 0x80 to 0xbf on short containers and strings - so
+				 * this prefix is the only thing that tells them apart, and
+				 * cbor without it has to be requested explicitly.
+				 */
+				parse_type = UCL_PARSE_CBOR;
+			}
+			else if ((*data & 0x80) == 0x80) {
 				parse_type = UCL_PARSE_MSGPACK;
 			}
 			else if (*data == '(') {
@@ -3317,6 +3331,8 @@ bool ucl_parser_add_chunk_full(struct ucl_parser *parser, const unsigned char *d
 				return ucl_state_machine(parser);
 			case UCL_PARSE_MSGPACK:
 				return ucl_parse_msgpack(parser);
+			case UCL_PARSE_CBOR:
+				return ucl_parse_cbor(parser);
 			case UCL_PARSE_CSEXP:
 				return ucl_parse_csexp(parser);
 			}
@@ -3366,7 +3382,7 @@ bool ucl_parser_add_chunk(struct ucl_parser *parser, const unsigned char *data,
 bool ucl_parser_insert_chunk(struct ucl_parser *parser, const unsigned char *data,
 							 size_t len)
 {
-	if (parser == NULL || parser->top_obj == NULL) {
+	if (parser == NULL || parser->top_obj == NULL || parser->stack == NULL) {
 		return false;
 	}
 
