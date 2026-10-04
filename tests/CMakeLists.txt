@@ -35,4 +35,4 @@ add_ucl_test(test_generate test_generate.c generate.test)
 add_ucl_test(test_csexp test_csexp.c csexp.test)
 add_ucl_test(test_msgpack_malformed test_msgpack_malformed.c msgpack_malformed.test)
 add_ucl_test(test_roundtrip test_roundtrip.c roundtrip.test)
-
+add_ucl_test(test_variables test_variables.c variables.test)

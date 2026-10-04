@@ -436,7 +436,7 @@ ucl_expand_single_variable(struct ucl_parser *parser, const char *ptr,
 						   size_t in_len, unsigned char **dest, size_t out_len)
 {
 	unsigned char *d = *dest, *dst;
-	const char *p = ptr + 1, *ret;
+	const char *p = ptr + 1, *ret, *var_end;
 	struct ucl_variable *var;
 	size_t dstlen;
 	bool need_free = false;
@@ -475,10 +475,12 @@ ucl_expand_single_variable(struct ucl_parser *parser, const char *ptr,
 	}
 
 	if (!found) {
-		if (strict && parser->var_handler != NULL) {
+		if (strict && parser->var_handler != NULL &&
+			(var_end = memchr(p, '}', in_len)) != NULL) {
 			dstlen = out_len;
 
-			if (parser->var_handler(p, in_len, &dst, &dstlen, &need_free,
+			/* Use the same variable name as the length-counting pass. */
+			if (parser->var_handler(p, var_end - p, &dst, &dstlen, &need_free,
 									parser->var_data)) {
 				if (dstlen > out_len) {
 					/* We do not have enough space! */
@@ -488,7 +490,7 @@ ucl_expand_single_variable(struct ucl_parser *parser, const char *ptr,
 				}
 				else {
 					memcpy(d, dst, dstlen);
-					ret += in_len;
+					ret = var_end + 1;
 					d += dstlen;
 					found = true;
 
