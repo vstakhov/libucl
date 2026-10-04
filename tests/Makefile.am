@@ -3,11 +3,15 @@ EXTRA_DIST = $(TESTS) basic schema generate.res \
 
 TESTS = basic.test \
 		generate.test \
+		variables.test \
 		schema.test \
 		msgpack.test \
+		cbor.test \
+		cbor_vectors.test \
 		speed.test \
 		roundtrip.test \
-		variables.test
+		test_strnstr \
+		test_object_free
 
 TESTS_ENVIRONMENT = $(SH) \
 			TEST_DIR=$(top_srcdir)/tests \
@@ -31,6 +35,10 @@ test_generate_SOURCES = test_generate.c
 test_generate_LDADD = $(common_test_ldadd)
 test_generate_CFLAGS = $(common_test_cflags)
 
+test_variables_SOURCES = test_variables.c
+test_variables_LDADD = $(common_test_ldadd)
+test_variables_CFLAGS = $(common_test_cflags)
+
 test_schema_SOURCES = test_schema.c
 test_schema_LDADD = $(common_test_ldadd)
 test_schema_CFLAGS = $(common_test_cflags)
@@ -43,13 +51,26 @@ test_msgpack_SOURCES = test_msgpack.c
 test_msgpack_LDADD = $(common_test_ldadd)
 test_msgpack_CFLAGS = $(common_test_cflags)
 
+test_cbor_SOURCES = test_cbor.c
+test_cbor_LDADD = $(common_test_ldadd)
+test_cbor_CFLAGS = $(common_test_cflags)
+
+test_cbor_vectors_SOURCES = test_cbor_vectors.c
+test_cbor_vectors_LDADD = $(common_test_ldadd)
+test_cbor_vectors_CFLAGS = $(common_test_cflags)
+
 test_roundtrip_SOURCES = test_roundtrip.c
 test_roundtrip_LDADD = $(common_test_ldadd)
 test_roundtrip_CFLAGS = $(common_test_cflags)
 
-test_variables_SOURCES = test_variables.c
-test_variables_LDADD = $(common_test_ldadd)
-test_variables_CFLAGS = $(common_test_cflags)
+check_PROGRAMS = test_basic test_speed test_generate test_variables test_schema \
+		 test_streamline test_msgpack test_cbor test_cbor_vectors \
+		 test_roundtrip test_strnstr test_object_free
 
-check_PROGRAMS = test_basic test_speed test_generate test_schema \
-		 test_streamline test_msgpack test_roundtrip test_variables
+test_strnstr_SOURCES = test_strnstr.c
+test_strnstr_LDADD = $(common_test_ldadd)
+test_strnstr_CFLAGS = $(common_test_cflags)
+
+test_object_free_SOURCES = test_object_free.c
+test_object_free_LDADD = $(common_test_ldadd)
+test_object_free_CFLAGS = $(common_test_cflags)

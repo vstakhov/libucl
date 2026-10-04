@@ -1,13 +1,13 @@
 set(COMMON_TEST_INCLUDES
-	${CMAKE_SOURCE_DIR}/include
-	${CMAKE_SOURCE_DIR}/src
-	${CMAKE_SOURCE_DIR}/uthash
+	${PROJECT_SOURCE_DIR}/include
+	${PROJECT_SOURCE_DIR}/src
+	${PROJECT_SOURCE_DIR}/uthash
 )
 
 set(COMMON_TEST_LIBS ucl)
 
 set(TEST_ENV_VARS
-	"TEST_DIR=${CMAKE_SOURCE_DIR}/tests"
+	"TEST_DIR=${PROJECT_SOURCE_DIR}/tests"
 	"TEST_OUT_DIR=${CMAKE_BINARY_DIR}/tests"
 	"TEST_BINARY_DIR=${CMAKE_BINARY_DIR}/tests"
 )
@@ -17,7 +17,7 @@ macro(add_ucl_test testname sourcefile wrapper)
 	target_include_directories(${testname} PRIVATE ${COMMON_TEST_INCLUDES})
 	target_link_libraries(${testname} PRIVATE ${COMMON_TEST_LIBS})
 	IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
-		add_test(NAME ${testname} COMMAND ${CMAKE_SOURCE_DIR}/tests/${wrapper})
+		add_test(NAME ${testname} COMMAND ${PROJECT_SOURCE_DIR}/tests/${wrapper})
 		set_tests_properties(${testname} PROPERTIES ENVIRONMENT "${TEST_ENV_VARS}")
 	ENDIF()
 endmacro()
@@ -32,7 +32,30 @@ ENDIF()
 # Portable tests
 add_ucl_test(test_msgpack test_msgpack.c msgpack.test)
 add_ucl_test(test_generate test_generate.c generate.test)
+add_ucl_test(test_variables test_variables.c variables.test)
 add_ucl_test(test_csexp test_csexp.c csexp.test)
 add_ucl_test(test_msgpack_malformed test_msgpack_malformed.c msgpack_malformed.test)
+add_ucl_test(test_cbor test_cbor.c cbor.test)
+add_ucl_test(test_cbor_vectors test_cbor_vectors.c cbor_vectors.test)
 add_ucl_test(test_roundtrip test_roundtrip.c roundtrip.test)
-add_ucl_test(test_variables test_variables.c variables.test)
+
+add_executable(test_limits test_limits.c)
+target_include_directories(test_limits PRIVATE ${COMMON_TEST_INCLUDES})
+target_link_libraries(test_limits PRIVATE ${COMMON_TEST_LIBS})
+IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	add_test(NAME test_limits COMMAND test_limits)
+ENDIF()
+
+add_executable(test_strnstr test_strnstr.c)
+target_include_directories(test_strnstr PRIVATE ${COMMON_TEST_INCLUDES})
+target_link_libraries(test_strnstr PRIVATE ${COMMON_TEST_LIBS})
+IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	add_test(NAME test_strnstr COMMAND test_strnstr)
+ENDIF()
+
+add_executable(test_object_free test_object_free.c)
+target_include_directories(test_object_free PRIVATE ${COMMON_TEST_INCLUDES})
+target_link_libraries(test_object_free PRIVATE ${COMMON_TEST_LIBS})
+IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	add_test(NAME test_object_free COMMAND test_object_free)
+ENDIF()

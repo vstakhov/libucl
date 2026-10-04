@@ -244,6 +244,7 @@ SET(UCLSRC src/ucl_util.c
 		src/ucl_hash.c
 		src/ucl_schema.c
 		src/ucl_msgpack.c
+		src/ucl_cbor.c
 		src/ucl_sexp.c)
 
 SET(UCLHDR include/ucl.h

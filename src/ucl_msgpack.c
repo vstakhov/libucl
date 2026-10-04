@@ -681,6 +681,30 @@ ucl_msgpack_get_parser_from_type(unsigned char t)
 	return NULL;
 }
 
+/*
+ * Create an object for a msgpack element, charging it against the parser
+ * budgets first. MessagePack is far denser than JSON - a whole container costs
+ * a single byte - so it amplifies harder than text input and needs the same
+ * accounting.
+ */
+static inline ucl_object_t *
+ucl_msgpack_new_object(struct ucl_parser *parser, ucl_type_t type)
+{
+	ucl_object_t *obj;
+
+	if (!ucl_parser_account_node(parser)) {
+		return NULL;
+	}
+
+	obj = ucl_object_new_full(type, parser->chunks->priority);
+
+	if (obj == NULL) {
+		ucl_create_err(&parser->err, "no memory for a msgpack object");
+	}
+
+	return obj;
+}
+
 static inline struct ucl_stack *
 ucl_msgpack_get_container(struct ucl_parser *parser,
 						  struct ucl_msgpack_parser *obj_parser, uint64_t len)
@@ -693,41 +717,48 @@ ucl_msgpack_get_container(struct ucl_parser *parser,
 		/*
 		 * Insert new container to the stack
 		 */
-		unsigned int depth = 0;
-		struct ucl_stack *sp;
-		for (sp = parser->stack; sp != NULL; sp = sp->next) {
-			depth++;
-		}
-		if (depth >= UCL_MAX_NESTING) {
+		if (parser->limits.max_depth > 0 &&
+			(uint64_t) parser->cur_depth >= parser->limits.max_depth) {
 			ucl_create_err(&parser->err,
-						   "msgpack containers are nested too deep (over %d)",
-						   UCL_MAX_NESTING);
+						   "msgpack containers are nested too deep (over %ju)",
+						   (uintmax_t) parser->limits.max_depth);
+			parser->err_code = UCL_ENESTED;
+
 			return NULL;
 		}
 
+		/*
+		 * These frames are popped by ucl_parser_pop_container and by
+		 * ucl_parser_free, both of which release them with UCL_FREE, so they
+		 * have to come from UCL_ALLOC. UCL_ALLOC has no zeroing counterpart,
+		 * hence the explicit memset that calloc used to cover.
+		 */
 		if (parser->stack == NULL) {
-			parser->stack = calloc(1, sizeof(struct ucl_stack));
+			parser->stack = UCL_ALLOC(sizeof(struct ucl_stack));
 
 			if (parser->stack == NULL) {
 				ucl_create_err(&parser->err, "no memory");
 				return NULL;
 			}
 
+			memset(parser->stack, 0, sizeof(struct ucl_stack));
 			parser->stack->chunk = parser->chunks;
 		}
 		else {
-			stack = calloc(1, sizeof(struct ucl_stack));
+			stack = UCL_ALLOC(sizeof(struct ucl_stack));
 
 			if (stack == NULL) {
 				ucl_create_err(&parser->err, "no memory");
 				return NULL;
 			}
 
+			memset(stack, 0, sizeof(struct ucl_stack));
 			stack->chunk = parser->chunks;
 			stack->next = parser->stack;
 			parser->stack = stack;
 		}
 
+		parser->cur_depth++;
 		parser->stack->e.len = len;
 
 #ifdef MSGPACK_DEBUG_PARSER
@@ -788,6 +819,8 @@ ucl_msgpack_insert_object(struct ucl_parser *parser,
 	else if (container->obj->type == UCL_OBJECT) {
 		if (key == NULL || keylen == 0) {
 			ucl_create_err(&parser->err, "cannot insert object with no key");
+			ucl_object_unref(obj);
+
 			return false;
 		}
 
@@ -798,10 +831,21 @@ ucl_msgpack_insert_object(struct ucl_parser *parser,
 			ucl_copy_key_trash(obj);
 		}
 
-		ucl_parser_process_object_element(parser, obj);
+		if (!ucl_parser_process_object_element(parser, obj)) {
+			/*
+			 * None of its failure paths take ownership of the element, and
+			 * ignoring them used to lose both the error - UCL_DUPLICATE_ERROR
+			 * never reported anything for msgpack - and the object
+			 */
+			ucl_object_unref(obj);
+
+			return false;
+		}
 	}
 	else {
 		ucl_create_err(&parser->err, "bad container type");
+		ucl_object_unref(obj);
+
 		return false;
 	}
 
@@ -816,19 +860,27 @@ ucl_msgpack_get_next_container(struct ucl_parser *parser)
 	struct ucl_stack *cur = NULL;
 	uint64_t len;
 
-	cur = parser->stack;
+	/*
+	 * Iterative rather than tail recursive: closing a deeply nested document
+	 * unwinds every finished container in one go, and doing that on the C
+	 * stack would make parse depth a stack-depth problem again.
+	 */
+	for (;;) {
+		cur = parser->stack;
 
-	if (cur == NULL) {
-		return NULL;
-	}
+		if (cur == NULL) {
+			return NULL;
+		}
 
-	len = cur->e.len;
+		len = cur->e.len;
 
-	if (len == 0) {
+		if (len != 0) {
+			break;
+		}
+
 		/* We need to switch to the previous container */
-		parser->stack = cur->next;
 		parser->cur_obj = cur->obj;
-		free(cur);
+		ucl_parser_pop_container(parser, cur);
 
 #ifdef MSGPACK_DEBUG_PARSER
 		cur = parser->stack;
@@ -838,8 +890,6 @@ ucl_msgpack_get_next_container(struct ucl_parser *parser)
 		}
 		fprintf(stderr, "-%s -> %d\n", parser->cur_obj->type == UCL_OBJECT ? "object" : "array", (int) parser->cur_obj->len);
 #endif
-
-		return ucl_msgpack_get_next_container(parser);
 	}
 
 	/*
@@ -861,10 +911,13 @@ ucl_msgpack_get_next_container(struct ucl_parser *parser)
 			assert(remain >= 0);                             \
 		}                                                    \
 		else {                                               \
-			ucl_create_err(&parser->err,                     \
-						   "cannot parse type %d of len %u", \
-						   (int) obj_parser->fmt,            \
-						   (unsigned) len);                  \
+			/* Keep a more specific reason if one was recorded */ \
+			if (parser->err_code == UCL_EOK) {               \
+				ucl_create_err(&parser->err,                 \
+							   "cannot parse type %d of len %u", \
+							   (int) obj_parser->fmt,        \
+							   (unsigned) len);              \
+			}                                                \
 			return false;                                    \
 		}                                                    \
 	} while (0)
@@ -1014,8 +1067,12 @@ ucl_msgpack_consume(struct ucl_parser *parser)
 
 			break;
 		case start_assoc:
-			parser->cur_obj = ucl_object_new_full(UCL_OBJECT,
-												  parser->chunks->priority);
+			parser->cur_obj = ucl_msgpack_new_object(parser, UCL_OBJECT);
+
+			if (parser->cur_obj == NULL) {
+				return false;
+			}
+
 			/* Insert to the previous level container */
 			if (parser->stack && !ucl_msgpack_insert_object(parser,
 															key, keylen, parser->cur_obj)) {
@@ -1045,8 +1102,12 @@ ucl_msgpack_consume(struct ucl_parser *parser)
 			break;
 
 		case start_array:
-			parser->cur_obj = ucl_object_new_full(UCL_ARRAY,
-												  parser->chunks->priority);
+			parser->cur_obj = ucl_msgpack_new_object(parser, UCL_ARRAY);
+
+			if (parser->cur_obj == NULL) {
+				return false;
+			}
+
 			/* Insert to the previous level container */
 			if (parser->stack && !ucl_msgpack_insert_object(parser,
 															key, keylen, parser->cur_obj)) {
@@ -1132,6 +1193,15 @@ ucl_msgpack_consume(struct ucl_parser *parser)
 				return false;
 			}
 
+			if (parser->limits.max_key_length > 0 &&
+				(uint64_t) len > parser->limits.max_key_length) {
+				ucl_create_err(&parser->err, "msgpack key is too long: %ju",
+							   (uintmax_t) len);
+				parser->err_code = UCL_ELIMIT;
+
+				return false;
+			}
+
 			keylen = len;
 			p += len;
 			remain -= len;
@@ -1206,9 +1276,12 @@ ucl_msgpack_consume(struct ucl_parser *parser)
 			return false;
 		}
 
-		parser->cur_obj = ucl_object_new_full(
-			state == start_array ? UCL_ARRAY : UCL_OBJECT,
-			parser->chunks->priority);
+		parser->cur_obj = ucl_msgpack_new_object(parser,
+												 state == start_array ? UCL_ARRAY : UCL_OBJECT);
+
+		if (parser->cur_obj == NULL) {
+			return false;
+		}
 
 		if (parser->stack == NULL) {
 			ucl_create_err(&parser->err,
@@ -1229,6 +1302,12 @@ ucl_msgpack_consume(struct ucl_parser *parser)
 
 		ret = obj_parser->func(parser, container, len, obj_parser->fmt,
 							   p, remain);
+		/*
+		 * The callback can still fail here: an empty container merged into
+		 * an existing one of the other kind is rejected inside it, and
+		 * ignoring that reported success with an error string attached
+		 */
+		CONSUME_RET;
 		break;
 
 	case read_array_value:
@@ -1252,9 +1331,18 @@ ucl_msgpack_consume(struct ucl_parser *parser)
 		CONSUME_RET;
 
 
-		/* Insert value to the container and check if we have finished array */
+		/*
+		 * Insert value to the container and check if we have finished array.
+		 * A zero length value has no payload of its own, so reading its type
+		 * consumes the last byte of the chunk and the loop ends before the
+		 * value state runs; the pair is completed here instead. An array does
+		 * not care about the key, but a map does, and the key read just
+		 * before is still the one this value belongs to.
+		 */
 		if (parser->cur_obj) {
-			if (!ucl_msgpack_insert_object(parser, NULL, 0,
+			if (!ucl_msgpack_insert_object(parser,
+										   state == read_assoc_value ? key : NULL,
+										   state == read_assoc_value ? (size_t) keylen : 0,
 										   parser->cur_obj)) {
 				return false;
 			}
@@ -1285,9 +1373,41 @@ ucl_msgpack_consume(struct ucl_parser *parser)
 	return true;
 }
 
+/*
+ * Release whatever was built before the parse went wrong. While containers
+ * are still open the bottom frame holds the root; once they have all been
+ * closed the last one popped is the root, and ucl_msgpack_get_next_container
+ * leaves it in parser->cur_obj. Every other object is already attached to its
+ * parent, so unreferencing the root takes the whole tree with it.
+ *
+ * Without this the tree leaks, as ucl_parser_free only unreferences
+ * parser->top_obj and that is not set until the parse succeeds.
+ */
+static void
+ucl_msgpack_release_tree(struct ucl_parser *parser)
+{
+	ucl_object_t *root = parser->cur_obj;
+	struct ucl_stack *frame;
+
+	for (frame = parser->stack; frame != NULL; frame = frame->next) {
+		if (frame->obj != NULL) {
+			root = frame->obj;
+		}
+	}
+
+	while (parser->stack != NULL) {
+		ucl_parser_pop_container(parser, parser->stack);
+	}
+
+	parser->cur_obj = NULL;
+
+	if (root != NULL) {
+		ucl_object_unref(root);
+	}
+}
+
 bool ucl_parse_msgpack(struct ucl_parser *parser)
 {
-	ucl_object_t *container = NULL;
 	const unsigned char *p;
 	bool ret;
 
@@ -1298,26 +1418,57 @@ bool ucl_parse_msgpack(struct ucl_parser *parser)
 
 	p = parser->chunks->begin;
 
-	if (parser->stack) {
-		container = parser->stack->obj;
+	/*
+	 * A msgpack parse never leaves frames behind: a success unwinds every
+	 * container and a failure drops them all in ucl_msgpack_release_tree.
+	 * Frames still on the stack therefore belong to another parser - the ucl
+	 * state machine's implicit top object, whose frames count elements in a
+	 * different union member and whose object the ucl parser owns as its
+	 * top_obj. Continuing such a container from msgpack cannot work, and
+	 * worse: on a later failure release_tree would unref that bottom frame's
+	 * object, and ucl_parser_free would unref it a second time.
+	 */
+	if (parser->stack != NULL) {
+		ucl_create_err(&parser->err,
+					   "msgpack cannot continue inside a container opened "
+					   "by another parser");
+
+		return false;
 	}
 
 	/*
-	 * When we start parsing message pack chunk, we must ensure that we
-	 * have either a valid container or the top object inside message pack is
-	 * of container type
+	 * A msgpack document carries its own root, so a second one has nowhere
+	 * to go: there is no defined way to merge it into a tree that is already
+	 * built. Saying so is better than parsing it and dropping it on the
+	 * floor, which is what happened before - the result was discarded along
+	 * with everything it allocated.
 	 */
-	if (container == NULL) {
-		if ((*p & 0x80) != 0x80 && !(*p >= 0xdc && *p <= 0xdf)) {
-			ucl_create_err(&parser->err, "bad top level object for msgpack");
-			return false;
-		}
+	if (parser->top_obj != NULL) {
+		ucl_create_err(&parser->err,
+					   "msgpack documents cannot be concatenated: the parser "
+					   "already holds a top level object");
+
+		return false;
+	}
+
+	/*
+	 * When we start parsing message pack chunk, we must ensure that the top
+	 * object inside message pack is of container type
+	 */
+	if ((*p & 0x80) != 0x80 && !(*p >= 0xdc && *p <= 0xdf)) {
+		ucl_create_err(&parser->err, "bad top level object for msgpack");
+		return false;
 	}
 
 	ret = ucl_msgpack_consume(parser);
 
-	if (ret && parser->top_obj == NULL) {
-		parser->top_obj = parser->cur_obj;
+	if (ret) {
+		if (parser->top_obj == NULL) {
+			parser->top_obj = parser->cur_obj;
+		}
+	}
+	else {
+		ucl_msgpack_release_tree(parser);
 	}
 
 	return ret;
@@ -1328,6 +1479,20 @@ ucl_msgpack_parse_map(struct ucl_parser *parser,
 					  struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 					  const unsigned char *pos, size_t remain)
 {
+	/*
+	 * A merge may have handed the value to an older container of the other
+	 * kind: a map decodes its elements as key/value pairs and an array as
+	 * single values, so mixing the two would quietly decode one as the
+	 * other - map keys would be dropped on the way into an array, and array
+	 * elements would arrive at a map with no key at all.
+	 */
+	if (parser->cur_obj->type != UCL_OBJECT) {
+		ucl_create_err(&parser->err,
+					   "cannot merge a msgpack map into an array");
+
+		return -1;
+	}
+
 	container->obj = parser->cur_obj;
 
 	return 0;
@@ -1338,6 +1503,14 @@ ucl_msgpack_parse_array(struct ucl_parser *parser,
 						struct ucl_stack *container, size_t len, enum ucl_msgpack_format fmt,
 						const unsigned char *pos, size_t remain)
 {
+	/* The mirror image of the check in ucl_msgpack_parse_map */
+	if (parser->cur_obj->type != UCL_ARRAY) {
+		ucl_create_err(&parser->err,
+					   "cannot merge a msgpack array into an object");
+
+		return -1;
+	}
+
 	container->obj = parser->cur_obj;
 
 	return 0;
@@ -1354,7 +1527,21 @@ ucl_msgpack_parse_string(struct ucl_parser *parser,
 		return -1;
 	}
 
-	obj = ucl_object_new_full(UCL_STRING, parser->chunks->priority);
+	if (parser->limits.max_string_length > 0 &&
+		(uint64_t) len > parser->limits.max_string_length) {
+		ucl_create_err(&parser->err, "msgpack string is too long: %ju",
+					   (uintmax_t) len);
+		parser->err_code = UCL_ELIMIT;
+
+		return -1;
+	}
+
+	obj = ucl_msgpack_new_object(parser, UCL_STRING);
+
+	if (obj == NULL) {
+		return -1;
+	}
+
 	obj->value.sv = pos;
 	obj->len = len;
 
@@ -1363,11 +1550,42 @@ ucl_msgpack_parse_string(struct ucl_parser *parser,
 	}
 
 	if (!(parser->flags & UCL_PARSER_ZEROCOPY)) {
-		if (obj->flags & UCL_OBJECT_BINARY) {
-			obj->trash_stack[UCL_TRASH_VALUE] = malloc(len);
+		/* The contents are about to be copied, so they cost us memory too */
+		if (!ucl_parser_account_alloc(parser, (uint64_t) len + 1)) {
+			ucl_object_unref(obj);
 
-			if (obj->trash_stack[UCL_TRASH_VALUE] != NULL) {
+			return -1;
+		}
+
+		if (obj->flags & UCL_OBJECT_BINARY) {
+			/*
+			 * Binary strings are not NUL terminated, so they cannot go
+			 * through ucl_copy_value_trash; copy them the way its own binary
+			 * branch does. The value has to be moved onto the copy: without
+			 * that the object keeps pointing into the input buffer, which the
+			 * caller is free to release once parsing returns, and the trash
+			 * slot being taken stops ucl_copy_value_trash from ever repairing
+			 * it. An empty string owns nothing and gets a literal, so that it
+			 * does not reference the input either.
+			 */
+			if (len > 0) {
+				/* Released by ucl_object_dtor_free through UCL_FREE */
+				obj->trash_stack[UCL_TRASH_VALUE] = UCL_ALLOC(len);
+
+				if (obj->trash_stack[UCL_TRASH_VALUE] == NULL) {
+					ucl_create_err(&parser->err, "no memory");
+					parser->err_code = UCL_EINTERNAL;
+					ucl_object_unref(obj);
+
+					return -1;
+				}
+
 				memcpy(obj->trash_stack[UCL_TRASH_VALUE], pos, len);
+				obj->value.sv = obj->trash_stack[UCL_TRASH_VALUE];
+				obj->flags |= UCL_OBJECT_ALLOCATED_VALUE;
+			}
+			else {
+				obj->value.sv = "";
 			}
 		}
 		else {
@@ -1399,7 +1617,11 @@ ucl_msgpack_parse_int(struct ucl_parser *parser,
 		return -1;
 	}
 
-	obj = ucl_object_new_full(UCL_INT, parser->chunks->priority);
+	obj = ucl_msgpack_new_object(parser, UCL_INT);
+
+	if (obj == NULL) {
+		return -1;
+	}
 
 	switch (fmt) {
 	case msgpack_positive_fixint:
@@ -1452,7 +1674,21 @@ ucl_msgpack_parse_int(struct ucl_parser *parser,
 	case msgpack_uint64:
 		memcpy(&uiv64, pos, sizeof(uiv64));
 		uiv64 = FROM_BE64(uiv64);
-		obj->value.iv = uiv64;
+
+		if (uiv64 > (uint64_t) INT64_MAX) {
+			/*
+			 * ucl keeps integers as int64, and wrapping the value round to a
+			 * negative number is worse than refusing to read it
+			 */
+			ucl_create_err(&parser->err,
+						   "msgpack integer does not fit into int64: %ju",
+						   (uintmax_t) uiv64);
+			ucl_object_unref(obj);
+
+			return -1;
+		}
+
+		obj->value.iv = (int64_t) uiv64;
 		len = 8;
 		break;
 	default:
@@ -1481,7 +1717,11 @@ ucl_msgpack_parse_float(struct ucl_parser *parser,
 		return -1;
 	}
 
-	obj = ucl_object_new_full(UCL_FLOAT, parser->chunks->priority);
+	obj = ucl_msgpack_new_object(parser, UCL_FLOAT);
+
+	if (obj == NULL) {
+		return -1;
+	}
 
 	switch (fmt) {
 	case msgpack_float32:
@@ -1518,7 +1758,11 @@ ucl_msgpack_parse_bool(struct ucl_parser *parser,
 		return -1;
 	}
 
-	obj = ucl_object_new_full(UCL_BOOLEAN, parser->chunks->priority);
+	obj = ucl_msgpack_new_object(parser, UCL_BOOLEAN);
+
+	if (obj == NULL) {
+		return -1;
+	}
 
 	switch (fmt) {
 	case msgpack_true:
@@ -1548,7 +1792,12 @@ ucl_msgpack_parse_null(struct ucl_parser *parser,
 		return -1;
 	}
 
-	obj = ucl_object_new_full(UCL_NULL, parser->chunks->priority);
+	obj = ucl_msgpack_new_object(parser, UCL_NULL);
+
+	if (obj == NULL) {
+		return -1;
+	}
+
 	parser->cur_obj = obj;
 
 	return 1;
