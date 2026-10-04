@@ -32,6 +32,7 @@ ENDIF()
 # Portable tests
 add_ucl_test(test_msgpack test_msgpack.c msgpack.test)
 add_ucl_test(test_generate test_generate.c generate.test)
+add_ucl_test(test_variables test_variables.c variables.test)
 add_ucl_test(test_csexp test_csexp.c csexp.test)
 add_ucl_test(test_msgpack_malformed test_msgpack_malformed.c msgpack_malformed.test)
 add_ucl_test(test_cbor test_cbor.c cbor.test)

@@ -3,6 +3,7 @@ EXTRA_DIST = $(TESTS) basic schema generate.res \
 
 TESTS = basic.test \
 		generate.test \
+		variables.test \
 		schema.test \
 		msgpack.test \
 		cbor.test \
@@ -34,6 +35,10 @@ test_generate_SOURCES = test_generate.c
 test_generate_LDADD = $(common_test_ldadd)
 test_generate_CFLAGS = $(common_test_cflags)
 
+test_variables_SOURCES = test_variables.c
+test_variables_LDADD = $(common_test_ldadd)
+test_variables_CFLAGS = $(common_test_cflags)
+
 test_schema_SOURCES = test_schema.c
 test_schema_LDADD = $(common_test_ldadd)
 test_schema_CFLAGS = $(common_test_cflags)
@@ -58,7 +63,7 @@ test_roundtrip_SOURCES = test_roundtrip.c
 test_roundtrip_LDADD = $(common_test_ldadd)
 test_roundtrip_CFLAGS = $(common_test_cflags)
 
-check_PROGRAMS = test_basic test_speed test_generate test_schema \
+check_PROGRAMS = test_basic test_speed test_generate test_variables test_schema \
 		 test_streamline test_msgpack test_cbor test_cbor_vectors \
 		 test_roundtrip test_strnstr test_object_free
 
