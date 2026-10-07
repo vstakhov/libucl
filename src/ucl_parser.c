@@ -792,6 +792,21 @@ ucl_parser_add_container(ucl_object_t *obj, struct ucl_parser *parser,
 
 			return NULL;
 		}
+		if ((obj->type != UCL_NULL || obj->value.ov != NULL) &&
+			obj->type != (is_array ? UCL_ARRAY : UCL_OBJECT)) {
+			/*
+			 * Only an empty placeholder or a container of the same kind can
+			 * become this container: retyping a scalar in place would reuse
+			 * its value as the container's storage. A UCL_NULL object counts as
+			 * a placeholder only if it carries no storage - parsing `null` over
+			 * a scalar sets the type and leaves value.* in place.
+			 */
+			ucl_set_err(parser, UCL_EMERGE,
+						"cannot turn a scalar value into a container",
+						&parser->err);
+
+			return NULL;
+		}
 		nobj = obj;
 		nobj->type = is_array ? UCL_ARRAY : UCL_OBJECT;
 	}
@@ -2725,6 +2740,28 @@ ucl_state_machine(struct ucl_parser *parser)
 
 					parser->top_obj = obj;
 					parser->cur_obj = obj;
+				}
+				else if (parser->state == UCL_STATE_VALUE) {
+					/*
+					 * An inserted or included chunk that starts with [ has no
+					 * key to attach its value to. Falling through would let
+					 * ucl_parser_get_container() hand back the stale
+					 * parser->cur_obj, i.e. the previous key's value: an
+					 * inserted [5 silently overwrites it, and [{ or [[ reuses
+					 * its scalar storage as the new container's, which crashes
+					 * in ucl_hash_destroy() when the tree is freed.
+					 * Only an array frame can take a value with no key.
+					 */
+					if (parser->stack == NULL || parser->stack->obj == NULL ||
+						parser->stack->obj->type != UCL_ARRAY) {
+						ucl_set_err(parser, UCL_ESYNTAX,
+									"array value without a key",
+									&parser->err);
+						parser->prev_state = parser->state;
+						parser->state = UCL_STATE_ERROR;
+
+						return false;
+					}
 				}
 			}
 			break;
