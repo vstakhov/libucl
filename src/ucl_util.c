@@ -3383,19 +3383,33 @@ bool ucl_array_merge(ucl_object_t *top, ucl_object_t *elt, bool copy)
 	UCL_ARRAY_GET(v2, cp);
 
 	if (v1 && v2) {
+		size_t old_n = v1->n;
+
 		kv_concat_safe(ucl_object_t *, *v1, *v2, e0);
 
-		for (i = v2->n; i < v1->n; i++) {
+		for (i = old_n; i < v1->n; i++) {
 			obj = &kv_A(*v1, i);
 			if (*obj == NULL) {
 				continue;
 			}
+			if (!copy) {
+				/* Now held by both arrays */
+				ucl_object_ref(*obj);
+			}
 			top->len++;
+		}
+
+		if (copy) {
+			/* The copied elements now belong to top */
+			v2->n = 0;
 		}
 	}
 
+	ucl_object_unref(cp);
+
 	return true;
 e0:
+	ucl_object_unref(cp);
 	return false;
 }
 
