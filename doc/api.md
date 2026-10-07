@@ -279,6 +279,8 @@ Libucl can transform UCL objects to a number of textual formats:
 - compact json: `UCL_EMIT_JSON_COMPACT` - single line valid json without spaces
 - formatted json: `UCL_EMIT_JSON` - pretty formatted JSON with newlines and spaces
 - compact yaml: `UCL_EMIT_YAML` - compact YAML output
+- messagepack: `UCL_EMIT_MSGPACK` - MessagePack binary output
+- cbor: `UCL_EMIT_CBOR` - CBOR (RFC 8949) binary output
 
 Moreover, libucl API allows to select a custom set of emitting functions allowing 
 efficient and zero-copy output of libucl objects. Libucl uses the following structure to support this feature:

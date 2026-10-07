@@ -27,10 +27,24 @@ This repository provides the `C` library for parsing configurations written in `
 
 * `JSON`: read, write and pretty format
 * `Messagepack`: read and write
+* `CBOR` (RFC 8949): read and write
 * `S-Expressions`: read only (canonical form)
 * `Yaml`: limited write support (mainly for compatibility)
 
 If you are looking for the libucl API documentation you can find it at [this page](doc/api.md).
+
+### CBOR notes
+
+CBOR input has to be requested explicitly with `UCL_PARSE_CBOR`: its head bytes overlap MessagePack's, so `UCL_PARSE_AUTO` can only recognise it when the document is prefixed with the self-described CBOR tag (`d9 d9 f7`). A few things are worth knowing about how CBOR maps onto the UCL object model:
+
+* the top level item must be an array or a map, as it must be for MessagePack;
+* indefinite length strings, arrays and maps are supported, and the chunks of an indefinite length string are concatenated;
+* tags (major type 6) are dropped and the item they wrap is decoded in their place;
+* map keys may be text strings, byte strings or integers, and an integer key becomes its decimal spelling, since UCL keys are strings;
+* byte strings decode to UCL strings carrying `UCL_OBJECT_BINARY`, and are written back out as byte strings;
+* simple values other than `false`, `true` and `null` decode to a null object, and integers outside the range of `int64_t` are rejected;
+* a CBOR map head states how many pairs follow, so on **output** a key that holds an implicit array (the same key seen more than once) contributes only its first value and the rest are dropped. This is lossy, and it is the same restriction MessagePack output has;
+* a CBOR document carries its own root, so a parser that already holds a top level object will refuse a second one rather than discard it.
 
 ## Security considerations
 
@@ -55,7 +69,7 @@ struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_SAFE_FLAGS);
 ucl_parser_set_limits(parser, &limits);
 ```
 
-A zero value means "no limit" for that field. Only `max_depth` is set by default (to `1024`), since the other budgets would reject large but perfectly valid inputs. Exceeding a limit aborts the parse with `UCL_ELIMIT`, or `UCL_ENESTED` for the depth limit. The limits apply to the UCL, JSON and MessagePack parsers alike; MessagePack in particular amplifies harder than text, as a whole container costs a single byte.
+A zero value means "no limit" for that field. Only `max_depth` is set by default (to `1024`), since the other budgets would reject large but perfectly valid inputs. Exceeding a limit aborts the parse with `UCL_ELIMIT`, or `UCL_ENESTED` for the depth limit. The limits apply to the UCL, JSON, MessagePack and CBOR parsers alike; the binary formats in particular amplify harder than text, as a whole container costs a single byte.
 
 From Lua, `ucl.untrusted_parser([limits])` creates a parser with these budgets already applied, and `parser:set_limits()` / `parser:get_limits()` adjust them on any parser.
 
@@ -403,7 +417,8 @@ Each UCL object can be serialized to one of the four supported formats:
 * `Compacted JSON` - compact json notation (without spaces or newlines);
 * `Configuration` - nginx like notation;
 * `YAML` - yaml inlined notation;
-* `messagepack` - MessagePack binary format.
+* `messagepack` - MessagePack binary format;
+* `cbor` - CBOR binary format (RFC 8949).
 
 ## Validation
 

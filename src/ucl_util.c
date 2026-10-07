@@ -412,14 +412,15 @@ void ucl_array_detach_elements(ucl_object_t *ar)
 
 void ucl_object_free(ucl_object_t *obj)
 {
-	ucl_object_t *tmp;
-
-	/* Deprecated: shallow and refcount blind, use ucl_object_unref() instead */
-	while (obj != NULL) {
-		tmp = obj->next;
-		ucl_object_free_shallow(obj);
-		obj = tmp;
-	}
+	/*
+	 * Deprecated: refcount blind, use ucl_object_unref() instead.
+	 *
+	 * Release the whole subtree recursively (via the worklist based
+	 * ucl_object_free_internal) rather than only the direct children.
+	 * A shallow free drops the hash tables of nested containers and
+	 * leaks their entire subtrees, so it must not be used here.
+	 */
+	ucl_object_free_internal(obj, true);
 }
 
 size_t
@@ -784,6 +785,11 @@ void ucl_parser_free(struct ucl_parser *parser)
 
 	if (parser->comments) {
 		ucl_object_unref(parser->comments);
+	}
+
+	if (parser->last_comment) {
+		/* saved but never attached: parsing stopped with an error */
+		ucl_object_unref(parser->last_comment);
 	}
 
 	UCL_FREE(sizeof(struct ucl_parser), parser);
@@ -2275,10 +2281,14 @@ ucl_strlcpy(char *dst, const char *src, size_t siz)
 size_t
 ucl_strlcpy_unsafe(char *dst, const char *src, size_t siz)
 {
-	memcpy(dst, src, siz - 1);
-	dst[siz - 1] = '\0';
+    if (siz == 0) {
+        return 0;
+    }
 
-	return siz - 1;
+    memcpy(dst, src, siz - 1);
+    dst[siz - 1] = '\0';
+
+    return siz - 1;
 }
 
 size_t
@@ -2958,7 +2968,7 @@ ucl_object_iterate_new(const ucl_object_t *obj)
 	return (ucl_object_iter_t) it;
 }
 
-bool ucl_object_iter_chk_excpn(ucl_object_iter_t *it)
+bool ucl_object_iter_chk_excpn(ucl_object_iter_t it)
 {
 	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER(it);
 
@@ -3811,10 +3821,28 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 			}
 		}
 		if (other->trash_stack[UCL_TRASH_VALUE] != NULL) {
-			new->trash_stack[UCL_TRASH_VALUE] =
-				UCL_STRDUP(other->trash_stack[UCL_TRASH_VALUE]);
 			if (new->type == UCL_STRING) {
+				/*
+				 * A string value can carry embedded NUL bytes when it was
+				 * built with ucl_object_fromlstring(); its real extent is
+				 * tracked by new->len (copied above from other->len), not
+				 * by a terminating NUL. UCL_STRDUP stops at the first NUL
+				 * it sees, so on such a value it can hand back a shorter
+				 * allocation than the length ucl_object_emit() will later
+				 * read against. Duplicate the exact byte range instead,
+				 * the same way the key is duplicated a few lines up.
+				 */
+				new->trash_stack[UCL_TRASH_VALUE] = UCL_ALLOC(new->len + 1);
+				if (new->trash_stack[UCL_TRASH_VALUE] != NULL) {
+					memcpy(new->trash_stack[UCL_TRASH_VALUE],
+						   other->trash_stack[UCL_TRASH_VALUE], new->len);
+					new->trash_stack[UCL_TRASH_VALUE][new->len] = '\0';
+				}
 				new->value.sv = new->trash_stack[UCL_TRASH_VALUE];
+			}
+			else {
+				new->trash_stack[UCL_TRASH_VALUE] =
+					UCL_STRDUP(other->trash_stack[UCL_TRASH_VALUE]);
 			}
 		}
 
@@ -4124,8 +4152,14 @@ void ucl_comments_add(ucl_object_t *comments, const ucl_object_t *obj,
 					  const char *comment)
 {
 	if (comments && obj && comment) {
-		ucl_object_insert_key(comments, ucl_object_fromstring(comment),
-							  (const char *) &obj, sizeof(void *), true);
+		ucl_object_t *nobj = ucl_object_fromstring(comment);
+
+		if (nobj != NULL &&
+			!ucl_object_insert_key(comments, nobj, (const char *) &obj,
+								   sizeof(void *), true)) {
+			/* comments is not an object: do not leak the new comment */
+			ucl_object_unref(nobj);
+		}
 	}
 }
 
