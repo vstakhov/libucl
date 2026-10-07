@@ -95,6 +95,7 @@ ucl_schema_test_pattern(const ucl_object_t *obj, const char *pattern, bool recur
 					break;
 				}
 			}
+			ucl_object_iterate_end(obj, &iter);
 		}
 		else {
 			if (regexec(&reg, ucl_object_key(obj), 0, NULL, 0) == 0)
@@ -134,12 +135,14 @@ ucl_schema_validate_dependencies(const ucl_object_t *deps,
 						break;
 					}
 				}
+				ucl_object_iterate_end(cur, &piter);
 			}
 			else if (cur->type == UCL_OBJECT) {
 				ret = ucl_schema_validate(cur, obj, true, err, root, ext_ref);
 			}
 		}
 	}
+	ucl_object_iterate_end(deps, &iter);
 
 	return ret;
 }
@@ -170,6 +173,7 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 											  ext_ref);
 				}
 			}
+			ucl_object_iterate_end(elt, &piter);
 		}
 		else if (strcmp(ucl_object_key(elt), "additionalProperties") == 0) {
 			if (elt->type == UCL_BOOLEAN) {
@@ -231,7 +235,9 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 												  ext_ref);
 					}
 				}
+				ucl_object_iterate_end(obj, &viter);
 			}
+			ucl_object_iterate_end(elt, &piter);
 		}
 		else if (elt->type == UCL_OBJECT &&
 				 strcmp(ucl_object_key(elt), "dependencies") == 0) {
@@ -239,6 +245,7 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 												   ext_ref);
 		}
 	}
+	ucl_object_iterate_end(schema, &iter);
 
 	if (ret) {
 		/* Additional properties */
@@ -293,6 +300,7 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 					break;
 				}
 			}
+			ucl_object_iterate_end(required, &iter);
 		}
 	}
 
@@ -362,6 +370,7 @@ ucl_schema_validate_number(const ucl_object_t *schema,
 			}
 		}
 	}
+	ucl_object_iterate_end(schema, &iter);
 
 	return ret;
 }
@@ -421,6 +430,7 @@ ucl_schema_validate_string(const ucl_object_t *schema,
 		}
 #endif
 	}
+	ucl_object_iterate_end(schema, &iter);
 
 	return ret;
 }
@@ -473,6 +483,7 @@ ucl_schema_array_is_unique(const ucl_object_t *obj, struct ucl_schema_error *err
 		TREE_INSERT(&tree, ucl_compare_node, link, node);
 		LL_PREPEND(nodes, node);
 	}
+	ucl_object_iterate_end(obj, &iter);
 
 	LL_FOREACH_SAFE(nodes, node, tmp)
 	{
@@ -506,6 +517,7 @@ ucl_schema_validate_array(const ucl_object_t *schema,
 						found = ucl_array_find_index(obj, ++idx);
 					}
 				}
+				ucl_object_iterate_end(elt, &piter);
 				if (found != NULL) {
 					/* The first element that is not validated */
 					first_unvalidated = found;
@@ -517,6 +529,7 @@ ucl_schema_validate_array(const ucl_object_t *schema,
 					ret = ucl_schema_validate(elt, it, false, err, root,
 											  ext_ref);
 				}
+				ucl_object_iterate_end(obj, &piter);
 			}
 			else {
 				ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, elt,
@@ -566,6 +579,7 @@ ucl_schema_validate_array(const ucl_object_t *schema,
 			}
 		}
 	}
+	ucl_object_iterate_end(schema, &iter);
 
 	if (ret) {
 		/* Additional properties */
@@ -622,6 +636,7 @@ ucl_schema_type_is_allowed(const ucl_object_t *type, const ucl_object_t *obj,
 				return true;
 			}
 		}
+		ucl_object_iterate_end(type, &iter);
 	}
 	else if (type->type == UCL_STRING) {
 		type_str = ucl_object_tostring(type);
@@ -671,6 +686,7 @@ ucl_schema_validate_enum(const ucl_object_t *en, const ucl_object_t *obj,
 			break;
 		}
 	}
+	ucl_object_iterate_end(en, &iter);
 
 	if (!ret) {
 		ucl_schema_create_error(err, UCL_SCHEMA_CONSTRAINT, obj,
@@ -975,6 +991,7 @@ ucl_schema_validate(const ucl_object_t *schema,
 				return false;
 			}
 		}
+		ucl_object_iterate_end(elt, &iter);
 	}
 
 	elt = ucl_object_lookup(schema, "anyOf");
@@ -986,6 +1003,7 @@ ucl_schema_validate(const ucl_object_t *schema,
 				break;
 			}
 		}
+		ucl_object_iterate_end(elt, &iter);
 		if (!ret) {
 			return false;
 		}
@@ -1010,6 +1028,7 @@ ucl_schema_validate(const ucl_object_t *schema,
 				break;
 			}
 		}
+		ucl_object_iterate_end(elt, &iter);
 		if (!ret) {
 			return false;
 		}
