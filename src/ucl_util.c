@@ -2143,6 +2143,43 @@ bool ucl_parser_set_filevars(struct ucl_parser *parser, const char *filename, bo
 	return true;
 }
 
+/*
+ * Parse a mapped file and release the mapping. Nothing may point into it
+ * afterwards: the input is parsed without zero-copy, and the chunk, which
+ * stays in the parser's list, forgets its data.
+ */
+static bool
+ucl_parser_add_mapped_chunk(struct ucl_parser *parser, unsigned char *buf,
+							size_t len, unsigned priority,
+							enum ucl_duplicate_strategy strat,
+							enum ucl_parse_type parse_type)
+{
+	struct ucl_chunk *chunk;
+	int zerocopy = parser->flags & UCL_PARSER_ZEROCOPY;
+	bool ret;
+
+	parser->flags &= ~UCL_PARSER_ZEROCOPY;
+	ret = ucl_parser_add_chunk_full(parser, buf, len, priority, strat,
+									parse_type);
+	parser->flags |= zerocopy;
+
+	if (len > 0) {
+		ucl_munmap(buf, len);
+
+		LL_FOREACH(parser->chunks, chunk)
+		{
+			if (chunk->begin == buf) {
+				chunk->begin = NULL;
+				chunk->pos = NULL;
+				chunk->end = NULL;
+				chunk->remain = 0;
+			}
+		}
+	}
+
+	return ret;
+}
+
 bool ucl_parser_add_file_full(struct ucl_parser *parser, const char *filename,
 							  unsigned priority, enum ucl_duplicate_strategy strat,
 							  enum ucl_parse_type parse_type)
@@ -2164,12 +2201,8 @@ bool ucl_parser_add_file_full(struct ucl_parser *parser, const char *filename,
 	}
 
 	ucl_parser_set_filevars(parser, realbuf, false);
-	ret = ucl_parser_add_chunk_full(parser, buf, len, priority, strat,
-									parse_type);
-
-	if (len > 0) {
-		ucl_munmap(buf, len);
-	}
+	ret = ucl_parser_add_mapped_chunk(parser, buf, len, priority, strat,
+									  parse_type);
 
 	return ret;
 }
@@ -2225,12 +2258,8 @@ bool ucl_parser_add_fd_full(struct ucl_parser *parser, int fd,
 	}
 	parser->cur_file = NULL;
 	len = st.st_size;
-	ret = ucl_parser_add_chunk_full(parser, buf, len, priority, strat,
-									parse_type);
-
-	if (len > 0) {
-		ucl_munmap(buf, len);
-	}
+	ret = ucl_parser_add_mapped_chunk(parser, buf, len, priority, strat,
+									  parse_type);
 
 	return ret;
 }
