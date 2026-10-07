@@ -2923,6 +2923,19 @@ ucl_object_iterate_end(const ucl_object_t *obj, ucl_object_iter_t *iter)
 	}
 
 	if (obj != NULL && obj->type == UCL_OBJECT) {
+		const ucl_object_t *cur;
+
+		/*
+		 * Without expand_values, the iterator is a position in obj's own
+		 * list of objects, not a hash iterator: nothing to free.
+		 */
+		for (cur = obj; cur != NULL; cur = cur->next) {
+			if (cur == *iter) {
+				*iter = NULL;
+				return;
+			}
+		}
+
 		ucl_hash_iterate_free(*iter);
 	}
 
