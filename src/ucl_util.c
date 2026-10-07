@@ -1,4 +1,6 @@
-/* Copyright (c) 2013, Vsevolod Stakhov
+/* SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2013, Vsevolod Stakhov
  * Copyright (c) 2015 Allan Jude <allanjude@freebsd.org>
  * All rights reserved.
  *

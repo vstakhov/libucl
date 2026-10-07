@@ -1,4 +1,6 @@
-/* Copyright (c) 2016 Vladimir Makarov <vmakarov@gcc.gnu.org>
+/* SPDX-License-Identifier: MIT
+
+   Copyright (c) 2016 Vladimir Makarov <vmakarov@gcc.gnu.org>
 
    Permission is hereby granted, free of charge, to any person
    obtaining a copy of this software and associated documentation
