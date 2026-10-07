@@ -8,8 +8,8 @@ set(COMMON_TEST_LIBS ucl)
 
 set(TEST_ENV_VARS
 	"TEST_DIR=${PROJECT_SOURCE_DIR}/tests"
-	"TEST_OUT_DIR=${CMAKE_BINARY_DIR}/tests"
-	"TEST_BINARY_DIR=${CMAKE_BINARY_DIR}/tests"
+	"TEST_OUT_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+	"TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}"
 )
 
 macro(add_ucl_test testname sourcefile wrapper)
