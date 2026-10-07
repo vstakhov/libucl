@@ -151,6 +151,52 @@ done:
 	return ok;
 }
 
+static bool
+check_keyless_chunk(const char *base, const char *chunk)
+{
+	/*
+	 * A chunk that starts with [ inside an object frame has no key to attach
+	 * its value to. Reusing parser->cur_obj there gave away the previous key's
+	 * value: an inserted [5 overwrote it silently, and [{ or [[ reused its
+	 * scalar storage as the new container's, crashing in ucl_hash_destroy()
+	 * when the tree was freed.
+	 */
+	struct ucl_parser *parser = ucl_parser_new(0);
+	bool ok = true;
+
+	CHECK(parser != NULL, "cannot create parser");
+	CHECK(ucl_parser_add_string(parser, base, 0), "base object failed");
+	CHECK(!ucl_parser_insert_chunk(parser, (const unsigned char *) chunk,
+								   strlen(chunk)),
+		  "a keyless array chunk must be rejected in an object frame");
+
+done:
+	ucl_parser_free(parser);
+	return ok;
+}
+
+static bool
+check_null_retyped_chunk(const char *base)
+{
+	/*
+	 * Parsing null over the stale value first was enough to slip past a check
+	 * on the type alone: it sets type = UCL_NULL and leaves value.* in place.
+	 */
+	struct ucl_parser *parser = ucl_parser_new(0);
+	bool ok = true;
+
+	CHECK(parser != NULL, "cannot create parser");
+	CHECK(ucl_parser_add_string(parser, base, 0), "base object failed");
+	CHECK(!ucl_parser_insert_chunk(parser, (const unsigned char *) "[null", 5),
+		  "keyless [null must be rejected");
+	CHECK(!ucl_parser_insert_chunk(parser, (const unsigned char *) "[{}", 3),
+		  "keyless [{} must be rejected");
+
+done:
+	ucl_parser_free(parser);
+	return ok;
+}
+
 int
 main(void)
 {
@@ -189,5 +235,11 @@ main(void)
 	ok = check_root_limit("answer = 42;") && ok;
 	ok = check_root_limit("[42]") && ok;
 	ok = check_finished_root() && ok;
+	ok = check_keyless_chunk("a = 1", "[{}") && ok;
+	ok = check_keyless_chunk("a = 1", "[[") && ok;
+	ok = check_keyless_chunk("a = 1", "[5") && ok;
+	ok = check_keyless_chunk("a = \"str\"", "[{}") && ok;
+	ok = check_null_retyped_chunk("a = 1") && ok;
+	ok = check_null_retyped_chunk("a = \"str\"") && ok;
 	return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
