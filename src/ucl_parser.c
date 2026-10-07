@@ -1496,6 +1496,8 @@ bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *
 					 "duplicate element for key '%s' found",
 					 nobj->key);
 			ucl_set_err(parser, UCL_EMERGE, errmsg, &parser->err);
+			/* nobj is in no container: release it with the parser */
+			DL_APPEND(parser->trash_objs, nobj);
 			return false;
 
 		case UCL_DUPLICATE_MERGE:
