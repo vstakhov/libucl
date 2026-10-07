@@ -2169,7 +2169,8 @@ ucl_parse_value(struct ucl_parser *parser, struct ucl_chunk *chunk)
 			}
 			/* Cut trailing spaces */
 			stripped_spaces = 0;
-			while (ucl_test_character(*(chunk->pos - 1 - stripped_spaces),
+			while (chunk->pos - stripped_spaces > c &&
+				   ucl_test_character(*(chunk->pos - 1 - stripped_spaces),
 									  UCL_CHARACTER_WHITESPACE)) {
 				stripped_spaces++;
 			}
