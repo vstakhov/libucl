@@ -3994,6 +3994,7 @@ int ucl_object_compare(const ucl_object_t *o1, const ucl_object_t *o2)
 					break;
 				}
 			}
+			ucl_object_iterate_end(o1, &iter);
 		}
 		else {
 			ret = o1->len - o2->len;
