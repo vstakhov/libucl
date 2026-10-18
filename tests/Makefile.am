@@ -12,6 +12,7 @@ TESTS = basic.test \
 		speed.test \
 		roundtrip.test \
 		test_strnstr \
+		test_size_overflow \
 		test_object_free
 
 TESTS_ENVIRONMENT = $(SH) \
@@ -70,11 +71,15 @@ test_roundtrip_CFLAGS = $(common_test_cflags)
 
 check_PROGRAMS = test_basic test_speed test_generate test_variables test_empty_chunks test_schema \
 		 test_streamline test_msgpack test_cbor test_cbor_vectors \
-		 test_roundtrip test_strnstr test_object_free
+		 test_roundtrip test_strnstr test_size_overflow test_object_free
 
 test_strnstr_SOURCES = test_strnstr.c
 test_strnstr_LDADD = $(common_test_ldadd)
 test_strnstr_CFLAGS = $(common_test_cflags)
+
+test_size_overflow_SOURCES = test_size_overflow.c
+test_size_overflow_LDADD = $(common_test_ldadd)
+test_size_overflow_CFLAGS = $(common_test_cflags) -I$(top_srcdir)/klib
 
 test_object_free_SOURCES = test_object_free.c
 test_object_free_LDADD = $(common_test_ldadd)

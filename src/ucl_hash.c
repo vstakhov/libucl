@@ -526,21 +526,36 @@ void ucl_hash_delete(ucl_hash_t *hashlin, const ucl_object_t *obj)
 
 bool ucl_hash_reserve(ucl_hash_t *hashlin, size_t sz)
 {
+	size_t nbuckets;
+
 	if (hashlin == NULL) {
 		return false;
 	}
 
 	if (sz > kh_size((khash_t(ucl_hash_node) *) hashlin->hash)) {
+		/*
+		 * khash rounds the bucket count up to a power of two held in a
+		 * khint_t, so refuse anything above the largest such power
+		 */
+		if (!ucl_size_mul(sz, 2, &nbuckets) ||
+			nbuckets > ((size_t) 1 << (sizeof(khint_t) * 8 - 1))) {
+			return false;
+		}
+
 		if (hashlin->caseless) {
 			khash_t(ucl_hash_caseless_node) *h = (khash_t(
 				ucl_hash_caseless_node) *)
 													 hashlin->hash;
-			kh_resize(ucl_hash_caseless_node, h, sz * 2);
+			if (kh_resize(ucl_hash_caseless_node, h, (khint_t) nbuckets) < 0) {
+				return false;
+			}
 		}
 		else {
 			khash_t(ucl_hash_node) *h = (khash_t(ucl_hash_node) *)
 											hashlin->hash;
-			kh_resize(ucl_hash_node, h, sz * 2);
+			if (kh_resize(ucl_hash_node, h, (khint_t) nbuckets) < 0) {
+				return false;
+			}
 		}
 	}
 	return true;

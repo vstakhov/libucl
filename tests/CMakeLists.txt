@@ -54,6 +54,14 @@ IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	add_test(NAME test_strnstr COMMAND test_strnstr)
 ENDIF()
 
+add_executable(test_size_overflow test_size_overflow.c)
+target_include_directories(test_size_overflow PRIVATE ${COMMON_TEST_INCLUDES}
+	${PROJECT_SOURCE_DIR}/klib)
+target_link_libraries(test_size_overflow PRIVATE ${COMMON_TEST_LIBS})
+IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	add_test(NAME test_size_overflow COMMAND test_size_overflow)
+ENDIF()
+
 add_executable(test_object_free test_object_free.c)
 target_include_directories(test_object_free PRIVATE ${COMMON_TEST_INCLUDES})
 target_link_libraries(test_object_free PRIVATE ${COMMON_TEST_LIBS})

@@ -411,6 +411,82 @@ size_t ucl_strlcpy_tolower(char *dst, const char *src, size_t siz);
 char *ucl_strnstr(const char *s, const char *find, int len);
 char *ucl_strncasestr(const char *s, const char *find, int len);
 
+/*
+ * Overflow checked size arithmetic, meant for computing allocation sizes.
+ * Each helper stores the exact result in `res` and returns true, or returns
+ * false and leaves `res` untouched if the result does not fit in a size_t.
+ * The portable variants are always defined, so that the fallback used by
+ * compilers without the builtins is covered by the tests everywhere.
+ */
+#if defined(__has_builtin)
+#if __has_builtin(__builtin_add_overflow) && __has_builtin(__builtin_mul_overflow)
+#define UCL_HAVE_BUILTIN_OVERFLOW 1
+#endif
+#endif
+#if !defined(UCL_HAVE_BUILTIN_OVERFLOW) && defined(__GNUC__) && __GNUC__ >= 5
+#define UCL_HAVE_BUILTIN_OVERFLOW 1
+#endif
+
+static inline bool
+ucl_size_add_portable(size_t a, size_t b, size_t *res)
+{
+	if (b > SIZE_MAX - a) {
+		return false;
+	}
+
+	*res = a + b;
+
+	return true;
+}
+
+static inline bool
+ucl_size_mul_portable(size_t a, size_t b, size_t *res)
+{
+	if (a != 0 && b > SIZE_MAX / a) {
+		return false;
+	}
+
+	*res = a * b;
+
+	return true;
+}
+
+static inline bool
+ucl_size_add(size_t a, size_t b, size_t *res)
+{
+#ifdef UCL_HAVE_BUILTIN_OVERFLOW
+	size_t r;
+
+	if (__builtin_add_overflow(a, b, &r)) {
+		return false;
+	}
+
+	*res = r;
+
+	return true;
+#else
+	return ucl_size_add_portable(a, b, res);
+#endif
+}
+
+static inline bool
+ucl_size_mul(size_t a, size_t b, size_t *res)
+{
+#ifdef UCL_HAVE_BUILTIN_OVERFLOW
+	size_t r;
+
+	if (__builtin_mul_overflow(a, b, &r)) {
+		return false;
+	}
+
+	*res = r;
+
+	return true;
+#else
+	return ucl_size_mul_portable(a, b, res);
+#endif
+}
+
 #ifdef __GNUC__
 static inline void
 ucl_create_err(UT_string **err, const char *fmt, ...)
