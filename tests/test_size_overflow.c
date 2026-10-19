@@ -28,6 +28,7 @@
 
 #include "ucl_internal.h"
 #include "kvec.h"
+#include "khash.h"
 
 /* These checks must also run in release builds */
 #undef NDEBUG
@@ -198,6 +199,54 @@ test_hash_reserve(void)
 	ucl_hash_destroy(hc, NULL, NULL);
 }
 
+static void
+test_hash_sizes(void)
+{
+	khint_t buckets = 0;
+	size_t flags = 0, keys = 0, vals = 0;
+	khint_t largest = (khint_t) 1 << (sizeof(khint_t) * CHAR_BIT - 1);
+
+	assert(kh_resize_sizes(17, sizeof(void *), sizeof(void *),
+		&buckets, &flags, &keys, &vals) == 0);
+	assert(buckets == 32 && flags == 8);
+	assert(keys == 32 * sizeof(void *) && vals == keys);
+	assert(kh_resize_sizes(largest + 1, 1, 1,
+		&buckets, &flags, &keys, &vals) == -1);
+	/* Exercise multiplication rejection on every host without huge allocations. */
+	assert(kh_resize_sizes(17, SIZE_MAX / 32 + 1, 1,
+		&buckets, &flags, &keys, &vals) == -1);
+	assert(kh_resize_sizes(17, 1, SIZE_MAX / 32 + 1,
+		&buckets, &flags, &keys, &vals) == -1);
+	assert(buckets == 32 && flags == 8 && keys == 32 * sizeof(void *));
+#if SIZE_MAX == UINT32_MAX
+	/* The request fits khint_t, but its rounded pointer arrays do not fit. */
+	assert(kh_resize_sizes(((khint_t) 1 << 28) + 1, sizeof(void *), sizeof(void *),
+		&buckets, &flags, &keys, &vals) == -1);
+#endif
+}
+
+static void
+test_public_reserve(void)
+{
+	ucl_object_t *obj = ucl_object_typed_new(UCL_OBJECT);
+	ucl_object_t *copy;
+
+	assert(obj != NULL);
+	copy = ucl_object_copy(obj);
+	assert(copy != NULL && ucl_object_reserve(copy, 16));
+	ucl_object_unref(copy);
+	assert(ucl_object_reserve(obj, 16));
+	assert(!ucl_object_reserve(obj, SIZE_MAX));
+	assert(ucl_object_insert_key(obj, ucl_object_fromint(42), "key", 3, true));
+	assert(!ucl_object_reserve(obj, SIZE_MAX));
+	assert(ucl_object_toint(ucl_object_lookup(obj, "key")) == 42);
+	copy = ucl_object_copy(obj);
+	assert(copy != NULL);
+	assert(!ucl_object_reserve(copy, SIZE_MAX));
+	ucl_object_unref(copy);
+	ucl_object_unref(obj);
+}
+
 int main(void)
 {
 	test_add(ucl_size_add);
@@ -211,6 +260,8 @@ int main(void)
 	test_kvec_concat_too_big();
 
 	test_hash_reserve();
+	test_public_reserve();
+	test_hash_sizes();
 
 	return 0;
 }

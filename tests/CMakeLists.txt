@@ -68,3 +68,11 @@ target_link_libraries(test_object_free PRIVATE ${COMMON_TEST_LIBS})
 IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	add_test(NAME test_object_free COMMAND test_object_free)
 ENDIF()
+
+add_executable(test_copy_failure test_copy_failure.c)
+target_include_directories(test_copy_failure PRIVATE ${COMMON_TEST_INCLUDES}
+	${PROJECT_SOURCE_DIR}/klib)
+target_link_libraries(test_copy_failure PRIVATE ${COMMON_TEST_LIBS})
+IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	add_test(NAME test_copy_failure COMMAND test_copy_failure)
+ENDIF()

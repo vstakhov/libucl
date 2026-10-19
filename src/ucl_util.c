@@ -2427,6 +2427,24 @@ ucl_strncasestr(const char *s, const char *find, int len)
 	return ((char *) s);
 }
 
+/* Count one escaped byte without allowing the running total to wrap. */
+static bool
+ucl_escaped_len_add(size_t *len, unsigned char c)
+{
+	size_t increment = 1;
+
+	if (ucl_test_character(c, UCL_CHARACTER_JSON_UNSAFE | UCL_CHARACTER_WHITESPACE_UNSAFE)) {
+		if (c == '\v' || c == '\0') {
+			increment = 6;
+		}
+		else if (c != ' ') {
+			increment = 2;
+		}
+	}
+
+	return ucl_size_add(*len, increment, len);
+}
+
 ucl_object_t *
 ucl_object_fromstring_common(const char *str, size_t len, enum ucl_string_flags flags)
 {
@@ -2466,19 +2484,10 @@ ucl_object_fromstring_common(const char *str, size_t len, enum ucl_string_flags 
 
 		obj->type = UCL_STRING;
 		if (flags & UCL_STRING_ESCAPE) {
-			for (p = start, escaped_len = 0; p < end; p++, escaped_len++) {
-				if (ucl_test_character(*p, UCL_CHARACTER_JSON_UNSAFE | UCL_CHARACTER_WHITESPACE_UNSAFE)) {
-					switch (*p) {
-					case '\v':
-					case '\0':
-						escaped_len += 5;
-						break;
-					case ' ':
-						break;
-					default:
-						escaped_len++;
-						break;
-					}
+			for (p = start, escaped_len = 0; p < end; p++) {
+				if (!ucl_escaped_len_add(&escaped_len, (unsigned char) *p)) {
+					ucl_object_unref(obj);
+					return NULL;
 				}
 			}
 			if (ucl_size_add(escaped_len, 1, &alloc_len)) {
@@ -2558,7 +2567,11 @@ ucl_object_fromstring_common(const char *str, size_t len, enum ucl_string_flags 
 				obj->len = end - start;
 			}
 		}
-		if ((flags & UCL_STRING_PARSE) && dst != NULL) {
+		if (dst == NULL) {
+			ucl_object_unref(obj);
+			return NULL;
+		}
+		if (flags & UCL_STRING_PARSE) {
 			/* Parse what we have */
 			if (flags & UCL_STRING_PARSE_BOOLEAN) {
 				if (!ucl_maybe_parse_boolean(obj, dst, obj->len) && (flags & UCL_STRING_PARSE_NUMBER)) {
@@ -3279,7 +3292,13 @@ bool ucl_object_reserve(ucl_object_t *obj, size_t reserved)
 		}
 	}
 	else if (obj->type == UCL_OBJECT) {
-		ucl_hash_reserve(obj->value.ov, reserved);
+		if (obj->value.ov == NULL) {
+			obj->value.ov = ucl_hash_create(false);
+			if (obj->value.ov == NULL) {
+				return false;
+			}
+		}
+		return ucl_hash_reserve(obj->value.ov, reserved);
 	}
 	return true;
 e0:
@@ -3879,6 +3898,7 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 	ucl_object_t *new;
 	ucl_object_iter_t it = NULL;
 	const ucl_object_t *cur;
+	int iter_error = 0;
 	size_t sz = sizeof(*new), alloc_len;
 
 	if (other->type == UCL_USERDATA) {
@@ -3896,18 +3916,24 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 		/* Unlink from others */
 		new->next = NULL;
 		new->prev = new;
+		new->trash_stack[UCL_TRASH_KEY] = NULL;
+		new->trash_stack[UCL_TRASH_VALUE] = NULL;
+		if (other->type == UCL_ARRAY || other->type == UCL_OBJECT) {
+			memset(&new->value, 0, sizeof(new->value));
+			new->len = 0;
+		}
 
 		/* deep copy of values stored */
 		if (other->trash_stack[UCL_TRASH_KEY] != NULL) {
-			new->trash_stack[UCL_TRASH_KEY] = NULL;
 			if (other->key == (const char *) other->trash_stack[UCL_TRASH_KEY]) {
 				if (ucl_size_add(other->keylen, 1, &alloc_len)) {
 					new->trash_stack[UCL_TRASH_KEY] = UCL_ALLOC(alloc_len);
 				}
-				if (new->trash_stack[UCL_TRASH_KEY] != NULL) {
-					memcpy(new->trash_stack[UCL_TRASH_KEY], other->trash_stack[UCL_TRASH_KEY], other->keylen);
-					new->trash_stack[UCL_TRASH_KEY][other->keylen] = '\0';
+				if (new->trash_stack[UCL_TRASH_KEY] == NULL) {
+					goto fail;
 				}
+				memcpy(new->trash_stack[UCL_TRASH_KEY], other->trash_stack[UCL_TRASH_KEY], other->keylen);
+				new->trash_stack[UCL_TRASH_KEY][other->keylen] = '\0';
 				new->key = new->trash_stack[UCL_TRASH_KEY];
 			}
 		}
@@ -3923,53 +3949,66 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 				 * read against. Duplicate the exact byte range instead,
 				 * the same way the key is duplicated a few lines up.
 				 */
-				new->trash_stack[UCL_TRASH_VALUE] = NULL;
 				if (ucl_size_add(new->len, 1, &alloc_len)) {
 					new->trash_stack[UCL_TRASH_VALUE] = UCL_ALLOC(alloc_len);
 				}
-				if (new->trash_stack[UCL_TRASH_VALUE] != NULL) {
-					memcpy(new->trash_stack[UCL_TRASH_VALUE],
-						   other->trash_stack[UCL_TRASH_VALUE], new->len);
-					new->trash_stack[UCL_TRASH_VALUE][new->len] = '\0';
+				if (new->trash_stack[UCL_TRASH_VALUE] == NULL) {
+					goto fail;
 				}
+				memcpy(new->trash_stack[UCL_TRASH_VALUE],
+					   other->trash_stack[UCL_TRASH_VALUE], new->len);
+				new->trash_stack[UCL_TRASH_VALUE][new->len] = '\0';
 				new->value.sv = new->trash_stack[UCL_TRASH_VALUE];
 			}
 			else {
 				new->trash_stack[UCL_TRASH_VALUE] =
 					UCL_STRDUP(other->trash_stack[UCL_TRASH_VALUE]);
+				if (new->trash_stack[UCL_TRASH_VALUE] == NULL) {
+					goto fail;
+				}
 			}
 		}
 
 		if (other->type == UCL_ARRAY || other->type == UCL_OBJECT) {
-			/* reset old value and length since we will re-add elements below */
-			memset(&new->value, 0, sizeof(new->value));
-			new->len = 0;
+			while ((other->type != UCL_OBJECT || other->value.ov != NULL) &&
+				   (cur = ucl_object_iterate_with_error(other, &it, true, &iter_error)) != NULL) {
+				ucl_object_t *cp = ucl_object_copy_internal(cur, other->type == UCL_OBJECT);
 
-			while ((cur = ucl_object_iterate(other, &it, true)) != NULL) {
-				if (other->type == UCL_ARRAY) {
-					ucl_array_append(new, ucl_object_copy_internal(cur, false));
+				if (cp == NULL) {
+					goto fail;
 				}
-				else {
-					ucl_object_t *cp = ucl_object_copy_internal(cur, true);
-					if (cp != NULL) {
-						ucl_object_insert_key(new, cp, cp->key, cp->keylen,
-											  false);
-					}
+				if (!(other->type == UCL_ARRAY ? ucl_array_append(new, cp) :
+					  ucl_object_insert_key(new, cp, cp->key, cp->keylen, false))) {
+					ucl_object_unref(cp);
+					goto fail;
 				}
+			}
+			if (iter_error != 0) {
+				goto fail;
 			}
 		}
 		else if (allow_array && other->next != NULL) {
 			LL_FOREACH(other->next, cur)
 			{
 				ucl_object_t *cp = ucl_object_copy_internal(cur, false);
-				if (cp != NULL) {
-					DL_APPEND(new, cp);
+				if (cp == NULL) {
+					goto fail;
 				}
+				DL_APPEND(new, cp);
 			}
 		}
 	}
 
 	return new;
+
+fail:
+	ucl_object_iterate_end(other, &it);
+	/* A failed userdata copy must not run the source's destructor. */
+	if (new->type == UCL_USERDATA) {
+		((struct ucl_object_userdata *) new)->dtor = NULL;
+	}
+	ucl_object_unref(new);
+	return NULL;
 }
 
 ucl_object_t *
