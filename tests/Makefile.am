@@ -11,6 +11,7 @@ TESTS = basic.test \
 		cbor_vectors.test \
 		speed.test \
 		roundtrip.test \
+		test_dup_merge_key \
 		test_strnstr \
 		test_object_free
 
@@ -68,7 +69,12 @@ test_roundtrip_SOURCES = test_roundtrip.c
 test_roundtrip_LDADD = $(common_test_ldadd)
 test_roundtrip_CFLAGS = $(common_test_cflags)
 
+test_dup_merge_key_SOURCES = test_dup_merge_key.c
+test_dup_merge_key_LDADD = $(common_test_ldadd)
+test_dup_merge_key_CFLAGS = $(common_test_cflags)
+
 check_PROGRAMS = test_basic test_speed test_generate test_variables test_empty_chunks test_schema \
+		 test_dup_merge_key \
 		 test_streamline test_msgpack test_cbor test_cbor_vectors \
 		 test_roundtrip test_strnstr test_object_free
 

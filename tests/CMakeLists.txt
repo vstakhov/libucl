@@ -47,6 +47,13 @@ IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	add_test(NAME test_limits COMMAND test_limits)
 ENDIF()
 
+add_executable(test_dup_merge_key test_dup_merge_key.c)
+target_include_directories(test_dup_merge_key PRIVATE ${COMMON_TEST_INCLUDES})
+target_link_libraries(test_dup_merge_key PRIVATE ${COMMON_TEST_LIBS})
+IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	add_test(NAME test_dup_merge_key COMMAND test_dup_merge_key)
+ENDIF()
+
 add_executable(test_strnstr test_strnstr.c)
 target_include_directories(test_strnstr PRIVATE ${COMMON_TEST_INCLUDES})
 target_link_libraries(test_strnstr PRIVATE ${COMMON_TEST_LIBS})

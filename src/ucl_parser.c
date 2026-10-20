@@ -1758,12 +1758,16 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 	nobj->key = key;
 	nobj->keylen = keylen;
 
-	if (!ucl_parser_process_object_element(parser, nobj)) {
-		return false;
-	}
-
+	/*
+	 * Must be set before processing: on a merge into an older object of the
+	 * same key, ucl_parser_process_object_element releases nobj
+	 */
 	if (ucl_escape) {
 		nobj->flags |= UCL_OBJECT_NEED_KEY_ESCAPE;
+	}
+
+	if (!ucl_parser_process_object_element(parser, nobj)) {
+		return false;
 	}
 
 
