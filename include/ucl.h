@@ -749,7 +749,8 @@ UCL_EXTERN const ucl_object_t *ucl_object_lookup_path(const ucl_object_t *obj,
  * Return object identified by object notation string using arbitrary delimiter
  * @param obj object to search in
  * @param path dot.notation.path to the path to lookup. May use numeric .index on arrays
- * @param sep the sepatorator to use in place of . (incase keys have . in them)
+ * @param sep the separator to use in place of . (in case keys have . in them);
+ * if sep is '\0', the whole path is looked up as a single key
  * @return object matched the specified path or NULL if path is not found
  */
 UCL_EXTERN const ucl_object_t *ucl_object_lookup_path_char(const ucl_object_t *obj,

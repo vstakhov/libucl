@@ -236,6 +236,18 @@ main (int argc, char **argv)
 	/* No such key */
 	found = ucl_object_lookup_path (obj, "key9..key1");
 	assert (found == NULL);
+	/* A NUL separator must not skip past the end of the path */
+	{
+		char *empty = calloc (1, 1);
+
+		assert (empty != NULL);
+		found = ucl_object_lookup_path_char (obj, empty, '\0');
+		assert (found == NULL);
+		free (empty);
+		/* With a NUL separator the whole path is a single key */
+		found = ucl_object_lookup_path_char (obj, "key4", '\0');
+		assert (found != NULL && ucl_object_type (found) == UCL_ARRAY);
+	}
 
 	/* Test iteration */
 	it = ucl_object_iterate_new (obj);
