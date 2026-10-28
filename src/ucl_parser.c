@@ -1500,7 +1500,8 @@ bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *
 
 		case UCL_DUPLICATE_ERROR:
 			snprintf(errmsg, sizeof(errmsg),
-					 "duplicate element for key '%s' found",
+					 "duplicate element for key '%.*s' found",
+					 (int) (nobj->keylen < sizeof(errmsg) ? nobj->keylen : sizeof(errmsg)),
 					 nobj->key);
 			ucl_set_err(parser, UCL_EMERGE, errmsg, &parser->err);
 			/* nobj is in no container: release it with the parser */
