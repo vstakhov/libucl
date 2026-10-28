@@ -42,12 +42,14 @@
 #include <inttypes.h>
 
 /*
- * A $ref being followed: the schema it resolved to and the object validated
- * against it. The frames of the enclosing $refs form a chain on the stack.
+ * A $ref being followed: the schema it resolved to, the object validated
+ * against it and the root its local refs resolve against. The frames of the
+ * enclosing $refs form a chain on the stack.
  */
 struct ucl_schema_ref_frame {
 	const ucl_object_t *schema;
 	const ucl_object_t *obj;
+	const ucl_object_t *root;
 	const struct ucl_schema_ref_frame *prev;
 };
 
@@ -126,7 +128,7 @@ ucl_schema_validate_dependencies(const ucl_object_t *deps,
 								 const ucl_object_t *obj, struct ucl_schema_error *err,
 								 const ucl_object_t *root,
 								 ucl_object_t *ext_ref,
-		const struct ucl_schema_ref_frame *refs)
+								 const struct ucl_schema_ref_frame *refs)
 {
 	const ucl_object_t *elt, *cur, *cur_dep;
 	ucl_object_iter_t iter = NULL, piter;
@@ -167,7 +169,7 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 						   const ucl_object_t *obj, struct ucl_schema_error *err,
 						   const ucl_object_t *root,
 						   ucl_object_t *ext_ref,
-		const struct ucl_schema_ref_frame *refs)
+						   const struct ucl_schema_ref_frame *refs)
 {
 	const ucl_object_t *elt, *prop, *found, *additional_schema = NULL,
 											*required = NULL, *pat, *pelt;
@@ -511,7 +513,7 @@ ucl_schema_validate_array(const ucl_object_t *schema,
 						  const ucl_object_t *obj, struct ucl_schema_error *err,
 						  const ucl_object_t *root,
 						  ucl_object_t *ext_ref,
-		const struct ucl_schema_ref_frame *refs)
+						  const struct ucl_schema_ref_frame *refs)
 {
 	const ucl_object_t *elt, *it, *found, *additional_schema = NULL,
 										  *first_unvalidated = NULL;
@@ -1076,10 +1078,12 @@ ucl_schema_validate(const ucl_object_t *schema,
 		/*
 		 * Following a $ref does not consume any of the object, so a $ref
 		 * that leads back to a schema already being followed for the same
-		 * object would recurse until the stack is exhausted.
+		 * object under the same root would recurse until the stack is
+		 * exhausted.
 		 */
 		for (frame = refs; frame != NULL; frame = frame->prev) {
-			if (frame->schema == cur && frame->obj == obj) {
+			if (frame->schema == cur && frame->obj == obj &&
+				frame->root == ref_root) {
 				ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, elt,
 										"cyclic reference: %s",
 										ucl_object_tostring(elt));
@@ -1088,6 +1092,7 @@ ucl_schema_validate(const ucl_object_t *schema,
 		}
 		ref_frame.schema = cur;
 		ref_frame.obj = obj;
+		ref_frame.root = ref_root;
 		ref_frame.prev = refs;
 		if (!ucl_schema_validate(cur, obj, try_array, err, ref_root,
 								 external_refs, &ref_frame)) {

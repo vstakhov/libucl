@@ -47,6 +47,13 @@ IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	add_test(NAME test_limits COMMAND test_limits)
 ENDIF()
 
+add_executable(test_schema_refs test_schema_refs.c)
+target_include_directories(test_schema_refs PRIVATE ${COMMON_TEST_INCLUDES})
+target_link_libraries(test_schema_refs PRIVATE ${COMMON_TEST_LIBS})
+IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	add_test(NAME test_schema_refs COMMAND test_schema_refs)
+ENDIF()
+
 add_executable(test_strnstr test_strnstr.c)
 target_include_directories(test_strnstr PRIVATE ${COMMON_TEST_INCLUDES})
 target_link_libraries(test_strnstr PRIVATE ${COMMON_TEST_LIBS})
