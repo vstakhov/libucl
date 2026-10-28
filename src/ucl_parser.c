@@ -551,7 +551,7 @@ ucl_expand_variable(struct ucl_parser *parser, unsigned char **dst,
 {
 	const char *p, *end = src + in_len;
 	unsigned char *d, *d_end;
-	size_t out_len = 0;
+	size_t out_len = 0, alloc_len;
 	bool vars_found = false;
 
 	if (parser->flags & UCL_PARSER_DISABLE_MACRO) {
@@ -576,7 +576,10 @@ ucl_expand_variable(struct ucl_parser *parser, unsigned char **dst,
 		return in_len;
 	}
 
-	*dst = UCL_ALLOC(out_len + 1);
+	*dst = NULL;
+	if (ucl_size_add(out_len, 1, &alloc_len)) {
+		*dst = UCL_ALLOC(alloc_len);
+	}
 	if (*dst == NULL) {
 		return in_len;
 	}
@@ -653,6 +656,7 @@ ucl_copy_or_store_ptr(struct ucl_parser *parser,
 {
 	ssize_t ret = -1, tret;
 	unsigned char *tmp;
+	size_t alloc_len;
 
 	/*
 	 * Checked before allocating: `in_len` comes straight from the input and
@@ -669,7 +673,10 @@ ucl_copy_or_store_ptr(struct ucl_parser *parser,
 		(need_expand && parser->variables != NULL) ||
 		!(parser->flags & UCL_PARSER_ZEROCOPY)) {
 		/* Copy string */
-		*dst = UCL_ALLOC(in_len + 1);
+		*dst = NULL;
+		if (ucl_size_add(in_len, 1, &alloc_len)) {
+			*dst = UCL_ALLOC(alloc_len);
+		}
 		if (*dst == NULL) {
 			ucl_set_err(parser, UCL_EINTERNAL, "cannot allocate memory for a string",
 						&parser->err);
@@ -687,10 +694,10 @@ ucl_copy_or_store_ptr(struct ucl_parser *parser,
 		}
 
 		if (need_lowercase) {
-			ret = ucl_strlcpy_tolower(*dst, src, in_len + 1);
+			ret = ucl_strlcpy_tolower(*dst, src, alloc_len);
 		}
 		else {
-			ret = ucl_strlcpy_unsafe(*dst, src, in_len + 1);
+			ret = ucl_strlcpy_unsafe(*dst, src, alloc_len);
 		}
 
 		if (need_unescape) {

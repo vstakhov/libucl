@@ -646,8 +646,8 @@ ucl_cbor_flatten_string(struct ucl_parser *parser, unsigned char major,
 						size_t *total, size_t *span)
 {
 	ssize_t scanned;
-	size_t len = 0;
-	unsigned char *buf, *dst;
+	size_t len = 0, alloc_len;
+	unsigned char *buf = NULL, *dst;
 	const unsigned char *p;
 
 	scanned = ucl_cbor_scan_string_chunks(parser, major, body, avail, &len);
@@ -669,7 +669,9 @@ ucl_cbor_flatten_string(struct ucl_parser *parser, unsigned char major,
 		return NULL;
 	}
 
-	buf = UCL_ALLOC(len + 1);
+	if (ucl_size_add(len, 1, &alloc_len)) {
+		buf = UCL_ALLOC(alloc_len);
+	}
 
 	if (buf == NULL) {
 		ucl_create_err(&parser->err, "no memory");
