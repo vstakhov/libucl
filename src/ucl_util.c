@@ -623,13 +623,16 @@ char *
 ucl_copy_key_trash(const ucl_object_t *obj)
 {
 	ucl_object_t *deconst;
+	size_t alloc_len;
 
 	if (obj == NULL) {
 		return NULL;
 	}
 	if (obj->trash_stack[UCL_TRASH_KEY] == NULL && obj->key != NULL) {
 		deconst = __DECONST(ucl_object_t *, obj);
-		deconst->trash_stack[UCL_TRASH_KEY] = UCL_ALLOC(obj->keylen + 1);
+		if (ucl_size_add(obj->keylen, 1, &alloc_len)) {
+			deconst->trash_stack[UCL_TRASH_KEY] = UCL_ALLOC(alloc_len);
+		}
 		if (deconst->trash_stack[UCL_TRASH_KEY] != NULL) {
 			memcpy(deconst->trash_stack[UCL_TRASH_KEY], obj->key, obj->keylen);
 			deconst->trash_stack[UCL_TRASH_KEY][obj->keylen] = '\0';
@@ -675,6 +678,7 @@ char *
 ucl_copy_value_trash(const ucl_object_t *obj)
 {
 	ucl_object_t *deconst;
+	size_t alloc_len;
 
 	if (obj == NULL) {
 		return NULL;
@@ -694,7 +698,9 @@ ucl_copy_value_trash(const ucl_object_t *obj)
 				}
 			}
 			else {
-				deconst->trash_stack[UCL_TRASH_VALUE] = UCL_ALLOC(obj->len + 1);
+				if (ucl_size_add(obj->len, 1, &alloc_len)) {
+					deconst->trash_stack[UCL_TRASH_VALUE] = UCL_ALLOC(alloc_len);
+				}
 				if (deconst->trash_stack[UCL_TRASH_VALUE] != NULL) {
 					memcpy(deconst->trash_stack[UCL_TRASH_VALUE],
 						   obj->value.sv,
@@ -896,12 +902,21 @@ static size_t
 ucl_curl_write_callback(void *contents, size_t size, size_t nmemb, void *ud)
 {
 	struct ucl_curl_cbdata *cbdata = ud;
-	size_t realsize = size * nmemb;
+	size_t realsize, newlen;
+	unsigned char *nbuf;
 
-	cbdata->buf = UCL_REALLOC(cbdata->buf, cbdata->buflen + realsize + 1);
-	if (cbdata->buf == NULL) {
+	if (!ucl_size_mul(size, nmemb, &realsize) ||
+		!ucl_size_add(cbdata->buflen, realsize, &newlen) ||
+		!ucl_size_add(newlen, 1, &newlen)) {
 		return 0;
 	}
+
+	/* On failure the old buffer stays in cbdata and is freed by the caller */
+	nbuf = UCL_REALLOC(cbdata->buf, newlen);
+	if (nbuf == NULL) {
+		return 0;
+	}
+	cbdata->buf = nbuf;
 
 	memcpy(&(cbdata->buf[cbdata->buflen]), contents, realsize);
 	cbdata->buflen += realsize;
@@ -1851,6 +1866,7 @@ bool ucl_priority_handler(const unsigned char *data, size_t len,
 	bool found = false;
 	char *value = NULL, *leftover = NULL;
 	ucl_object_iter_t it = NULL;
+	size_t alloc_len;
 
 	if (parser == NULL) {
 		return false;
@@ -1869,8 +1885,15 @@ bool ucl_priority_handler(const unsigned char *data, size_t len,
 	}
 
 	if (len > 0) {
-		value = malloc(len + 1);
-		ucl_strlcpy(value, (const char *) data, len + 1);
+		if (ucl_size_add(len, 1, &alloc_len)) {
+			value = malloc(alloc_len);
+		}
+		if (value == NULL) {
+			ucl_create_err(&parser->err, "cannot allocate memory for priority");
+
+			return false;
+		}
+		ucl_strlcpy(value, (const char *) data, alloc_len);
 		priority = strtol(value, &leftover, 10);
 		if (*leftover != '\0') {
 			ucl_create_err(&parser->err, "Invalid priority value in macro: %s",
@@ -1908,9 +1931,9 @@ bool ucl_load_handler(const unsigned char *data, size_t len,
 	ucl_object_iter_t it = NULL;
 	bool try_load, multiline, test;
 	const char *target, *prefix;
-	char *load_file, *tmp;
+	char *load_file, *tmp = NULL;
 	unsigned char *buf;
-	size_t buflen;
+	size_t buflen, alloc_len;
 	unsigned priority;
 	int64_t iv;
 	ucl_object_t *container = NULL;
@@ -1979,14 +2002,16 @@ bool ucl_load_handler(const unsigned char *data, size_t len,
 	}
 
 	if (len > 0) {
-		load_file = malloc(len + 1);
+		if (ucl_size_add(len, 1, &alloc_len)) {
+			load_file = malloc(alloc_len);
+		}
 		if (!load_file) {
 			ucl_create_err(&parser->err, "cannot allocate memory for suffix");
 
 			return false;
 		}
 
-		snprintf(load_file, len + 1, "%.*s", (int) len, data);
+		snprintf(load_file, alloc_len, "%.*s", (int) len, data);
 
 		if (!ucl_fetch_file(load_file, &buf, &buflen, &parser->err,
 							!try_load)) {
@@ -2021,7 +2046,9 @@ bool ucl_load_handler(const unsigned char *data, size_t len,
 			}
 		}
 		else if (strcasecmp(target, "int") == 0) {
-			tmp = malloc(buflen + 1);
+			if (ucl_size_add(buflen, 1, &alloc_len)) {
+				tmp = malloc(alloc_len);
+			}
 
 			if (tmp == NULL) {
 				ucl_create_err(&parser->err, "Memory allocation failed");
@@ -2032,7 +2059,7 @@ bool ucl_load_handler(const unsigned char *data, size_t len,
 				return false;
 			}
 
-			snprintf(tmp, buflen + 1, "%.*s", (int) buflen, buf);
+			snprintf(tmp, alloc_len, "%.*s", (int) buflen, buf);
 			iv = strtoll(tmp, NULL, 10);
 			obj = ucl_object_fromint(iv);
 			free(tmp);
@@ -2400,13 +2427,31 @@ ucl_strncasestr(const char *s, const char *find, int len)
 	return ((char *) s);
 }
 
+/* Count one escaped byte without allowing the running total to wrap. */
+static bool
+ucl_escaped_len_add(size_t *len, unsigned char c)
+{
+	size_t increment = 1;
+
+	if (ucl_test_character(c, UCL_CHARACTER_JSON_UNSAFE | UCL_CHARACTER_WHITESPACE_UNSAFE)) {
+		if (c == '\v' || c == '\0') {
+			increment = 6;
+		}
+		else if (c != ' ') {
+			increment = 2;
+		}
+	}
+
+	return ucl_size_add(*len, increment, len);
+}
+
 ucl_object_t *
 ucl_object_fromstring_common(const char *str, size_t len, enum ucl_string_flags flags)
 {
 	ucl_object_t *obj;
 	const char *start, *end, *p, *pos;
-	char *dst, *d;
-	size_t escaped_len;
+	char *dst = NULL, *d;
+	size_t escaped_len, alloc_len;
 
 	if (str == NULL) {
 		return NULL;
@@ -2439,22 +2484,15 @@ ucl_object_fromstring_common(const char *str, size_t len, enum ucl_string_flags 
 
 		obj->type = UCL_STRING;
 		if (flags & UCL_STRING_ESCAPE) {
-			for (p = start, escaped_len = 0; p < end; p++, escaped_len++) {
-				if (ucl_test_character(*p, UCL_CHARACTER_JSON_UNSAFE | UCL_CHARACTER_WHITESPACE_UNSAFE)) {
-					switch (*p) {
-					case '\v':
-					case '\0':
-						escaped_len += 5;
-						break;
-					case ' ':
-						break;
-					default:
-						escaped_len++;
-						break;
-					}
+			for (p = start, escaped_len = 0; p < end; p++) {
+				if (!ucl_escaped_len_add(&escaped_len, (unsigned char) *p)) {
+					ucl_object_unref(obj);
+					return NULL;
 				}
 			}
-			dst = malloc(escaped_len + 1);
+			if (ucl_size_add(escaped_len, 1, &alloc_len)) {
+				dst = malloc(alloc_len);
+			}
 			if (dst != NULL) {
 				for (p = start, d = dst; p < end; p++, d++) {
 					if (ucl_test_character(*p, UCL_CHARACTER_JSON_UNSAFE | UCL_CHARACTER_WHITESPACE_UNSAFE)) {
@@ -2519,15 +2557,21 @@ ucl_object_fromstring_common(const char *str, size_t len, enum ucl_string_flags 
 			}
 		}
 		else {
-			dst = malloc(end - start + 1);
+			if (ucl_size_add((size_t) (end - start), 1, &alloc_len)) {
+				dst = malloc(alloc_len);
+			}
 			if (dst != NULL) {
-				ucl_strlcpy_unsafe(dst, start, end - start + 1);
+				ucl_strlcpy_unsafe(dst, start, alloc_len);
 				obj->value.sv = dst;
 				obj->trash_stack[UCL_TRASH_VALUE] = dst;
 				obj->len = end - start;
 			}
 		}
-		if ((flags & UCL_STRING_PARSE) && dst != NULL) {
+		if (dst == NULL) {
+			ucl_object_unref(obj);
+			return NULL;
+		}
+		if (flags & UCL_STRING_PARSE) {
 			/* Parse what we have */
 			if (flags & UCL_STRING_PARSE_BOOLEAN) {
 				if (!ucl_maybe_parse_boolean(obj, dst, obj->len) && (flags & UCL_STRING_PARSE_NUMBER)) {
@@ -3248,7 +3292,13 @@ bool ucl_object_reserve(ucl_object_t *obj, size_t reserved)
 		}
 	}
 	else if (obj->type == UCL_OBJECT) {
-		ucl_hash_reserve(obj->value.ov, reserved);
+		if (obj->value.ov == NULL) {
+			obj->value.ov = ucl_hash_create(false);
+			if (obj->value.ov == NULL) {
+				return false;
+			}
+		}
+		return ucl_hash_reserve(obj->value.ov, reserved);
 	}
 	return true;
 e0:
@@ -3848,7 +3898,8 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 	ucl_object_t *new;
 	ucl_object_iter_t it = NULL;
 	const ucl_object_t *cur;
-	size_t sz = sizeof(*new);
+	int iter_error = 0;
+	size_t sz = sizeof(*new), alloc_len;
 
 	if (other->type == UCL_USERDATA) {
 		sz = sizeof(struct ucl_object_userdata);
@@ -3865,12 +3916,22 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 		/* Unlink from others */
 		new->next = NULL;
 		new->prev = new;
+		new->trash_stack[UCL_TRASH_KEY] = NULL;
+		new->trash_stack[UCL_TRASH_VALUE] = NULL;
+		if (other->type == UCL_ARRAY || other->type == UCL_OBJECT) {
+			memset(&new->value, 0, sizeof(new->value));
+			new->len = 0;
+		}
 
 		/* deep copy of values stored */
 		if (other->trash_stack[UCL_TRASH_KEY] != NULL) {
-			new->trash_stack[UCL_TRASH_KEY] = NULL;
 			if (other->key == (const char *) other->trash_stack[UCL_TRASH_KEY]) {
-				new->trash_stack[UCL_TRASH_KEY] = UCL_ALLOC(other->keylen + 1);
+				if (ucl_size_add(other->keylen, 1, &alloc_len)) {
+					new->trash_stack[UCL_TRASH_KEY] = UCL_ALLOC(alloc_len);
+				}
+				if (new->trash_stack[UCL_TRASH_KEY] == NULL) {
+					goto fail;
+				}
 				memcpy(new->trash_stack[UCL_TRASH_KEY], other->trash_stack[UCL_TRASH_KEY], other->keylen);
 				new->trash_stack[UCL_TRASH_KEY][other->keylen] = '\0';
 				new->key = new->trash_stack[UCL_TRASH_KEY];
@@ -3888,50 +3949,66 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 				 * read against. Duplicate the exact byte range instead,
 				 * the same way the key is duplicated a few lines up.
 				 */
-				new->trash_stack[UCL_TRASH_VALUE] = UCL_ALLOC(new->len + 1);
-				if (new->trash_stack[UCL_TRASH_VALUE] != NULL) {
-					memcpy(new->trash_stack[UCL_TRASH_VALUE],
-						   other->trash_stack[UCL_TRASH_VALUE], new->len);
-					new->trash_stack[UCL_TRASH_VALUE][new->len] = '\0';
+				if (ucl_size_add(new->len, 1, &alloc_len)) {
+					new->trash_stack[UCL_TRASH_VALUE] = UCL_ALLOC(alloc_len);
 				}
+				if (new->trash_stack[UCL_TRASH_VALUE] == NULL) {
+					goto fail;
+				}
+				memcpy(new->trash_stack[UCL_TRASH_VALUE],
+					   other->trash_stack[UCL_TRASH_VALUE], new->len);
+				new->trash_stack[UCL_TRASH_VALUE][new->len] = '\0';
 				new->value.sv = new->trash_stack[UCL_TRASH_VALUE];
 			}
 			else {
 				new->trash_stack[UCL_TRASH_VALUE] =
 					UCL_STRDUP(other->trash_stack[UCL_TRASH_VALUE]);
+				if (new->trash_stack[UCL_TRASH_VALUE] == NULL) {
+					goto fail;
+				}
 			}
 		}
 
 		if (other->type == UCL_ARRAY || other->type == UCL_OBJECT) {
-			/* reset old value and length since we will re-add elements below */
-			memset(&new->value, 0, sizeof(new->value));
-			new->len = 0;
+			while ((other->type != UCL_OBJECT || other->value.ov != NULL) &&
+				   (cur = ucl_object_iterate_with_error(other, &it, true, &iter_error)) != NULL) {
+				ucl_object_t *cp = ucl_object_copy_internal(cur, other->type == UCL_OBJECT);
 
-			while ((cur = ucl_object_iterate(other, &it, true)) != NULL) {
-				if (other->type == UCL_ARRAY) {
-					ucl_array_append(new, ucl_object_copy_internal(cur, false));
+				if (cp == NULL) {
+					goto fail;
 				}
-				else {
-					ucl_object_t *cp = ucl_object_copy_internal(cur, true);
-					if (cp != NULL) {
-						ucl_object_insert_key(new, cp, cp->key, cp->keylen,
-											  false);
-					}
+				if (!(other->type == UCL_ARRAY ? ucl_array_append(new, cp) :
+					  ucl_object_insert_key(new, cp, cp->key, cp->keylen, false))) {
+					ucl_object_unref(cp);
+					goto fail;
 				}
+			}
+			if (iter_error != 0) {
+				goto fail;
 			}
 		}
 		else if (allow_array && other->next != NULL) {
 			LL_FOREACH(other->next, cur)
 			{
 				ucl_object_t *cp = ucl_object_copy_internal(cur, false);
-				if (cp != NULL) {
-					DL_APPEND(new, cp);
+				if (cp == NULL) {
+					goto fail;
 				}
+				DL_APPEND(new, cp);
 			}
 		}
 	}
 
 	return new;
+
+fail:
+	ucl_object_iterate_end(other, &it);
+	/* A failed userdata copy must not run the source's destructor. */
+	if (new->type == UCL_USERDATA) {
+		((struct ucl_object_userdata *) new)->dtor = NULL;
+	}
+	ucl_object_unref(new);
+	return NULL;
 }
 
 ucl_object_t *
