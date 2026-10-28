@@ -1766,12 +1766,7 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 		nobj->flags |= UCL_OBJECT_NEED_KEY_ESCAPE;
 	}
 
-	if (!ucl_parser_process_object_element(parser, nobj)) {
-		return false;
-	}
-
-
-	return true;
+	return ucl_parser_process_object_element(parser, nobj);
 }
 
 /**
