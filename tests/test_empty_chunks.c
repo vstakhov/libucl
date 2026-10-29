@@ -107,6 +107,38 @@ done:
 }
 
 static bool
+check_split_key(const char *first, const char *last)
+{
+	/*
+	 * A chunk can end in whitespace where a key is expected, as after a {.
+	 * UCL_STATE_KEY turned into UCL_STATE_AFTER_VALUE there, so the key that
+	 * starts the next chunk failed for a missing delimiter.
+	 */
+	struct ucl_parser *parser = ucl_parser_new(0);
+	struct ucl_parser *control = ucl_parser_new(0);
+	ucl_object_t *result = NULL, *expected = NULL;
+	char whole[256];
+	bool ok = true;
+
+	CHECK(parser != NULL && control != NULL, "cannot create parsers");
+	/* The first chunk reports its open brace, but the parse can go on */
+	ucl_parser_add_string(parser, first, 0);
+	CHECK(ucl_parser_add_string(parser, last, 0), "the next chunk failed");
+	snprintf(whole, sizeof(whole), "%s%s", first, last);
+	CHECK(ucl_parser_add_string(control, whole, 0), "control parse failed");
+	result = ucl_parser_get_object(parser);
+	expected = ucl_parser_get_object(control);
+	CHECK(same_document(result, expected), "the split changed the document");
+
+done:
+	ucl_object_unref(expected);
+	ucl_object_unref(result);
+	ucl_parser_free(control);
+	ucl_parser_free(parser);
+	return ok;
+}
+
+static bool
 check_root_limit(const char *input)
 {
 	struct ucl_parser *parser = ucl_parser_new(0);
@@ -614,6 +646,9 @@ main(void)
 		}
 	}
 	ok = check_continuation("a=1;", "b=2;", "a=1; b=2;") && ok;
+	ok = check_split_key("a {\n", "b = 1 }") && ok;
+	ok = check_split_key("a { ", "b = 1 }") && ok;
+	ok = check_split_key("{ ", "b = 1 }") && ok;
 	ok = check_root_limit("answer = 42;") && ok;
 	ok = check_root_limit("[42]") && ok;
 	ok = check_finished_root() && ok;
@@ -656,6 +691,9 @@ main(void)
 							false, "a { x { b = 2 } }") && ok;
 	/* Braces opened by the inserted chunk stay unmatched in the outer one */
 	ok = check_macro_insert("a { .insert \"b {\"", false, NULL) && ok;
+	/* The outer chunk resumes in b, where a key is expected */
+	ok = check_macro_insert("a { .insert \"} b { \" y = 2 }", false,
+							"a { } b { y = 2 }") && ok;
 	/*
 	 * A macro cannot go on in the outer chunk, which would run .insert on
 	 * "y = 2" in place of .priority, or read a name from the wrong chunk

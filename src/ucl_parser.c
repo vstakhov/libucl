@@ -2800,7 +2800,14 @@ ucl_state_machine(struct ucl_parser *parser)
 			while (p < chunk->end && ucl_test_character(*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 				ucl_chunk_skipc(chunk, p);
 			}
-			if (p == chunk->end || *p == '}') {
+			if (p == chunk->end) {
+				/*
+				 * The key can start the next chunk, which needs no separator
+				 * before it as UCL_STATE_AFTER_VALUE would
+				 */
+				break;
+			}
+			if (*p == '}') {
 				/* We have the end of an object */
 				parser->state = UCL_STATE_AFTER_VALUE;
 				continue;
