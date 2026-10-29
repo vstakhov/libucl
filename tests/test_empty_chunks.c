@@ -217,6 +217,51 @@ done:
 }
 
 static bool
+check_resumed_chunk(const char *base, const char *chunk, const char *rest,
+					const char *whole)
+{
+	/*
+	 * An inserted chunk can close the frame it was inserted into: a keyless
+	 * [2] closes the array, as the [ opens no container of its own. It can
+	 * also leave new frames open. ucl_parser_insert_chunk() restored the state
+	 * saved on the old frame anyway, so after an array the next chunk was
+	 * parsed as a value into the stale parser->cur_obj, overwriting a value
+	 * already in the tree and leaking a container it replaced.
+	 * With whole == NULL the rest of the document must be rejected.
+	 */
+	struct ucl_parser *parser = ucl_parser_new(0);
+	struct ucl_parser *control = ucl_parser_new(0);
+	ucl_object_t *result = NULL, *expected = NULL;
+	bool ok = true;
+
+	CHECK(parser != NULL && control != NULL, "cannot create parsers");
+	CHECK(!ucl_parser_add_string(parser, base, 0),
+		  "the base must leave a frame open");
+	ucl_parser_insert_chunk(parser, (const unsigned char *) chunk,
+							strlen(chunk));
+	if (whole == NULL) {
+		CHECK(!ucl_parser_add_string(parser, rest, 0),
+			  "the rest must not be parsed into a stale value");
+	}
+	else {
+		CHECK(ucl_parser_add_string(parser, rest, 0), "the rest failed");
+		CHECK(ucl_parser_add_string(control, whole, 0),
+			  "control parse failed");
+		result = ucl_parser_get_object(parser);
+		expected = ucl_parser_get_object(control);
+		CHECK(same_document(result, expected),
+			  "the rest was not parsed where the inserted chunk ended");
+	}
+
+done:
+	ucl_object_unref(expected);
+	ucl_object_unref(result);
+	ucl_parser_free(control);
+	ucl_parser_free(parser);
+	return ok;
+}
+
+static bool
 check_failed_insert(const char *base, const char *chunk)
 {
 	/*
@@ -386,6 +431,20 @@ main(void)
 	/* The root itself is the array frame */
 	ok = check_keyed_chunk("[1, ", "b = 1") && ok;
 	ok = check_keyed_chunk("[1, ", "{b = 1}") && ok;
+	ok = check_resumed_chunk("a = [1, ", "[{x = 1}]", "c", NULL) && ok;
+	ok = check_resumed_chunk("a = [1, ", "[{}]", "c", NULL) && ok;
+	ok = check_resumed_chunk("a = [1, ", "[]", "c", NULL) && ok;
+	ok = check_resumed_chunk("a = [1, ", "[2]", "3]; z = 4", NULL) && ok;
+	ok = check_resumed_chunk("a = [1, ", "[{x = 1}]", "c = 2; d = 3",
+							 "a = [1, {x = 1}]; c = 2; d = 3") && ok;
+	ok = check_resumed_chunk("a = [1, ", "[2]", "z = 4",
+							 "a = [1, 2]; z = 4") && ok;
+	/* New frames left open: resume inside them, not as an array value */
+	ok = check_resumed_chunk("a = [1, ", "[{x = {}", "5", NULL) && ok;
+	ok = check_resumed_chunk("a = [1, ", "[{x = {}", "y = 2}]; z = 4",
+							 "a = [1, {x = {}, y = 2}]; z = 4") && ok;
+	/* A hard error after closing the frame must stick */
+	ok = check_resumed_chunk("a { b = [1, ", "[2]]", "c = 3}", NULL) && ok;
 	ok = check_failed_insert("a = 1; b = }", "c = 2") && ok;
 	ok = check_failed_insert("a = [1, }", "[2") && ok;
 	ok = check_null_retyped_chunk("a = 1") && ok;

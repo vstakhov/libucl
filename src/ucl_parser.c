@@ -3482,9 +3482,15 @@ bool ucl_parser_insert_chunk(struct ucl_parser *parser, const unsigned char *dat
 
 	bool res;
 	struct ucl_chunk *chunk;
+	struct ucl_stack *st;
+	/* The frame the outer chunk stopped in */
+	const ucl_object_t *frame = parser->stack->obj;
+	ucl_type_t frame_type = frame->type;
+	unsigned int depth, new_depth;
 
 	int state = parser->state;
 	parser->state = UCL_STATE_INIT;
+	LL_COUNT(parser->stack, st, depth);
 
 	/* Prevent inserted chunks from unintentionally closing the current object */
 	if (parser->stack != NULL && parser->stack->next != NULL) {
@@ -3502,7 +3508,21 @@ bool ucl_parser_insert_chunk(struct ucl_parser *parser, const unsigned char *dat
 		parser->recursion--;
 	}
 
-	parser->state = state;
+	/*
+	 * Resume the outer chunk only on the frame it stopped in. The inserted
+	 * chunk can close that frame (a keyless [2] closes the array it was
+	 * inserted into, as its [ opens no container) or leave new frames open,
+	 * and then the saved state belongs to another frame: UCL_STATE_VALUE on
+	 * an object frame hands the stale parser->cur_obj to the next value.
+	 * Keep the state the inserted chunk ended in instead, an error included.
+	 * The type check guards against a new frame object reusing the address of
+	 * a frame object that a rewrite has freed.
+	 */
+	LL_COUNT(parser->stack, st, new_depth);
+	if (new_depth == depth && parser->stack->obj == frame &&
+		parser->stack->obj->type == frame_type) {
+		parser->state = state;
+	}
 
 	return res;
 }
