@@ -75,6 +75,46 @@ test_zerocopy_duplicate_error(void)
 }
 
 /*
+ * With UCL_DUPLICATE_ERROR, the element of a repeated key was handed to the
+ * parser to release, yet the msgpack and cbor readers released it as well on
+ * the failure, and ucl_parser_free() then freed it once more.
+ */
+static void
+test_binary_duplicate_error(void)
+{
+	static const struct {
+		const unsigned char *data;
+		size_t len;
+		enum ucl_parse_type type;
+	} cases[] = {
+#define DOCUMENT(data, type) {(const unsigned char *) data, sizeof(data) - 1, type}
+		/* {"a": 1, "a": 2} */
+		DOCUMENT("\x82\xa1\x61\x01\xa1\x61\x02", UCL_PARSE_MSGPACK),
+		/* {"a": {"x": 1}, "a": {"y": 2}} */
+		DOCUMENT("\x82\xa1\x61\x81\xa1\x78\x01\xa1\x61\x81\xa1\x79\x02",
+				 UCL_PARSE_MSGPACK),
+		DOCUMENT("\xa2\x61\x61\x01\x61\x61\x02", UCL_PARSE_CBOR),
+		DOCUMENT("\xa2\x61\x61\xa1\x61\x78\x01\x61\x61\xa1\x61\x79\x02",
+				 UCL_PARSE_CBOR),
+#undef DOCUMENT
+	};
+	size_t i;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		struct ucl_parser *p = ucl_parser_new(0);
+		assert(p != NULL);
+
+		assert(!ucl_parser_add_chunk_full(p, cases[i].data, cases[i].len, 0,
+										  UCL_DUPLICATE_ERROR, cases[i].type));
+		assert(ucl_parser_get_error_code(p) == UCL_EMERGE);
+		assert(strstr(ucl_parser_get_error(p),
+					  "duplicate element for key 'a' found") != NULL);
+
+		ucl_parser_free(p);
+	}
+}
+
+/*
  * Without implicit arrays the values of a repeated key are kept in an
  * explicit array. With UCL_DUPLICATE_MERGE a container has to be merged into
  * the first of them, as into the head of an implicit array, and not into that
@@ -304,6 +344,7 @@ int main(int argc, char **argv)
 	(void) argv;
 
 	test_zerocopy_duplicate_error();
+	test_binary_duplicate_error();
 	test_merge_no_implicit_arrays();
 	test_emit_repeated_key();
 	test_merge_split_value();

@@ -1542,8 +1542,7 @@ ucl_parser_add_object_element(struct ucl_parser *parser, ucl_object_t *nobj,
 					 (int) (nobj->keylen < sizeof(errmsg) ? nobj->keylen : sizeof(errmsg)),
 					 nobj->key);
 			ucl_set_err(parser, UCL_EMERGE, errmsg, &parser->err);
-			/* nobj is in no container: release it with the parser */
-			DL_APPEND(parser->trash_objs, nobj);
+			/* nobj is in no container, and the caller releases it */
 			return false;
 
 		case UCL_DUPLICATE_MERGE:
@@ -1898,8 +1897,15 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 	 * set, even by an earlier key of the chain. Otherwise the value is not
 	 * read yet, and it is up to ucl_parse_value whether it is a container.
 	 */
-	return ucl_parser_add_object_element(parser, nobj, parser->chunks->strategy,
-										 *next_key ? UCL_VALUE_CONTAINER : UCL_VALUE_UNKNOWN);
+	if (!ucl_parser_add_object_element(parser, nobj, parser->chunks->strategy,
+									   *next_key ? UCL_VALUE_CONTAINER : UCL_VALUE_UNKNOWN)) {
+		/* Not taken on failure */
+		ucl_object_unref(nobj);
+
+		return false;
+	}
+
+	return true;
 }
 
 /**

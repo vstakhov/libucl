@@ -837,7 +837,8 @@ bool ucl_fetch_file(const unsigned char *filename,
  * @param nobj
  * @param is_container true if the value of nobj is, or is going to be, an
  * object or an array: only those are merged into an existing container
- * @return
+ * @return true on success; on failure nobj is not taken and is left to the
+ * caller to release
  */
 bool ucl_parser_process_object_element(struct ucl_parser *parser,
 									   ucl_object_t *nobj,
