@@ -541,6 +541,68 @@ test_merge_scalar_over_container(void)
 	}
 }
 
+/*
+ * Without implicit arrays the values of a repeated key are kept in an
+ * explicit array. With UCL_DUPLICATE_MERGE a container has to be merged into
+ * the first of them, as into the head of an implicit array, and not into that
+ * array: a map could not be merged at all, and the elements of an array were
+ * added to the values of the key.
+ */
+static void
+test_merge_no_implicit_arrays(void)
+{
+	/* {"a": {"x":1}, "a": 5, "a": {"y":2}} */
+	static const unsigned char map_int_map[] = {
+		0x83,
+		0xa1, 0x61, 0x81, 0xa1, 0x78, 0x01,
+		0xa1, 0x61, 0x05,
+		0xa1, 0x61, 0x81, 0xa1, 0x79, 0x02};
+	/* {"a": [7], "a": 5, "a": [8]} */
+	static const unsigned char array_int_array[] = {
+		0x83,
+		0xa1, 0x61, 0x91, 0x07,
+		0xa1, 0x61, 0x05,
+		0xa1, 0x61, 0x91, 0x08};
+	static const struct {
+		const char *what;
+		const unsigned char *data;
+		size_t len;
+		const char *expect;
+	} cases[] = {
+		{"map, int, map", map_int_map, sizeof(map_int_map),
+		 "{\"a\":[{\"x\":1,\"y\":2},5]}"},
+		{"array, int, array", array_int_array, sizeof(array_int_array),
+		 "{\"a\":[[7,8],5]}"}};
+	size_t i;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_DISABLE_MACRO |
+												   UCL_PARSER_NO_IMPLICIT_ARRAYS);
+		ucl_object_t *obj = NULL;
+		unsigned char *json;
+		bool ok;
+
+		if (ucl_parser_add_chunk_full(parser, cases[i].data, cases[i].len,
+									  0, UCL_DUPLICATE_MERGE,
+									  UCL_PARSE_MSGPACK)) {
+			obj = ucl_parser_get_object(parser);
+		}
+
+		ucl_parser_free(parser);
+		CHECK(obj != NULL, cases[i].what);
+
+		json = ucl_object_emit(obj, UCL_EMIT_JSON_COMPACT);
+		ok = json != NULL &&
+			 strcmp((const char *) json, cases[i].expect) == 0;
+		free(json);
+		ucl_object_unref(obj);
+
+		if (!ok) {
+			FAIL("merge %s: expected %s", cases[i].what, cases[i].expect);
+		}
+	}
+}
+
 /* ------------------------------------------------------------------ */
 
 int
@@ -570,6 +632,7 @@ main(void)
 	test_after_ucl_open_object();
 	test_merge_container_type_mismatch();
 	test_merge_scalar_over_container();
+	test_merge_no_implicit_arrays();
 
 	if (failed) {
 		fprintf(stderr, "%d test(s) FAILED\n", failed);

@@ -1489,7 +1489,7 @@ bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *
 									   bool is_container)
 {
 	ucl_hash_t *container;
-	ucl_object_t *tobj = NULL, *cur;
+	ucl_object_t *tobj = NULL, *cur, *target;
 	char errmsg[256];
 
 	container = parser->stack->obj->value.ov;
@@ -1591,11 +1591,24 @@ bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *
 			 * elements, so it is subject to priorities like any other scalar.
 			 * A container of the other kind still gets the old one, so that
 			 * opening it reports the mismatch.
+			 *
+			 * Without implicit arrays, the values of a repeated key are kept
+			 * in an explicit array instead: merge into the first of them, as
+			 * an implicit array is merged into its head.
 			 */
-			if ((tobj->type == UCL_OBJECT || tobj->type == UCL_ARRAY) &&
+			target = tobj;
+
+			if ((parser->flags & UCL_PARSER_NO_IMPLICIT_ARRAYS) &&
+				tobj->type == UCL_ARRAY &&
+				(tobj->flags & UCL_OBJECT_MULTIVALUE)) {
+				target = __DECONST(ucl_object_t *, ucl_array_head(tobj));
+			}
+
+			if (target != NULL &&
+				(target->type == UCL_OBJECT || target->type == UCL_ARRAY) &&
 				is_container) {
 				ucl_object_unref(nobj);
-				nobj = tobj;
+				nobj = target;
 			}
 			else if (priold == prinew) {
 				if (!ucl_parser_append_elt(parser, container, tobj, nobj)) {

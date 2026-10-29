@@ -74,12 +74,65 @@ test_zerocopy_duplicate_error(void)
 	free(buf);
 }
 
+/*
+ * Without implicit arrays the values of a repeated key are kept in an
+ * explicit array. With UCL_DUPLICATE_MERGE a container has to be merged into
+ * the first of them, as into the head of an implicit array, and not into that
+ * array: an object could not be merged at all, and the elements of an array
+ * were added to the values of the key.
+ */
+static void
+test_merge_no_implicit_arrays(void)
+{
+	static const struct {
+		const char *doc;
+		const char *expect;
+	} cases[] = {
+		{"a {x = 1}; a = 5; a {y = 2};", "{\"a\":[{\"x\":1,\"y\":2},5]}"},
+		{"a [7]; a = 5; a [8];", "{\"a\":[[7,8],5]}"},
+		/* Nothing to merge into when the first value is a scalar */
+		{"a = 5; a {x = 1}; a {y = 2};", "{\"a\":[5,{\"x\":1},{\"y\":2}]}"},
+		{"a = 5; a = 6; a [8];", "{\"a\":[5,6,[8]]}"},
+	};
+	size_t i;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		struct ucl_parser *p = ucl_parser_new(UCL_PARSER_NO_IMPLICIT_ARRAYS);
+		assert(p != NULL);
+
+		bool res = ucl_parser_add_chunk_full(p,
+											 (const unsigned char *) cases[i].doc,
+											 strlen(cases[i].doc), 0,
+											 UCL_DUPLICATE_MERGE, UCL_PARSE_UCL);
+
+		if (!res) {
+			fprintf(stderr, "'%s': %s\n", cases[i].doc, ucl_parser_get_error(p));
+		}
+		assert(res);
+
+		ucl_object_t *obj = ucl_parser_get_object(p);
+		ucl_parser_free(p);
+		unsigned char *json = ucl_object_emit(obj, UCL_EMIT_JSON_COMPACT);
+		assert(json != NULL);
+
+		if (strcmp((const char *) json, cases[i].expect) != 0) {
+			fprintf(stderr, "'%s': got %s, expected %s\n", cases[i].doc,
+					(const char *) json, cases[i].expect);
+		}
+		assert(strcmp((const char *) json, cases[i].expect) == 0);
+
+		free(json);
+		ucl_object_unref(obj);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	(void) argc;
 	(void) argv;
 
 	test_zerocopy_duplicate_error();
+	test_merge_no_implicit_arrays();
 
 	printf("All duplicate-key error tests passed\n");
 
