@@ -654,6 +654,8 @@ main(void)
 	/* A failed .include leaves its chunk above the inserted one */
 	ok = check_macro_insert("a { .insert \".include $INC; c = 1\" b = 2 } }",
 							false, "a { x { b = 2 } }") && ok;
+	/* Braces opened by the inserted chunk stay unmatched in the outer one */
+	ok = check_macro_insert("a { .insert \"b {\"", false, NULL) && ok;
 	ok = check_null_retyped_chunk("a = 1") && ok;
 	ok = check_null_retyped_chunk("a = \"str\"") && ok;
 	ok = check_keyless_include("a = 1", "[{}") && ok;

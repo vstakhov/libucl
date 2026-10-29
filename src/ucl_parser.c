@@ -3505,10 +3505,19 @@ bool ucl_parser_insert_chunk(struct ucl_parser *parser, const unsigned char *dat
 	 * before its chunk is added (a special handler refusing the data, for
 	 * one), and a failed .include in it leaves the included chunk on top, so
 	 * remove everything above the outer chunk rather than the head alone.
+	 * Frames left open by a removed chunk now belong to the outer one: the
+	 * check for unmatched braces at the end of a chunk walks the frames of
+	 * that chunk only, and must not compare them with a freed one.
 	 */
 	while (parser->chunks != outer) {
 		chunk = parser->chunks;
 		parser->chunks = chunk->next;
+		LL_FOREACH(parser->stack, st)
+		{
+			if (st->chunk == chunk) {
+				st->chunk = outer;
+			}
+		}
 		ucl_chunk_free(chunk);
 		parser->recursion--;
 	}
