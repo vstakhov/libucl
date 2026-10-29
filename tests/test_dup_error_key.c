@@ -167,6 +167,82 @@ test_emit_repeated_key(void)
 	}
 }
 
+/*
+ * With UCL_DUPLICATE_MERGE, a value is merged into the old container of its
+ * key only if it is a container itself. The parser carries its state from a
+ * chunk to the next one, so the value may start in a later chunk than its key,
+ * and nothing tells what it is until it does. Taken for a scalar, a container
+ * formed an implicit array with the old one rather than being merged into it,
+ * did not report a mismatch, and at a lower priority was dropped, leaking all
+ * it held.
+ */
+static void
+test_merge_split_value(void)
+{
+	static const struct {
+		const char *chunks[3];
+		unsigned int priorities[3];
+		const char *expect; /* NULL if the last chunk must fail */
+	} cases[] = {
+		{{"a {x = 1}\n", "a =\n", "{y {z = 1}}"}, {2, 1, 1},
+		 "{\"a\":{\"x\":1,\"y\":{\"z\":1}}}"},
+		{{"a {x = 1}\n", "a =\n", "{y {z = 1}}"}, {0, 0, 0},
+		 "{\"a\":{\"x\":1,\"y\":{\"z\":1}}}"},
+		{{"a [1]\n", "a =\n# comment\n", "[2]"}, {0, 0, 0},
+		 "{\"a\":[1,2]}"},
+		{{"a {x = 1}\n", "a =\n", "[1]"}, {0, 0, 0}, NULL},
+		/* A scalar follows the priorities */
+		{{"a [1, 2]\n", "a =\n", "5"}, {0, 0, 0}, "{\"a\":[[1,2],5]}"},
+		{{"a [1, 2]\n", "a =\n", "5"}, {2, 1, 1}, "{\"a\":[1,2]}"},
+		{{"a [1, 2]\n", "a =\n", "5"}, {1, 2, 2}, "{\"a\":5}"},
+		/* The value never comes */
+		{{"a [1, 2]\n", "a =\n", NULL}, {0, 0, 0}, "{\"a\":[1,2]}"},
+	};
+	size_t i, j;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		struct ucl_parser *p = ucl_parser_new(0);
+		bool res = true;
+		assert(p != NULL);
+
+		for (j = 0; j < 3 && cases[i].chunks[j] != NULL && res; j++) {
+			res = ucl_parser_add_chunk_full(p,
+											(const unsigned char *) cases[i].chunks[j],
+											strlen(cases[i].chunks[j]),
+											cases[i].priorities[j],
+											UCL_DUPLICATE_MERGE, UCL_PARSE_UCL);
+		}
+
+		if (cases[i].expect == NULL) {
+			assert(!res && j == 3);
+			assert(ucl_parser_get_error_code(p) == UCL_EMERGE);
+			assert(strstr(ucl_parser_get_error(p),
+						  "cannot merge an object with an array") != NULL);
+			ucl_parser_free(p);
+			continue;
+		}
+
+		if (!res) {
+			fprintf(stderr, "case %zu: %s\n", i, ucl_parser_get_error(p));
+		}
+		assert(res);
+
+		ucl_object_t *obj = ucl_parser_get_object(p);
+		ucl_parser_free(p);
+		unsigned char *json = ucl_object_emit(obj, UCL_EMIT_JSON_COMPACT);
+		assert(json != NULL);
+
+		if (strcmp((const char *) json, cases[i].expect) != 0) {
+			fprintf(stderr, "case %zu: got %s, expected %s\n", i,
+					(const char *) json, cases[i].expect);
+		}
+		assert(strcmp((const char *) json, cases[i].expect) == 0);
+
+		free(json);
+		ucl_object_unref(obj);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	(void) argc;
@@ -175,6 +251,7 @@ int main(int argc, char **argv)
 	test_zerocopy_duplicate_error();
 	test_merge_no_implicit_arrays();
 	test_emit_repeated_key();
+	test_merge_split_value();
 
 	printf("All duplicate-key error tests passed\n");
 

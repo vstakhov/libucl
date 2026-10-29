@@ -281,6 +281,7 @@ struct ucl_parser {
 	void *var_data;
 	ucl_object_t *comments;
 	ucl_object_t *last_comment;
+	ucl_object_t *pending_merge; /* Key merged before its value was read. */
 	struct ucl_parser_limits limits;
 	uint64_t cur_nodes;
 	uint64_t cur_alloc;

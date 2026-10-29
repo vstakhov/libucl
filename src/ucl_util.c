@@ -799,6 +799,11 @@ void ucl_parser_free(struct ucl_parser *parser)
 		ucl_object_unref(parser->last_comment);
 	}
 
+	if (parser->pending_merge) {
+		/* the value of its key never came */
+		ucl_object_unref(parser->pending_merge);
+	}
+
 	UCL_FREE(sizeof(struct ucl_parser), parser);
 }
 

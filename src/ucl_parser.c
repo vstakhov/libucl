@@ -236,63 +236,6 @@ start:
 }
 
 /**
- * Check whether a value is an object or an array without consuming anything,
- * past what ucl_parse_value skips before it: whitespace, then comments as
- * ucl_skip_comments skips them, with no whitespace after those
- * @param p start of the value
- * @param end end of the chunk
- * @return true if the value opens with a brace or a bracket
- */
-static bool
-ucl_lex_value_is_container(const unsigned char *p, const unsigned char *end)
-{
-	int comments_nested;
-	bool quoted;
-
-	while (p < end && ucl_test_character(*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
-		p++;
-	}
-
-	while (p < end) {
-		if (*p == '#') {
-			p = memchr(p, '\n', end - p);
-
-			if (p == NULL) {
-				return false;
-			}
-
-			p++;
-		}
-		else if (end - p >= 2 && p[0] == '/' && p[1] == '*') {
-			comments_nested = 1;
-			quoted = false;
-			p += 2;
-
-			while (p < end && comments_nested > 0) {
-				if (*p == '"' && *(p - 1) != '\\') {
-					quoted = !quoted;
-				}
-				else if (!quoted && end - p >= 2 && p[0] == '*' && p[1] == '/') {
-					comments_nested--;
-					p++;
-				}
-				else if (!quoted && end - p >= 2 && p[0] == '/' && p[1] == '*') {
-					comments_nested++;
-					p++;
-				}
-
-				p++;
-			}
-		}
-		else {
-			break;
-		}
-	}
-
-	return p < end && (*p == '{' || *p == '[');
-}
-
-/**
  * Return multiplier for a character
  * @param c multiplier character
  * @param is_bytes if true use 1024 multiplier
@@ -1485,12 +1428,34 @@ ucl_parser_append_elt(struct ucl_parser *parser, ucl_hash_t *cont,
 	return true;
 }
 
-bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *nobj,
-									   bool is_container)
+/*
+ * What the value of a new element of an object is known to be, as only a
+ * container is merged into an old one. The text parser adds a key before it
+ * reads the value, which may even start in a later chunk.
+ */
+enum ucl_value_kind {
+	UCL_VALUE_SCALAR = 0,
+	UCL_VALUE_CONTAINER,
+	UCL_VALUE_UNKNOWN
+};
+
+static bool
+ucl_parser_add_object_element(struct ucl_parser *parser, ucl_object_t *nobj,
+							  enum ucl_duplicate_strategy strategy,
+							  enum ucl_value_kind kind)
 {
 	ucl_hash_t *container;
 	ucl_object_t *tobj = NULL, *cur, *target;
 	char errmsg[256];
+
+	if (parser->pending_merge != NULL) {
+		/*
+		 * Something else has been added before the value of the pending key,
+		 * as ucl_parser_insert_chunk can do: leave that key merged
+		 */
+		ucl_object_unref(parser->pending_merge);
+		parser->pending_merge = NULL;
+	}
 
 	container = parser->stack->obj->value.ov;
 
@@ -1528,7 +1493,7 @@ bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *
 	else {
 		unsigned priold = ucl_object_get_priority(tobj),
 				 prinew = ucl_object_get_priority(nobj);
-		switch (parser->chunks->strategy) {
+		switch (strategy) {
 
 		case UCL_DUPLICATE_APPEND:
 			/*
@@ -1606,7 +1571,20 @@ bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *
 
 			if (target != NULL &&
 				(target->type == UCL_OBJECT || target->type == UCL_ARRAY) &&
-				is_container) {
+				kind != UCL_VALUE_SCALAR) {
+				if (kind == UCL_VALUE_UNKNOWN) {
+					/*
+					 * Take the old container for the value until
+					 * ucl_parse_value sees it start, keeping the key to add
+					 * it as a scalar if it is one. Its comment goes to the
+					 * object it ends up in.
+					 */
+					parser->pending_merge = nobj;
+					parser->cur_obj = target;
+
+					return true;
+				}
+
 				ucl_object_unref(nobj);
 				nobj = target;
 			}
@@ -1638,6 +1616,51 @@ bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *
 	return true;
 }
 
+bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *nobj,
+									   bool is_container)
+{
+	return ucl_parser_add_object_element(parser, nobj, parser->chunks->strategy,
+										 is_container ? UCL_VALUE_CONTAINER : UCL_VALUE_SCALAR);
+}
+
+/**
+ * Finish adding the key whose merge has been left pending, now that its value
+ * starts
+ * @param parser
+ * @param is_container true if the value is an object or an array
+ * @return true on success
+ */
+static bool
+ucl_parser_settle_merge(struct ucl_parser *parser, bool is_container)
+{
+	ucl_object_t *nobj = parser->pending_merge;
+
+	parser->pending_merge = NULL;
+
+	if (is_container || parser->stack == NULL ||
+		parser->stack->obj->type != UCL_OBJECT) {
+		/*
+		 * Keep the merge, as well when data inserted after the key has closed
+		 * the object that holds it
+		 */
+		ucl_object_unref(nobj);
+		ucl_attach_comment(parser, parser->cur_obj, false);
+
+		return true;
+	}
+
+	/* Pending only with the merge strategy, whatever this chunk uses */
+	if (!ucl_parser_add_object_element(parser, nobj, UCL_DUPLICATE_MERGE,
+									   UCL_VALUE_SCALAR)) {
+		/* Not taken on failure */
+		ucl_object_unref(nobj);
+
+		return false;
+	}
+
+	return true;
+}
+
 /**
  * Parse a key in an object
  * @param parser
@@ -1654,7 +1677,7 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 	const char *key = NULL;
 	bool got_quote = false, got_eq = false, got_semicolon = false,
 		 need_unescape = false, ucl_escape = false, var_expand = false,
-		 got_sep = false, is_container;
+		 got_sep = false;
 	ucl_object_t *nobj;
 	ssize_t keylen;
 
@@ -1833,14 +1856,6 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 		}
 	}
 
-	/*
-	 * The value is not parsed yet, but a merge has to know whether it is a
-	 * container: either the caller nests the following keys into it, as it
-	 * does whenever next_key is set, even by an earlier key of the chain, or
-	 * the value opens with a brace or a bracket
-	 */
-	is_container = *next_key || ucl_lex_value_is_container(p, chunk->end);
-
 	/* Create a new object */
 	nobj = ucl_object_new_full(UCL_NULL, parser->chunks->priority);
 	if (nobj == NULL) {
@@ -1877,7 +1892,13 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 		nobj->flags |= UCL_OBJECT_NEED_KEY_ESCAPE;
 	}
 
-	return ucl_parser_process_object_element(parser, nobj, is_container);
+	/*
+	 * The caller nests the following keys into the value whenever next_key is
+	 * set, even by an earlier key of the chain. Otherwise the value is not
+	 * read yet, and it is up to ucl_parse_value whether it is a container.
+	 */
+	return ucl_parser_add_object_element(parser, nobj, parser->chunks->strategy,
+										 *next_key ? UCL_VALUE_CONTAINER : UCL_VALUE_UNKNOWN);
 }
 
 /**
@@ -2071,6 +2092,11 @@ ucl_parse_value(struct ucl_parser *parser, struct ucl_chunk *chunk)
 			return false;
 		}
 		p = chunk->pos;
+	}
+
+	if (parser->pending_merge != NULL && p < chunk->end &&
+		!ucl_parser_settle_merge(parser, *p == '{' || *p == '[')) {
+		return false;
 	}
 
 	while (p < chunk->end) {
