@@ -204,7 +204,8 @@ start:
 				comments_nested--;
 				if (comments_nested == 0) {
 					if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
-						ucl_save_comment(parser, beg, p - beg + 1);
+						/* p is past the closing star and slash already */
+						ucl_save_comment(parser, beg, p - beg);
 						beg = NULL;
 					}
 					goto start;
@@ -2153,17 +2154,24 @@ ucl_parse_value(struct ucl_parser *parser, struct ucl_chunk *chunk)
 
 	p = chunk->pos;
 
-	/* Skip any spaces and comments */
-	if (p < chunk->end &&
-		(ucl_test_character(*p, UCL_CHARACTER_WHITESPACE_UNSAFE) ||
-		(chunk->remain >= 2 && ucl_lex_is_comment(p[0], p[1])))) {
-		while (p < chunk->end && ucl_test_character(*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
+	/*
+	 * Skip any spaces and comments, in any order: an indented value after
+	 * a comment, as the first one of an array often is, must not take
+	 * the indent
+	 */
+	while (p < chunk->end) {
+		if (ucl_test_character(*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
 			ucl_chunk_skipc(chunk, p);
 		}
-		if (!ucl_skip_comments(parser)) {
-			return false;
+		else if (chunk->remain >= 2 && ucl_lex_is_comment(p[0], p[1])) {
+			if (!ucl_skip_comments(parser)) {
+				return false;
+			}
+			p = chunk->pos;
 		}
-		p = chunk->pos;
+		else {
+			break;
+		}
 	}
 
 	if (parser->pending_merge != NULL && p < chunk->end &&

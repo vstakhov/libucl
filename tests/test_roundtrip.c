@@ -35,6 +35,9 @@
  *
  * New cases can be added without any .res files — the test is
  * self-validating.
+ *
+ * Text cases parse UCL text with comments saved instead, and round-trip it
+ * with the comments emitted, as configuration dumps that keep comments do.
  */
 
 #include <stdio.h>
@@ -257,6 +260,197 @@ run_case(const struct roundtrip_case *tc)
 	return rc;
 }
 
+/*
+ * Round trips of parsed text with its comments saved and emitted. The input
+ * must parse into the object of `expect` (JSON), with and without
+ * UCL_PARSER_SAVE_COMMENTS. Its UCL_EMIT_CONFIG output, comments included,
+ * must be `emit` when that is set, parse back into the same object and emit
+ * the same text again.
+ */
+struct text_case {
+	const char *name;
+	int flags;
+	const char *input;
+	const char *expect;
+	const char *emit;
+};
+
+static const struct text_case text_cases[] = {
+	/* A comment before the first value of an array, indented as emitted */
+	{"comment_first_in_array", 0,
+	 "a [\n    # first\n    1,\n    2\n]\n",
+	 "{\"a\": [1, 2]}",
+	 "a [\n    # first\n    1,\n    2,\n]\n"},
+	{"comments_first_in_array", 0,
+	 "a = [\n  # one\n\n  /* two */\n  \"x\",\n  \"y\"\n]\n",
+	 "{\"a\": [\"x\", \"y\"]}",
+	 "a [\n    # one\n    /* two */\n    \"x\",\n    \"y\",\n]\n"},
+	{"comment_first_in_top_array", 0,
+	 "[\n  # first\n  1\n]\n",
+	 "[1]",
+	 NULL},
+	/* A C comment is saved without the character that follows it */
+	{"c_comment_before_value", 0,
+	 "a =\n/* c */{\n    b = 1;\n}\n",
+	 "{\"a\": {\"b\": 1}}",
+	 NULL},
+	{"c_comment_before_key", 0,
+	 "a = 1; /* c */ b = 2;\n",
+	 "{\"a\": 1, \"b\": 2}",
+	 "a = 1;\n/* c */\nb = 2;\n"},
+	{"c_comment_at_end", 0,
+	 "a = 1; /* c */",
+	 "{\"a\": 1}",
+	 "a = 1;\n/* c */\n"},
+};
+
+/*
+ * Parse text from a buffer of its exact size, so that AddressSanitizer
+ * catches any read past it
+ */
+static ucl_object_t *
+parse_text(const char *name, const char *text, int flags,
+		   ucl_object_t **comments)
+{
+	size_t len = strlen(text);
+	unsigned char *buf = malloc(len);
+	struct ucl_parser *parser;
+	ucl_object_t *obj = NULL;
+
+	if (buf == NULL) {
+		return NULL;
+	}
+
+	memcpy(buf, text, len);
+	parser = ucl_parser_new(flags);
+
+	if (parser == NULL) {
+		free(buf);
+		return NULL;
+	}
+
+	if (!ucl_parser_add_chunk(parser, buf, len) ||
+		ucl_parser_get_error(parser) != NULL) {
+		fprintf(stderr, "[%s] FAIL: parse error: %s\ntext was:\n%s\n", name,
+				ucl_parser_get_error(parser) ? ucl_parser_get_error(parser)
+											 : "(unknown)",
+				text);
+	}
+	else {
+		obj = ucl_parser_get_object(parser);
+
+		if (comments != NULL && ucl_parser_get_comments(parser) != NULL) {
+			*comments = ucl_object_ref(ucl_parser_get_comments(parser));
+		}
+	}
+
+	ucl_parser_free(parser);
+	free(buf);
+
+	return obj;
+}
+
+static char *
+emit_text(const ucl_object_t *obj, const ucl_object_t *comments)
+{
+	struct ucl_emitter_functions *func;
+	char *out = NULL;
+
+	func = ucl_object_emit_memory_funcs((void **) &out);
+
+	if (func == NULL) {
+		return NULL;
+	}
+
+	if (!ucl_object_emit_full(obj, UCL_EMIT_CONFIG, func, comments)) {
+		free(out);
+		out = NULL;
+	}
+
+	ucl_object_emit_funcs_free(func);
+
+	return out;
+}
+
+static int
+run_text_case(const struct text_case *tc)
+{
+	ucl_object_t *expect, *plain, *obj, *reparsed = NULL, *comments = NULL,
+						  *comments2 = NULL;
+	char *emitted = NULL, *emitted2 = NULL;
+	unsigned char *json;
+	int rc = 1;
+
+	expect = parse_text(tc->name, tc->expect, 0, NULL);
+	plain = parse_text(tc->name, tc->input, tc->flags, NULL);
+	obj = parse_text(tc->name, tc->input,
+					 tc->flags | UCL_PARSER_SAVE_COMMENTS, &comments);
+
+	if (expect == NULL || plain == NULL || obj == NULL) {
+		goto out;
+	}
+
+	if (ucl_object_compare(plain, expect) != 0 ||
+		ucl_object_compare(obj, expect) != 0) {
+		json = ucl_object_emit(ucl_object_compare(plain, expect) != 0 ? plain : obj,
+							   UCL_EMIT_JSON_COMPACT);
+		fprintf(stderr, "[%s] FAIL: parsed %s, expected %s\n", tc->name,
+				json ? (const char *) json : "(null)", tc->expect);
+		free(json);
+		goto out;
+	}
+
+	emitted = emit_text(obj, comments);
+
+	if (emitted == NULL) {
+		fprintf(stderr, "[%s] FAIL: emit returned NULL\n", tc->name);
+		goto out;
+	}
+
+	if (tc->emit != NULL && strcmp(emitted, tc->emit) != 0) {
+		fprintf(stderr, "[%s] FAIL: emitted:\n%s\nexpected:\n%s\n", tc->name,
+				emitted, tc->emit);
+		goto out;
+	}
+
+	reparsed = parse_text(tc->name, emitted,
+						  tc->flags | UCL_PARSER_SAVE_COMMENTS, &comments2);
+
+	if (reparsed == NULL) {
+		goto out;
+	}
+
+	if (ucl_object_compare(reparsed, expect) != 0) {
+		fprintf(stderr, "[%s] FAIL: round-trip object mismatch\n"
+						"emitted was:\n%s\n",
+				tc->name, emitted);
+		goto out;
+	}
+
+	emitted2 = emit_text(reparsed, comments2);
+
+	if (emitted2 == NULL || strcmp(emitted, emitted2) != 0) {
+		fprintf(stderr, "[%s] FAIL: emit not idempotent\nfirst:\n%s\nsecond:\n%s\n",
+				tc->name, emitted, emitted2 ? emitted2 : "(null)");
+		goto out;
+	}
+
+	printf("[%s] ok\n", tc->name);
+	rc = 0;
+
+out:
+	free(emitted);
+	free(emitted2);
+	ucl_object_unref(expect);
+	ucl_object_unref(plain);
+	ucl_object_unref(obj);
+	ucl_object_unref(reparsed);
+	ucl_object_unref(comments);
+	ucl_object_unref(comments2);
+
+	return rc;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -264,17 +458,23 @@ main(int argc, char **argv)
 	(void)argv;
 
 	int failures = 0;
-	size_t ncases = sizeof(cases) / sizeof(cases[0]);
+	size_t ncases = sizeof(cases) / sizeof(cases[0]),
+		   ntext = sizeof(text_cases) / sizeof(text_cases[0]);
 
 	for (size_t i = 0; i < ncases; i++) {
 		failures += run_case(&cases[i]);
 	}
 
+	for (size_t i = 0; i < ntext; i++) {
+		failures += run_text_case(&text_cases[i]);
+	}
+
 	if (failures != 0) {
-		fprintf(stderr, "%d/%zu round-trip cases failed\n", failures, ncases);
+		fprintf(stderr, "%d/%zu round-trip cases failed\n", failures,
+				ncases + ntext);
 		return 1;
 	}
 
-	printf("all %zu round-trip cases passed\n", ncases);
+	printf("all %zu round-trip cases passed\n", ncases + ntext);
 	return 0;
 }
