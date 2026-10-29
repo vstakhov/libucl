@@ -481,6 +481,58 @@ test_len_compare(void)
 	}
 }
 
+/*
+ * anyOf, oneOf and not took an invalid subschema for one the object does not
+ * match, and reported a failure of their own with no error
+ */
+static void
+test_combinator_errors(void)
+{
+	static const struct {
+		const char *schema;
+		enum ucl_schema_error_code code;
+	} cases[] = {
+		{"{\"anyOf\": [{\"$ref\": \"#/missing\"}, {\"type\": \"integer\"}]}",
+		 UCL_SCHEMA_INVALID_SCHEMA},
+		{"{\"oneOf\": [{\"$ref\": \"#/missing\"}, {\"type\": \"integer\"}]}",
+		 UCL_SCHEMA_INVALID_SCHEMA},
+		{"{\"oneOf\": [{\"type\": \"integer\"}, {\"$ref\": \"#/missing\"}]}",
+		 UCL_SCHEMA_INVALID_SCHEMA},
+		{"{\"not\": {\"$ref\": \"#/missing\"}}", UCL_SCHEMA_INVALID_SCHEMA},
+		{"{\"not\": {\"anyOf\": []}}", UCL_SCHEMA_INVALID_SCHEMA},
+		{"{\"oneOf\": [{\"type\": \"integer\"}, {\"minimum\": 0}]}",
+		 UCL_SCHEMA_CONSTRAINT},
+		{"{\"not\": {\"type\": \"integer\"}}", UCL_SCHEMA_CONSTRAINT},
+	};
+	struct ucl_schema_error err;
+	ucl_object_t *schema, *doc;
+	unsigned int i;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		schema = parse(cases[i].schema);
+		assert(!validate(schema, NULL, "{\"v\": 1}", &err));
+		assert(err.code == cases[i].code);
+		assert(err.msg[0] != '\0');
+		doc = parse("{\"v\": 1}");
+		assert(!ucl_object_validate(schema, ucl_object_lookup(doc, "v"), NULL));
+		ucl_object_unref(doc);
+		ucl_object_unref(schema);
+	}
+
+	/* No error is left from the subschemas that have not matched */
+	schema = parse("{\"oneOf\": [{\"type\": \"string\"}, {\"type\": \"integer\"}]}");
+	assert(validate(schema, NULL, "{\"v\": 1}", &err));
+	assert(err.code == UCL_SCHEMA_OK);
+	ucl_object_unref(schema);
+	schema = parse("{\"anyOf\": [{\"type\": \"string\"}, {\"type\": \"integer\"}], "
+				   "\"not\": {\"type\": \"string\"}}");
+	assert(validate(schema, NULL, "{\"v\": 1}", &err));
+	assert(err.code == UCL_SCHEMA_OK);
+	assert(!validate(schema, NULL, "{\"v\": true}", &err));
+	assert(err.code == UCL_SCHEMA_TYPE_MISMATCH);
+	ucl_object_unref(schema);
+}
+
 int main(int argc, char **argv)
 {
 	(void) argc;
@@ -495,6 +547,7 @@ int main(int argc, char **argv)
 	test_binary_string_compare();
 	test_nan_compare();
 	test_len_compare();
+	test_combinator_errors();
 #ifndef _WIN32
 	test_external_ref();
 #endif

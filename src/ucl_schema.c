@@ -1020,6 +1020,25 @@ ucl_schema_validate_values(const ucl_object_t *schema, const ucl_object_t *obj,
 	return true;
 }
 
+/*
+ * Whether validation failed on the schema itself, or could not finish, rather
+ * than on the object, which no other branch of anyOf, oneOf or not makes up for
+ */
+static bool
+ucl_schema_error_is_fatal(const struct ucl_schema_error *err)
+{
+	switch (err->code) {
+	case UCL_SCHEMA_INVALID_SCHEMA:
+	case UCL_SCHEMA_EXTERNAL_REF_MISSING:
+	case UCL_SCHEMA_EXTERNAL_REF_INVALID:
+	case UCL_SCHEMA_INTERNAL_ERROR:
+	case UCL_SCHEMA_UNKNOWN:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool
 ucl_schema_validate(const ucl_object_t *schema,
 					const ucl_object_t *obj, bool try_array,
@@ -1089,7 +1108,7 @@ ucl_schema_validate(const ucl_object_t *schema,
 		ret = false;
 		while ((cur = ucl_object_iterate(elt, &iter, true)) != NULL) {
 			ret = ucl_schema_validate(cur, obj, true, err, root, external_refs, refs);
-			if (ret) {
+			if (ret || ucl_schema_error_is_fatal(err)) {
 				break;
 			}
 		}
@@ -1099,9 +1118,7 @@ ucl_schema_validate(const ucl_object_t *schema,
 		}
 		else {
 			/* Reset error */
-			if (err != NULL) {
-				err->code = UCL_SCHEMA_OK;
-			}
+			err->code = UCL_SCHEMA_OK;
 		}
 	}
 
@@ -1117,8 +1134,17 @@ ucl_schema_validate(const ucl_object_t *schema,
 		while ((cur = ucl_object_iterate(elt, &iter, true)) != NULL) {
 			if (!ret) {
 				ret = ucl_schema_validate(cur, obj, true, err, root, external_refs, refs);
+				if (!ret && ucl_schema_error_is_fatal(err)) {
+					break;
+				}
 			}
 			else if (ucl_schema_validate(cur, obj, true, err, root, external_refs, refs)) {
+				ucl_schema_create_error(err, UCL_SCHEMA_CONSTRAINT, obj,
+										"object matches more than one oneOf subschema");
+				ret = false;
+				break;
+			}
+			else if (ucl_schema_error_is_fatal(err)) {
 				ret = false;
 				break;
 			}
@@ -1127,18 +1153,25 @@ ucl_schema_validate(const ucl_object_t *schema,
 		if (!ret) {
 			return false;
 		}
+		else {
+			/* Reset the error of the subschemas that have not matched */
+			err->code = UCL_SCHEMA_OK;
+		}
 	}
 
 	elt = ucl_object_lookup(schema, "not");
 	if (elt != NULL && elt->type == UCL_OBJECT) {
 		if (ucl_schema_validate(elt, obj, true, err, root, external_refs, refs)) {
+			ucl_schema_create_error(err, UCL_SCHEMA_CONSTRAINT, obj,
+									"object matches not subschema");
+			return false;
+		}
+		else if (ucl_schema_error_is_fatal(err)) {
 			return false;
 		}
 		else {
 			/* Reset error */
-			if (err != NULL) {
-				err->code = UCL_SCHEMA_OK;
-			}
+			err->code = UCL_SCHEMA_OK;
 		}
 	}
 
@@ -1227,7 +1260,14 @@ bool ucl_object_validate_root_ext(const ucl_object_t *schema,
 								  ucl_object_t *ext_refs,
 								  struct ucl_schema_error *err)
 {
+	struct ucl_schema_error local_err;
 	bool ret, need_unref = false;
+
+	/* anyOf, oneOf and not tell the errors of their subschemas apart */
+	if (err == NULL) {
+		err = &local_err;
+	}
+	memset(err, 0, sizeof(*err));
 
 	if (ext_refs == NULL) {
 		ext_refs = ucl_object_typed_new(UCL_OBJECT);
