@@ -178,7 +178,8 @@ ucl_object_lua_push_object (lua_State *L, const ucl_object_t *obj,
 }
 
 /**
- * Push an array to lua as table indexed by integers
+ * Push an array to lua as table indexed by integers: the values of a repeated
+ * key with LUA_UCL_ALLOW_ARRAY, or the elements of an explicit array
  * @param L
  * @param obj
  * @return
@@ -187,24 +188,25 @@ static int
 ucl_object_lua_push_array (lua_State *L, const ucl_object_t *obj, int flags)
 {
 	const ucl_object_t *cur;
-	ucl_object_iter_t it;
+	ucl_object_iter_t it = NULL;
 	int i = 1, nelt = 0;
 
-	if (obj->type == UCL_ARRAY) {
+	if (!(flags & LUA_UCL_ALLOW_ARRAY) || obj->next == NULL) {
+		/*
+		 * Only the array's own elements: the values of a repeated key that
+		 * follow it are not, even if the array is the first of them
+		 */
 		nelt = obj->len;
-		it = ucl_object_iterate_new (obj);
 		lua_createtable (L, nelt, 0);
 
-		while ((cur = ucl_object_iterate_safe (it, true))) {
-			ucl_object_push_lua (L, cur, (flags & ~LUA_UCL_ALLOW_ARRAY));
+		while ((cur = ucl_object_iterate (obj, &it, true))) {
+			ucl_object_push_lua_common (L, cur, (flags & ~LUA_UCL_ALLOW_ARRAY));
 			lua_rawseti (L, -2, i);
 			i ++;
 		}
 
 		luaL_getmetatable (L, UCL_ARRAY_TYPE_META);
 		lua_setmetatable (L, -2);
-
-		ucl_object_iterate_free (it);
 	}
 	else {
 		/* Optimize allocation by preallocation of table */
@@ -215,7 +217,7 @@ ucl_object_lua_push_array (lua_State *L, const ucl_object_t *obj, int flags)
 		lua_createtable (L, nelt, 0);
 
 		LL_FOREACH (obj, cur) {
-			ucl_object_push_lua (L, cur, (flags & ~LUA_UCL_ALLOW_ARRAY));
+			ucl_object_push_lua_common (L, cur, (flags & ~LUA_UCL_ALLOW_ARRAY));
 			lua_rawseti (L, -2, i);
 			i ++;
 		}

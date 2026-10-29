@@ -99,6 +99,14 @@ IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	add_test(NAME test_special_handlers COMMAND test_special_handlers)
 ENDIF()
 
+# The Lua binding, which only CMake builds
+IF(ENABLE_LUA MATCHES "ON" AND TARGET lua-ucl)
+	add_executable(test_lua test_lua.c)
+	target_include_directories(test_lua PRIVATE ${COMMON_TEST_INCLUDES})
+	target_link_libraries(test_lua PRIVATE lua-ucl ${COMMON_TEST_LIBS})
+	add_test(NAME test_lua COMMAND test_lua)
+ENDIF()
+
 # Built to match tests/Makefile.am; streamline.test is not registered
 # because test_streamline output does not match streamline.res yet
 IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
