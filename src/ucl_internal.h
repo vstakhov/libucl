@@ -198,6 +198,11 @@ struct ucl_macro {
 
 enum ucl_stack_flags {
 	UCL_STACK_HAS_OBRACE = (1u << 0),
+	/*
+	 * The frame of the { that starts a chunk going on in an open object, such
+	 * as an included file: it holds the object of the frame below it, and is
+	 * no container of its own
+	 */
 	UCL_STACK_AUTOMATIC = (1u << 1),
 	UCL_STACK_MAX = (1u << 2),
 };

@@ -894,6 +894,38 @@ void ucl_parser_pop_container(struct ucl_parser *parser, struct ucl_stack *st)
 	UCL_FREE(sizeof(struct ucl_stack), st);
 }
 
+/**
+ * Open the frame of the { that starts a chunk going on in the object on top
+ * of the stack. The brace is the chunk's, not the object's: on the object's
+ * frame, the } of the chunk would close the object's own brace as well. The
+ * frame holds that object rather than a container of its own, so it takes no
+ * depth.
+ * @param parser parser object
+ * @param chunk the chunk that starts with the brace
+ * @return true if the frame has been pushed
+ */
+static bool
+ucl_parser_add_chunk_brace(struct ucl_parser *parser, struct ucl_chunk *chunk)
+{
+	struct ucl_stack *st;
+
+	st = UCL_ALLOC(sizeof(struct ucl_stack));
+	if (st == NULL) {
+		ucl_set_err(parser, UCL_EINTERNAL,
+					"cannot allocate memory for an object", &parser->err);
+		return false;
+	}
+
+	st->obj = parser->stack->obj;
+	st->e.params.level = parser->stack->e.params.level;
+	st->e.params.flags = UCL_STACK_HAS_OBRACE | UCL_STACK_AUTOMATIC;
+	st->e.params.line = chunk->line;
+	st->chunk = chunk;
+	LL_PREPEND(parser->stack, st);
+
+	return true;
+}
+
 int ucl_maybe_parse_number(ucl_object_t *obj,
 						   const char *start, const char *end, const char **pos,
 						   bool allow_double, bool number_bytes, bool allow_time)
@@ -2447,7 +2479,9 @@ ucl_parse_after_value(struct ucl_parser *parser, struct ucl_chunk *chunk)
 					}
 
 					if ((st->e.params.flags & UCL_STACK_AUTOMATIC)) {
-						st->e.params.flags = 0;
+						/* A chunk's brace, which has taken no depth */
+						parser->stack = st->next;
+						UCL_FREE(sizeof(struct ucl_stack), st);
 					}
 					else {
 						ucl_parser_pop_container(parser, st);
@@ -2942,10 +2976,30 @@ ucl_state_machine(struct ucl_parser *parser)
 
 					return false;
 				}
+				else if (parser->state == UCL_STATE_KEY_OBRACE) {
+					/*
+					 * A chunk that starts with { in an open object, as an
+					 * included file can, adds its keys to that object, as in
+					 * an unbraced root. Marked on the object's frame, the
+					 * brace would be closed by the object's own } or take that
+					 * one with it. Its own frame keeps the two apart, and is
+					 * checked at the end of the chunk like any other brace the
+					 * chunk opens.
+					 */
+					if (!ucl_parser_add_chunk_brace(parser, chunk)) {
+						parser->prev_state = parser->state;
+						parser->state = UCL_STATE_ERROR;
+
+						return false;
+					}
+				}
 			}
 			break;
 		case UCL_STATE_KEY_OBRACE:
-			parser->stack->e.params.flags |= UCL_STACK_HAS_OBRACE | UCL_STACK_AUTOMATIC;
+			/*
+			 * The brace has its frame already, see UCL_STATE_INIT. A macro
+			 * at the start of the chunk returns to this state.
+			 */
 			/* FALLTHROUGHT */
 		case UCL_STATE_KEY:
 			/* Skip any spaces */
@@ -3832,6 +3886,11 @@ ucl_parser_get_current_stack_object(struct ucl_parser *parser, unsigned int dept
 	}
 
 	for (unsigned int i = 0; i < depth; ++i) {
+		/* The frame of a chunk's { holds the object of the frame below it */
+		while (stack->next != NULL &&
+			   (stack->e.params.flags & UCL_STACK_AUTOMATIC)) {
+			stack = stack->next;
+		}
 		stack = stack->next;
 		if (stack == NULL || stack->obj == NULL || ucl_object_type(stack->obj) != UCL_OBJECT) {
 			return NULL;

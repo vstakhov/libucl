@@ -208,6 +208,37 @@ test_depth(void)
 	ucl_parser_free(p);
 }
 
+/*
+ * The { of a chunk that goes on in an open object has a frame of its own, but
+ * no container of its own: it neither counts towards max_depth nor gives any
+ * depth back when it is closed.
+ */
+static void
+test_braced_chunk_depth(void)
+{
+	static const char fits[] = "{ c { d = 1 } }", deep[] = "{ c { d {} } }";
+	struct ucl_parser_limits limits;
+	struct ucl_parser *p;
+
+	memset(&limits, 0, sizeof(limits));
+	limits.max_depth = 2;
+
+	/* The root takes one level, which leaves one for c */
+	p = make_parser(&limits);
+	assert(parse(p, "a = 1;", strlen("a = 1;")) == true);
+	assert(ucl_parser_insert_chunk(p, (const unsigned char *) fits,
+								   sizeof(fits) - 1) == true);
+	assert(p->cur_depth == 1);
+	ucl_parser_free(p);
+
+	p = make_parser(&limits);
+	assert(parse(p, "a = 1;", strlen("a = 1;")) == true);
+	assert(ucl_parser_insert_chunk(p, (const unsigned char *) deep,
+								   sizeof(deep) - 1) == false);
+	assert(ucl_parser_get_error_code(p) == UCL_ENESTED);
+	ucl_parser_free(p);
+}
+
 static void
 test_nodes_and_alloc(void)
 {
@@ -1014,6 +1045,7 @@ int main(int argc, char **argv)
 	(void) argv;
 
 	test_depth();
+	test_braced_chunk_depth();
 	test_nodes_and_alloc();
 	test_string_and_key_limits();
 	test_limits_accessors();

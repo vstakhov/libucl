@@ -325,6 +325,121 @@ done:
 }
 
 static bool
+check_braced_chunk(const char *base, const char *chunk, const char *rest,
+				   const char *whole)
+{
+	/*
+	 * A chunk that starts with { adds its keys to the object it is inserted
+	 * into, as at an unbraced root. Its } took the brace of that object along
+	 * with its own: the chunk's { was marked on the object's frame, and its }
+	 * cleared every brace of the frame, so the object's own } was rejected.
+	 * The base may leave an unmatched brace, which does not stop the parse.
+	 */
+	struct ucl_parser *parser = ucl_parser_new(0);
+	struct ucl_parser *control = ucl_parser_new(0);
+	ucl_object_t *result = NULL, *expected = NULL;
+	bool ok = true;
+
+	CHECK(parser != NULL && control != NULL, "cannot create parsers");
+	(void) ucl_parser_add_string(parser, base, 0);
+	CHECK(ucl_parser_insert_chunk(parser, (const unsigned char *) chunk,
+								  strlen(chunk)),
+		  "the braced chunk failed");
+	CHECK(ucl_parser_add_string(parser, rest, 0),
+		  "the rest failed after the braced chunk");
+	CHECK(ucl_parser_add_string(control, whole, 0), "control parse failed");
+	result = ucl_parser_get_object(parser);
+	expected = ucl_parser_get_object(control);
+	CHECK(same_document(result, expected),
+		  "the braced chunk changed the document");
+
+done:
+	ucl_object_unref(expected);
+	ucl_object_unref(result);
+	ucl_parser_free(control);
+	ucl_parser_free(parser);
+	return ok;
+}
+
+static bool
+check_unbalanced_chunk(const char *base, const char *chunk)
+{
+	/*
+	 * The brace a chunk opens must be closed in that chunk, as any other brace
+	 * it opens. On the frame of the enclosing object it was not checked at
+	 * the end of the chunk, and the insert succeeded.
+	 */
+	struct ucl_parser *parser = ucl_parser_new(0);
+	bool ok = true;
+
+	CHECK(parser != NULL, "cannot create parser");
+	CHECK(ucl_parser_add_string(parser, base, 0), "base object failed");
+	CHECK(!ucl_parser_insert_chunk(parser, (const unsigned char *) chunk,
+								   strlen(chunk)),
+		  "an unbalanced braced chunk must be rejected");
+	CHECK(ucl_parser_get_error_code(parser) == UCL_EUNPAIRED,
+		  "expected an unmatched brace");
+
+done:
+	ucl_parser_free(parser);
+	return ok;
+}
+
+struct stack_probe {
+	struct ucl_parser *parser;
+	ucl_object_t *objs[2];
+};
+
+static bool
+stack_probe_handler(const unsigned char *data, size_t len,
+					const ucl_object_t *arguments, void *ud)
+{
+	struct stack_probe *probe = ud;
+
+	for (unsigned int i = 0; i < 2; i++) {
+		probe->objs[i] = ucl_parser_get_current_stack_object(probe->parser, i);
+	}
+
+	return true;
+}
+
+static bool
+check_braced_stack_object(void)
+{
+	/*
+	 * The brace of a braced chunk has a frame of its own, over the object the
+	 * chunk goes on in. For a macro looking up the stack, that object is still
+	 * one level, and its parent the next one.
+	 */
+	static const char chunk[] = "{ .probe \"x\" b = 1 }";
+	struct ucl_parser *parser = ucl_parser_new(0);
+	struct stack_probe probe = {parser, {NULL, NULL}};
+	ucl_object_t *top = NULL;
+	bool ok = true;
+
+	CHECK(parser != NULL, "cannot create parser");
+	CHECK(ucl_parser_register_macro(parser, "probe", stack_probe_handler,
+									&probe),
+		  "cannot register the macro");
+	(void) ucl_parser_add_string(parser, "a { ", 0);
+	CHECK(ucl_parser_insert_chunk(parser, (const unsigned char *) chunk,
+								  sizeof(chunk) - 1),
+		  "the braced chunk failed");
+	CHECK(ucl_parser_add_string(parser, "}", 0), "closing the object failed");
+	top = ucl_parser_get_object(parser);
+	CHECK(top != NULL && probe.objs[0] == ucl_object_lookup(top, "a"),
+		  "the current object must be the one the chunk goes on in");
+	CHECK(probe.objs[1] == top, "the next object up must be its parent");
+
+done:
+	ucl_object_unref(probe.objs[0]);
+	ucl_object_unref(probe.objs[1]);
+	ucl_object_unref(top);
+	ucl_parser_free(parser);
+	return ok;
+}
+
+static bool
 check_failed_insert(const char *base, const char *chunk)
 {
 	/*
@@ -488,6 +603,40 @@ write_file(const char *path, const char *content)
 	}
 	fputs(content, out);
 	return fclose(out) == 0;
+}
+
+static bool
+check_unbalanced_include(const char *conf, const char *included)
+{
+	/*
+	 * An included file whose { is not closed in it must be rejected, and the
+	 * error must name that file. Included in a braced object, the enclosing
+	 * } closed the file's brace and the document was accepted, as it was
+	 * from a prefixed include, whose frame is popped once the file is parsed.
+	 */
+	const char *dir = getenv("TEST_OUT_DIR");
+	struct ucl_parser *parser = ucl_parser_new(0);
+	char path[1024];
+	const char *err;
+	bool ok = true;
+
+	snprintf(path, sizeof(path), "%s/empty_chunks_unbalanced.inc",
+			 dir != NULL ? dir : ".");
+	CHECK(parser != NULL, "cannot create parser");
+	CHECK(write_file(path, included), "cannot write the included file");
+	ucl_parser_register_variable(parser, "UNBALANCED_INC", path);
+	CHECK(!ucl_parser_add_string(parser, conf, 0),
+		  "an unbalanced braced file must be rejected");
+	CHECK(ucl_parser_get_error_code(parser) == UCL_EUNPAIRED,
+		  "expected an unmatched brace");
+	err = ucl_parser_get_error(parser);
+	CHECK(err != NULL && strstr(err, "empty_chunks_unbalanced.inc") != NULL,
+		  "the error must name the included file");
+
+done:
+	remove(path);
+	ucl_parser_free(parser);
+	return ok;
 }
 
 static bool
@@ -715,6 +864,21 @@ main(void)
 							 "a = [1, {x = {}, y = 2}]; z = 4") && ok;
 	/* A hard error after closing the frame must stick */
 	ok = check_resumed_chunk("a { b = [1, ", "[2]]", "c = 3}", NULL) && ok;
+	/* A braced chunk goes on in the object it is inserted into */
+	ok = check_braced_chunk("a { ", "{b = 1}", "}", "a { b = 1 }") && ok;
+	ok = check_braced_chunk("{ a = 1; ", "{b = 2}", "c = 3 }",
+							"{ a = 1; b = 2; c = 3 }") && ok;
+	ok = check_braced_chunk("a = [{ ", "{b = 1}", "}]", "a = [{ b = 1 }]") &&
+		 ok;
+	ok = check_braced_chunk("a { b { ", "{c = 1}", "} d = 2 }",
+							"a { b { c = 1 } d = 2 }") && ok;
+	ok = check_braced_chunk("a { ", "{}", "b = 1 }", "a { b = 1 }") && ok;
+	/* As it does in an unbraced root */
+	ok = check_braced_chunk("a = 1; ", "{b = 2}", "c = 3",
+							"a = 1; b = 2; c = 3") && ok;
+	ok = check_unbalanced_chunk("a = 1; ", "{b = 2") && ok;
+	ok = check_unbalanced_chunk("a = 1; ", "{b { c = 2 }") && ok;
+	ok = check_braced_stack_object() && ok;
 	ok = check_failed_insert("a = 1; b = }", "c = 2") && ok;
 	ok = check_failed_insert("a = [1, }", "[2") && ok;
 	ok = check_unadded_chunk() && ok;
@@ -751,6 +915,11 @@ main(void)
 							"a { } b = 1\nc = 2") && ok;
 	ok = check_macro_insert("a { .insert \"} b = 1\"; c = 2", true,
 							"a { } b = 1; c = 2") && ok;
+	/* A braced chunk leaves the brace of the object it goes on in */
+	ok = check_macro_insert("a { .insert \"{b = 1}\" c = 2 }", true,
+							"a { b = 1; c = 2 }") && ok;
+	ok = check_macro_insert("a { .insert \"{b = 1\" c = 2 }", false, NULL) &&
+		 ok;
 	ok = check_resumed_chunk("a { b = 1; ", "} c = 2", "d = 3",
 							 "a { b = 1; } c = 2; d = 3") && ok;
 	/* Without a separator in the outer chunk, the next chunk needs one */
@@ -782,5 +951,14 @@ main(void)
 	ok = check_closing_include("x {",
 							   ".include(prefix=true; key=\"p\"; target=\"array\")",
 							   "y = 1 }", UCL_EUNPAIRED) && ok;
+	ok = check_unbalanced_include("x { .include \"$UNBALANCED_INC\"\ny = 1 }",
+								  "{ c = 1") && ok;
+	ok = check_unbalanced_include("{ .include \"$UNBALANCED_INC\" y = 1 }",
+								  "{ c = 1") && ok;
+	ok = check_unbalanced_include(".include \"$UNBALANCED_INC\"\ny = 1",
+								  "{ c = 1") && ok;
+	ok = check_unbalanced_include("x { .include(prefix=true; key=\"p\") "
+								  "\"$UNBALANCED_INC\"\ny = 1 }",
+								  "{ c = 1") && ok;
 	return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
