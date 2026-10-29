@@ -98,3 +98,11 @@ target_link_libraries(test_special_handlers PRIVATE ${COMMON_TEST_LIBS})
 IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	add_test(NAME test_special_handlers COMMAND test_special_handlers)
 ENDIF()
+
+# Built to match tests/Makefile.am; streamline.test is not registered
+# because test_streamline output does not match streamline.res yet
+IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	add_executable(test_streamline test_streamline.c)
+	target_include_directories(test_streamline PRIVATE ${COMMON_TEST_INCLUDES})
+	target_link_libraries(test_streamline PRIVATE ${COMMON_TEST_LIBS})
+ENDIF()
