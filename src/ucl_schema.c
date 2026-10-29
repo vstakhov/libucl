@@ -89,31 +89,18 @@ ucl_schema_create_error(struct ucl_schema_error *err,
 }
 
 /*
- * Check whether we have a pattern specified
+ * Check whether the key of obj matches a pattern
  */
 static const ucl_object_t *
-ucl_schema_test_pattern(const ucl_object_t *obj, const char *pattern, bool recursive)
+ucl_schema_test_pattern(const ucl_object_t *obj, const char *pattern)
 {
 	const ucl_object_t *res = NULL;
 #ifdef HAVE_REGEX_H
 	regex_t reg;
-	const ucl_object_t *elt;
-	ucl_object_iter_t iter = NULL;
 
 	if (regcomp(&reg, pattern, REG_EXTENDED | REG_NOSUB) == 0) {
-		if (recursive) {
-			while ((elt = ucl_object_iterate(obj, &iter, true)) != NULL) {
-				if (regexec(&reg, ucl_object_key(elt), 0, NULL, 0) == 0) {
-					res = elt;
-					break;
-				}
-			}
-			ucl_object_iterate_end(obj, &iter);
-		}
-		else {
-			if (regexec(&reg, ucl_object_key(obj), 0, NULL, 0) == 0)
-				res = obj;
-		}
+		if (regexec(&reg, ucl_object_key(obj), 0, NULL, 0) == 0)
+			res = obj;
 		regfree(&reg);
 	}
 #endif
@@ -263,7 +250,7 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 				while (ret && (prop = ucl_object_iterate(pat, &piter, true)) != NULL) {
 					viter = NULL;
 					while (ret && (vobj = ucl_object_iterate(obj, &viter, true)) != NULL) {
-						found = ucl_schema_test_pattern(vobj, ucl_object_key(prop), false);
+						found = ucl_schema_test_pattern(vobj, ucl_object_key(prop));
 						if (found) {
 							ret = ucl_schema_validate(prop, found, true, err, root,
 													  ext_ref, refs);
@@ -305,7 +292,7 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 					while (found == NULL && pat != NULL) {
 						piter = NULL;
 						while ((pelt = ucl_object_iterate(pat, &piter, true)) != NULL) {
-							found = ucl_schema_test_pattern(elt, ucl_object_key(pelt), false);
+							found = ucl_schema_test_pattern(elt, ucl_object_key(pelt));
 							if (found != NULL) {
 								break;
 							}
