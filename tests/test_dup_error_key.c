@@ -167,6 +167,75 @@ test_merge_no_implicit_arrays(void)
 }
 
 /*
+ * Without implicit arrays the values of a repeated key are kept in an
+ * explicit array, which was created with priority 0 whatever the priority of
+ * the values: at any higher priority, the third value of a key replaced the
+ * first two, and a value of a lower priority chunk replaced all of them.
+ */
+static void
+test_no_implicit_arrays_priority(void)
+{
+	static const struct {
+		const char *doc;
+		unsigned priority;
+		const char *next;
+		unsigned next_priority;
+		enum ucl_duplicate_strategy strat;
+		const char *expect;
+	} cases[] = {
+		{"a = 1; a = 2; a = 3;", 2, NULL, 0, UCL_DUPLICATE_APPEND,
+		 "{\"a\":[1,2,3]}"},
+		{"a = 1; a = 2; a = 3;", 2, NULL, 0, UCL_DUPLICATE_MERGE,
+		 "{\"a\":[1,2,3]}"},
+		{"a {x = 1}; a = 2; a = 3;", 2, NULL, 0, UCL_DUPLICATE_MERGE,
+		 "{\"a\":[{\"x\":1},2,3]}"},
+		{"a = 1; a = 2;", 2, "a = 3;", 1, UCL_DUPLICATE_APPEND,
+		 "{\"a\":[1,2]}"},
+		{"a = 1; a = 2;", 2, "a = 3;", 3, UCL_DUPLICATE_APPEND,
+		 "{\"a\":3}"},
+	};
+	size_t i;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		struct ucl_parser *p = ucl_parser_new(UCL_PARSER_NO_IMPLICIT_ARRAYS);
+		assert(p != NULL);
+
+		bool res = ucl_parser_add_chunk_full(p,
+											 (const unsigned char *) cases[i].doc,
+											 strlen(cases[i].doc),
+											 cases[i].priority,
+											 cases[i].strat, UCL_PARSE_UCL);
+
+		if (res && cases[i].next != NULL) {
+			res = ucl_parser_add_chunk_full(p,
+											(const unsigned char *) cases[i].next,
+											strlen(cases[i].next),
+											cases[i].next_priority,
+											cases[i].strat, UCL_PARSE_UCL);
+		}
+
+		if (!res) {
+			fprintf(stderr, "'%s': %s\n", cases[i].doc, ucl_parser_get_error(p));
+		}
+		assert(res);
+
+		ucl_object_t *obj = ucl_parser_get_object(p);
+		ucl_parser_free(p);
+		unsigned char *json = ucl_object_emit(obj, UCL_EMIT_JSON_COMPACT);
+		assert(json != NULL);
+
+		if (strcmp((const char *) json, cases[i].expect) != 0) {
+			fprintf(stderr, "'%s': got %s, expected %s\n", cases[i].doc,
+					(const char *) json, cases[i].expect);
+		}
+		assert(strcmp((const char *) json, cases[i].expect) == 0);
+
+		free(json);
+		ucl_object_unref(obj);
+	}
+}
+
+/*
  * JSON and YAML write the values of a repeated key as an array. When the
  * first of them was an array itself, its elements were written instead, and
  * the other values were lost.
@@ -443,6 +512,7 @@ int main(int argc, char **argv)
 	test_zerocopy_duplicate_error();
 	test_binary_duplicate_error();
 	test_merge_no_implicit_arrays();
+	test_no_implicit_arrays_priority();
 	test_emit_repeated_key();
 	test_merge_split_value();
 	test_merge_pending_insert();

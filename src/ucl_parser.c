@@ -1392,7 +1392,12 @@ ucl_parser_append_elt(struct ucl_parser *parser, ucl_hash_t *cont,
 				return false;
 			}
 
-			nobj = ucl_object_typed_new(UCL_ARRAY);
+			/*
+			 * The array stands for its values in priority checks, as the head
+			 * of an implicit array does. With priority 0, a later value of the
+			 * key replaced them all whenever their priority was above 0.
+			 */
+			nobj = ucl_object_new_full(UCL_ARRAY, ucl_object_get_priority(top));
 
 			if (nobj == NULL) {
 				ucl_set_err(parser, UCL_EINTERNAL,
