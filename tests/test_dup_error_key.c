@@ -243,6 +243,61 @@ test_merge_split_value(void)
 	}
 }
 
+/*
+ * The comments before a key whose value starts in a later chunk belong to
+ * that value, as in a single chunk. With the merge pending at the end of
+ * the chunk, they went to the old container as trailing comments, and so
+ * were written after it, above the next key.
+ */
+static char *
+emit_merged_with_comments(const char *const *chunks, size_t nchunks)
+{
+	struct ucl_parser *p = ucl_parser_new(UCL_PARSER_SAVE_COMMENTS);
+	struct ucl_emitter_functions *func;
+	ucl_object_t *obj;
+	char *out = NULL;
+	size_t i;
+
+	assert(p != NULL);
+	for (i = 0; i < nchunks; i++) {
+		assert(ucl_parser_add_chunk_full(p, (const unsigned char *) chunks[i],
+										 strlen(chunks[i]), 0,
+										 UCL_DUPLICATE_MERGE, UCL_PARSE_UCL));
+	}
+
+	obj = ucl_parser_get_object(p);
+	assert(obj != NULL);
+	func = ucl_object_emit_memory_funcs((void **) &out);
+	assert(func != NULL);
+	assert(ucl_object_emit_full(obj, UCL_EMIT_CONFIG, func,
+								ucl_parser_get_comments(p)));
+	ucl_object_emit_funcs_free(func);
+	ucl_object_unref(obj);
+	ucl_parser_free(p);
+
+	return out;
+}
+
+static void
+test_merge_split_comment(void)
+{
+	static const char *const split[] = {"a {x = 1}\n", "# about a\na =\n",
+										"{y = 1}\nb = 2\n"};
+	static const char *const whole[] = {"a {x = 1}\n# about a\na =\n{y = 1}\nb = 2\n"};
+	char *got = emit_merged_with_comments(split, 3),
+		 *expect = emit_merged_with_comments(whole, 1);
+
+	assert(got != NULL && expect != NULL);
+	assert(strstr(expect, "# about a\na {") != NULL);
+	if (strcmp(got, expect) != 0) {
+		fprintf(stderr, "split comment: got '%s', expected '%s'\n", got, expect);
+	}
+	assert(strcmp(got, expect) == 0);
+
+	free(got);
+	free(expect);
+}
+
 int main(int argc, char **argv)
 {
 	(void) argc;
@@ -252,6 +307,7 @@ int main(int argc, char **argv)
 	test_merge_no_implicit_arrays();
 	test_emit_repeated_key();
 	test_merge_split_value();
+	test_merge_split_comment();
 
 	printf("All duplicate-key error tests passed\n");
 

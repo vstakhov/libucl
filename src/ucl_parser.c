@@ -1886,7 +1886,8 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 
 	/*
 	 * Must be set before processing: on a merge into an older object of the
-	 * same key, ucl_parser_process_object_element releases nobj
+	 * same key, ucl_parser_add_object_element releases nobj, or keeps it
+	 * aside until the value shows whether to merge
 	 */
 	if (ucl_escape) {
 		nobj->flags |= UCL_OBJECT_NEED_KEY_ESCAPE;
@@ -3152,7 +3153,11 @@ ucl_state_machine(struct ucl_parser *parser)
 		}
 	}
 
-	if (parser->last_comment) {
+	/*
+	 * A key whose merge is pending takes the comments before it once its
+	 * value starts, in whichever object that value ends up
+	 */
+	if (parser->last_comment && parser->pending_merge == NULL) {
 		if (parser->cur_obj) {
 			ucl_attach_comment(parser, parser->cur_obj, true);
 		}
