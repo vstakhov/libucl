@@ -315,11 +315,9 @@ check_keyless_include(const char *base, const char *included)
 	 * .include feeds a file through the same path as an inserted chunk, so a
 	 * single malformed included file was enough to reach the stale value, or
 	 * the root object itself when the include is the first statement.
-	 * UCL_PARSER_NO_FILEVARS keeps the parser's own FILENAME and CURDIR out of
-	 * the include failure path, which does not restore them.
 	 */
 	const char *dir = getenv("TEST_OUT_DIR");
-	struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_NO_FILEVARS);
+	struct ucl_parser *parser = ucl_parser_new(0);
 	char path[1024], conf[256];
 	FILE *out;
 	bool ok = true;
@@ -376,6 +374,55 @@ check_closing_include(const char *base, const char *rest)
 
 done:
 	remove(path);
+	ucl_parser_free(parser);
+	return ok;
+}
+
+static bool
+write_file(const char *path, const char *content)
+{
+	FILE *out = fopen(path, "w");
+
+	if (out == NULL) {
+		return false;
+	}
+	fputs(content, out);
+	return fclose(out) == 0;
+}
+
+static bool
+check_failed_include(const char *conf, const char *outer, const char *inner,
+					 const char *failing)
+{
+	/*
+	 * ucl_include_file_single() swaps in FILENAME, CURDIR and the current file
+	 * for the included file, and put the old ones back only if the include
+	 * succeeded: a failed include leaked them, at every level of a nested
+	 * include. The current file must still name the file that failed.
+	 */
+	const char *dir = getenv("TEST_OUT_DIR");
+	struct ucl_parser *parser = ucl_parser_new(0);
+	char outer_path[1024], inner_path[1024];
+	const char *cur;
+	bool ok = true;
+
+	snprintf(outer_path, sizeof(outer_path), "%s/empty_chunks_outer.inc",
+			 dir != NULL ? dir : ".");
+	snprintf(inner_path, sizeof(inner_path), "%s/empty_chunks_inner.inc",
+			 dir != NULL ? dir : ".");
+	CHECK(parser != NULL, "cannot create parser");
+	CHECK(write_file(outer_path, outer) && write_file(inner_path, inner),
+		  "cannot write the included files");
+	ucl_parser_register_variable(parser, "OUTER_INC", outer_path);
+	ucl_parser_register_variable(parser, "INNER_INC", inner_path);
+	CHECK(!ucl_parser_add_string(parser, conf, 0), "the include must fail");
+	cur = ucl_parser_get_cur_file(parser);
+	CHECK(cur != NULL && strstr(cur, failing) != NULL,
+		  "the current file must name the file that failed");
+
+done:
+	remove(outer_path);
+	remove(inner_path);
 	ucl_parser_free(parser);
 	return ok;
 }
@@ -451,6 +498,13 @@ main(void)
 	ok = check_null_retyped_chunk("a = \"str\"") && ok;
 	ok = check_keyless_include("a = 1", "[{}") && ok;
 	ok = check_keyless_include("", "[5") && ok;
+	ok = check_failed_include("a { .include \"$OUTER_INC\" }",
+							  ".include \"$INNER_INC\"\nc = 3\n", "x = }",
+							  "empty_chunks_inner.inc") && ok;
+	/* Fails before the included file is parsed */
+	ok = check_failed_include("p = 1\n"
+							  ".include(prefix=true; key=\"p\") \"$OUTER_INC\"\n",
+							  "q = 2\n", "", "empty_chunks_outer.inc") && ok;
 	ok = check_closing_include("a = [{", "b = 1 }]") && ok;
 	ok = check_closing_include("[{", "b = 1 }]") && ok;
 	return ok ? EXIT_SUCCESS : EXIT_FAILURE;
