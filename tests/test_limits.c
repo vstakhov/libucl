@@ -976,6 +976,36 @@ test_skipped_try_include(void)
 	remove(path[0]);
 	remove(path[1]);
 }
+
+/*
+ * A required URL include that cannot be fetched reported no error: the
+ * fetch set its message only when the URL did not have to exist.
+ */
+static void
+test_missing_url_include(void)
+{
+	const char *dir = getenv("TEST_OUT_DIR");
+	char doc[PATH_MAX + 64], real[PATH_MAX];
+	const char *err;
+	struct ucl_parser *p;
+	int n;
+
+	assert(realpath(dir != NULL ? dir : ".", real) != NULL);
+	n = snprintf(doc, sizeof(doc),
+				 ".include(url=true) \"file://%s/limits_absent_url.inc\"\n",
+				 real);
+	assert(n > 0 && (size_t) n < sizeof(doc));
+	p = make_parser(NULL);
+	assert(parse(p, doc, n) == false);
+	err = ucl_parser_get_error(p);
+	if (err != NULL && strstr(err, "URL support is disabled") != NULL) {
+		printf("missing URL include skipped: no URL support\n");
+	}
+	else {
+		assert(err != NULL && strstr(err, "limits_absent_url.inc") != NULL);
+	}
+	ucl_parser_free(p);
+}
 #endif
 
 int main(int argc, char **argv)
@@ -998,6 +1028,7 @@ int main(int argc, char **argv)
 	test_failed_insert_include();
 	test_failed_glob_include();
 	test_skipped_try_include();
+	test_missing_url_include();
 #endif
 
 	printf("All limits tests passed\n");

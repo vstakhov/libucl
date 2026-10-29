@@ -911,7 +911,7 @@ bool ucl_fetch_url(const unsigned char *url, unsigned char **buf, size_t *buflen
 		return false;
 	}
 	if ((in = fetchXGet(fetch_url, &us, "")) == NULL) {
-		if (!must_exist) {
+		if (must_exist) {
 			ucl_create_err(err, "cannot fetch URL %s: %s",
 						   url, strerror(errno));
 		}
@@ -964,7 +964,7 @@ bool ucl_fetch_url(const unsigned char *url, unsigned char **buf, size_t *buflen
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &cbdata);
 
 	if ((r = curl_easy_perform(curl)) != CURLE_OK) {
-		if (!must_exist) {
+		if (must_exist) {
 			ucl_create_err(err, "error fetching URL %s: %s",
 						   url, curl_easy_strerror(r));
 		}
