@@ -932,11 +932,14 @@ bool ucl_fetch_url(const unsigned char *url, unsigned char **buf, size_t *buflen
 	if (fread(*buf, *buflen, 1, in) != 1) {
 		ucl_create_err(err, "cannot read URL %s: %s",
 					   url, strerror(errno));
+		UCL_FREE(*buflen, *buf);
+		*buf = NULL;
 		fclose(in);
 		fetchFreeURL(fetch_url);
 		return false;
 	}
 
+	fclose(in);
 	fetchFreeURL(fetch_url);
 	return true;
 #elif defined(CURL_FOUND)
@@ -1145,6 +1148,7 @@ ucl_include_url(const unsigned char *data, size_t len,
 		/* We need to check signature first */
 		snprintf(urlbuf, sizeof(urlbuf), "%.*s.sig", (int) len, data);
 		if (!ucl_fetch_url(urlbuf, &sigbuf, &siglen, &parser->err, true)) {
+			UCL_FREE(buflen, buf);
 			return false;
 		}
 		if (!ucl_sig_check(buf, buflen, sigbuf, siglen, parser)) {
@@ -1154,6 +1158,7 @@ ucl_include_url(const unsigned char *data, size_t len,
 			if (siglen > 0) {
 				UCL_FREE(siglen, sigbuf);
 			}
+			UCL_FREE(buflen, buf);
 			return false;
 		}
 		if (siglen > 0) {
