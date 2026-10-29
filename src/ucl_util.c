@@ -1413,9 +1413,27 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 			if (old_obj == NULL) {
 				/* Create an array with key: prefix */
 				old_obj = ucl_object_new_full(UCL_ARRAY, params->priority);
-				old_obj->key = params->prefix;
-				old_obj->keylen = strlen(params->prefix);
-				ucl_copy_key_trash(old_obj);
+				nest_obj = ucl_object_new_full(UCL_OBJECT, params->priority);
+				if (old_obj != NULL) {
+					old_obj->key = params->prefix;
+					old_obj->keylen = strlen(params->prefix);
+				}
+
+				if (old_obj == NULL || nest_obj == NULL ||
+					ucl_copy_key_trash(old_obj) == NULL) {
+					ucl_create_err(&parser->err,
+								   "cannot allocate memory for an object");
+					if (buf) {
+						ucl_munmap(buf, buflen);
+					}
+
+					ucl_object_unref(old_obj);
+					ucl_object_unref(nest_obj);
+					ucl_include_restore_filevars(parser, old_curfile, old_curdir, old_filename);
+
+					return false;
+				}
+
 				old_obj->prev = old_obj;
 				old_obj->next = NULL;
 
@@ -1423,7 +1441,6 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 												   parser->flags & UCL_PARSER_KEY_LOWERCASE);
 				parser->stack->obj->len++;
 
-				nest_obj = ucl_object_new_full(UCL_OBJECT, params->priority);
 				nest_obj->prev = nest_obj;
 				nest_obj->next = NULL;
 
@@ -1499,21 +1516,23 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 			if (old_obj == NULL) {
 				/* Create an object with key: prefix */
 				nest_obj = ucl_object_new_full(UCL_OBJECT, params->priority);
+				if (nest_obj != NULL) {
+					nest_obj->key = params->prefix;
+					nest_obj->keylen = strlen(params->prefix);
+				}
 
-				if (nest_obj == NULL) {
+				if (nest_obj == NULL || ucl_copy_key_trash(nest_obj) == NULL) {
 					ucl_create_err(&parser->err, "cannot allocate memory for an object");
 					if (buf) {
 						ucl_munmap(buf, buflen);
 					}
 
+					ucl_object_unref(nest_obj);
 					ucl_include_restore_filevars(parser, old_curfile, old_curdir, old_filename);
 
 					return false;
 				}
 
-				nest_obj->key = params->prefix;
-				nest_obj->keylen = strlen(params->prefix);
-				ucl_copy_key_trash(nest_obj);
 				nest_obj->prev = nest_obj;
 				nest_obj->next = NULL;
 

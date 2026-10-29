@@ -21,7 +21,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Exercise copy cleanup with deterministic allocation failures in ucl_util.c. */
+/* Exercise copy and include cleanup with deterministic allocation failures in
+ * ucl_util.c. */
 #include <stdlib.h>
 #include <string.h>
 #undef NDEBUG
@@ -268,11 +269,108 @@ test_include_frame_failure(void)
 	remove(path);
 }
 
+/* How many times a variable is registered in the parser */
+static int
+count_variable(struct ucl_parser *parser, const char *name)
+{
+	struct ucl_variable *var;
+	int found = 0;
+
+	for (var = parser->variables; var != NULL; var = var->next) {
+		if (strcmp(var->var, name) == 0) {
+			found++;
+		}
+	}
+
+	return found;
+}
+
+static struct ucl_parser *
+include_parser(const char *base)
+{
+	struct ucl_parser *parser = ucl_parser_new(0);
+
+	assert(parser != NULL);
+	assert(ucl_parser_add_string(parser, base, 0));
+
+	return parser;
+}
+
+/*
+ * A prefixed include creates or reuses the object that receives the included
+ * file, and the stack frame for it, before the file is parsed. When one of
+ * these allocations fails, the parent object must not keep a freed receiver
+ * or one without a key, and the include must still give the file variables
+ * back to the including file. The stack frame is released in ucl_parser.c,
+ * out of reach of the allocation hooks, so leaks are left to leak checkers.
+ */
+static void
+test_include_failures(void)
+{
+	static const struct {
+		const char *base;
+		const char *params;
+	} cases[] = {
+		{"a = 1;", "key=\"k\""},
+		{"a = 1; k { x = 1 };", "key=\"k\""},
+		{"a = 1;", "key=\"k\", target=\"array\""},
+		{"a = 1; k [{ x = 1 }];", "key=\"k\", target=\"array\""},
+		{"a = 1; k { x = 1 };", "key=\"k\", target=\"array\""},
+	};
+	const char *dir = getenv("TEST_OUT_DIR");
+	char path[1024], include[1200];
+	unsigned char *expected, *actual;
+	struct ucl_parser *parser;
+	size_t total, i, j;
+	FILE *out;
+	bool res;
+
+	snprintf(path, sizeof(path), "%s/copy_failure.inc", dir != NULL ? dir : ".");
+	out = fopen(path, "w");
+	assert(out != NULL);
+	fputs("b = 2;\n", out);
+	assert(fclose(out) == 0);
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		snprintf(include, sizeof(include), ".include(%s) \"%s\"",
+				 cases[i].params, path);
+		parser = include_parser(cases[i].base);
+		allocations = 0;
+		assert(ucl_parser_add_string(parser, include, 0));
+		total = allocations;
+		expected = ucl_object_emit(parser->top_obj, UCL_EMIT_JSON_COMPACT);
+		assert(expected != NULL);
+		ucl_parser_free(parser);
+
+		for (j = 1; j <= total; j++) {
+			parser = include_parser(cases[i].base);
+			allocations = 0;
+			fail_at = j;
+			res = ucl_parser_add_string(parser, include, 0);
+			fail_at = 0;
+			assert(ucl_parser_get_cur_file(parser) == NULL);
+			assert(count_variable(parser, "FILENAME") == 1);
+			assert(count_variable(parser, "CURDIR") == 1);
+			/* Walks the whole tree, the receiver of a failed include too */
+			actual = ucl_object_emit(parser->top_obj, UCL_EMIT_JSON_COMPACT);
+			assert(actual != NULL);
+			if (res) {
+				assert(strcmp((char *) actual, (char *) expected) == 0);
+			}
+			free(actual);
+			ucl_parser_free(parser);
+		}
+		free(expected);
+	}
+	remove(path);
+}
+
 int main(void)
 {
 	test_copy_failures();
 	test_escaped_sizes();
 	test_userdata_failure();
 	test_include_frame_failure();
+	test_include_failures();
 	return 0;
 }
