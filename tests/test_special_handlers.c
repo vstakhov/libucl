@@ -211,11 +211,48 @@ test_chain_alloc_failure(bool with_free)
 	assert(first_st.freed == 1);
 }
 
+static void
+test_insert_chunk_failure(void)
+{
+	struct ucl_parser *parser = ucl_parser_new(0);
+	struct ucl_parser_special_handler reject;
+	struct handler_state reject_st = {0};
+	const char rejected[] = "REJECT b = 2;", inserted[] = "c = 3;";
+	ucl_object_t *top;
+
+	assert(parser != NULL);
+	assert(ucl_parser_add_string(parser, "a = 1;", 0));
+	reject_st.fail = true;
+	init_handler(&reject, "REJECT", UCL_SPECIAL_HANDLER_DEFAULT, true, &reject_st);
+	ucl_parser_add_special_handler(parser, &reject);
+
+	/*
+	 * Neither chunk gets onto the parser's stack, so removing the top of
+	 * the stack afterwards would free the chunk of the base document.
+	 */
+	assert(!ucl_parser_insert_chunk(parser, (const unsigned char *) rejected,
+									sizeof(rejected) - 1));
+	assert(reject_st.calls == 1);
+	assert(!ucl_parser_insert_chunk(parser, NULL, 1));
+	assert(parser->chunks != NULL && parser->chunks->next == NULL);
+	assert(parser->recursion == 1);
+	assert(ucl_parser_insert_chunk(parser, (const unsigned char *) inserted,
+								   sizeof(inserted) - 1));
+	top = ucl_parser_get_object(parser);
+	assert(top != NULL);
+	assert(ucl_object_toint(ucl_object_lookup(top, "a")) == 1);
+	assert(ucl_object_lookup(top, "b") == NULL);
+	assert(ucl_object_toint(ucl_object_lookup(top, "c")) == 3);
+	ucl_object_unref(top);
+	ucl_parser_free(parser);
+}
+
 int main(void)
 {
 	test_chain_success();
 	test_handler_failure();
 	test_chain_alloc_failure(true);
 	test_chain_alloc_failure(false);
+	test_insert_chunk_failure();
 	return 0;
 }
