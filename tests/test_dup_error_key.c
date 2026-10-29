@@ -252,6 +252,11 @@ test_emit_repeated_key(void)
 		 "{\"a\":[[1,2],5],\"b\":[5,[1,2]]}"},
 		{"a [1, 2]; a = 5;", UCL_EMIT_YAML,
 		 "a: [\n    [\n        1,\n        2\n    ],\n    5\n]"},
+		{"a = 5; a = 6; b = 7; b = 8;", UCL_EMIT_YAML,
+		 "a: [\n    5,\n    6\n]\nb: [\n    7,\n    8\n]"},
+		{"a = 5; a = 6; b = 7; b = 8;", UCL_EMIT_JSON,
+		 "{\n    \"a\": [\n        5,\n        6\n    ],\n"
+		 "    \"b\": [\n        7,\n        8\n    ]\n}"},
 	};
 	size_t i;
 
@@ -273,6 +278,71 @@ test_emit_repeated_key(void)
 
 		free(out);
 		ucl_object_unref(obj);
+	}
+}
+
+static char *
+emit_doc(const char *doc, enum ucl_emitter type)
+{
+	struct ucl_parser *p = ucl_parser_new(0);
+	assert(p != NULL);
+	assert(ucl_parser_add_string(p, doc, 0));
+
+	ucl_object_t *obj = ucl_parser_get_object(p);
+	ucl_parser_free(p);
+	unsigned char *out = ucl_object_emit(obj, type);
+	assert(out != NULL);
+	ucl_object_unref(obj);
+
+	return (char *) out;
+}
+
+/*
+ * The values of a repeated key must come out as the explicit array of the
+ * same values would. The layout of that implicit array was chosen by the
+ * length of its first value, so when that was 0, as for a number, an empty
+ * string or an empty container, the brackets went out as those of an empty
+ * array, on the lines of the values. YAML also got a comma before a repeated
+ * key at the top level, where keys are separated by newlines alone.
+ */
+static void
+test_emit_repeated_key_layout(void)
+{
+	static const struct {
+		const char *implicit;
+		const char *explicit;
+	} cases[] = {
+		{"a = 5; a = 6; a = 7; b = 8; b = 9;", "a [5, 6, 7]; b [8, 9];"},
+		/* in an object, and after a key that is not repeated */
+		{"s { a = 5; a = 6; b = 7; c = 8; c = 9; } t = 1; t = 2;",
+		 "s { a [5, 6]; b = 7; c [8, 9]; } t [1, 2];"},
+		/* first values that are containers, empty or not, or empty strings */
+		{"a [1, 2]; a = 3; b { x = 1; } b = 4; c []; c = 5; d {} d = 6; "
+		 "e = \"\"; e = 7;",
+		 "a [[1, 2], 3]; b [{ x = 1; }, 4]; c [[], 5]; d [{}, 6]; "
+		 "e [\"\", 7];"},
+		/* among explicit arrays */
+		{"a [1]; b = 2; b = 3; c [4, 5]; d = 6; d = 7; e [];",
+		 "a [1]; b [2, 3]; c [4, 5]; d [6, 7]; e [];"},
+	};
+	static const enum ucl_emitter types[] = {
+		UCL_EMIT_JSON, UCL_EMIT_JSON_COMPACT, UCL_EMIT_YAML};
+	size_t i, j;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		for (j = 0; j < sizeof(types) / sizeof(types[0]); j++) {
+			char *got = emit_doc(cases[i].implicit, types[j]);
+			char *expect = emit_doc(cases[i].explicit, types[j]);
+
+			if (strcmp(got, expect) != 0) {
+				fprintf(stderr, "'%s' (emitter %d): got\n%s\nexpected\n%s\n",
+						cases[i].implicit, (int) types[j], got, expect);
+			}
+			assert(strcmp(got, expect) == 0);
+
+			free(got);
+			free(expect);
+		}
 	}
 }
 
@@ -514,6 +584,7 @@ int main(int argc, char **argv)
 	test_merge_no_implicit_arrays();
 	test_no_implicit_arrays_priority();
 	test_emit_repeated_key();
+	test_emit_repeated_key_layout();
 	test_merge_split_value();
 	test_merge_pending_insert();
 	test_merge_split_comment();

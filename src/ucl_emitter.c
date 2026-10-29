@@ -216,16 +216,18 @@ ucl_emitter_common_end_object(struct ucl_emitter_context *ctx,
 /**
  * End standard ucl array
  * @param ctx emitter context
+ * @param implicit obj is the first value of a repeated key, as for start_array
  * @param compact compact flag
  */
 static void
 ucl_emitter_common_end_array(struct ucl_emitter_context *ctx,
-							 const ucl_object_t *obj, bool compact)
+							 const ucl_object_t *obj, bool implicit,
+							 bool compact)
 {
 	const struct ucl_emitter_functions *func = ctx->func;
 
 	ctx->indent--;
-	if (compact || obj->len == 0) {
+	if (compact || (!implicit && obj->len == 0)) {
 		func->ucl_emitter_append_character(']', 1, func->ud);
 	}
 	else {
@@ -275,7 +277,8 @@ ucl_emitter_common_start_array(struct ucl_emitter_context *ctx,
 
 	ucl_emitter_print_key(print_key, ctx, obj, compact);
 
-	if (compact || obj->len == 0) {
+	/* The length of the first value of an implicit array is not its own */
+	if (compact || (!implicit && obj->len == 0)) {
 		func->ucl_emitter_append_character('[', 1, func->ud);
 	}
 	else {
@@ -358,17 +361,13 @@ ucl_emitter_common_start_object(struct ucl_emitter_context *ctx,
 		else {
 			/* Expand implicit arrays */
 			if (cur->next != NULL) {
-				if (!first_key) {
-					if (compact) {
-						func->ucl_emitter_append_character(',', 1, func->ud);
-					}
-					else {
-						func->ucl_emitter_append_len(",\n", 2, func->ud);
-					}
+				/* start_array writes the separator and indent of a later key */
+				if (first_key) {
+					ucl_add_tabs(func, ctx->indent, compact);
 				}
-				ucl_add_tabs(func, ctx->indent, compact);
-				ucl_emitter_common_start_array(ctx, cur, true, true, true, compact);
-				ucl_emitter_common_end_array(ctx, cur, compact);
+				ucl_emitter_common_start_array(ctx, cur, true, first_key, true,
+											   compact);
+				ucl_emitter_common_end_array(ctx, cur, true, compact);
 			}
 			else {
 				ucl_emitter_common_elt(ctx, cur, first_key, true, compact);
@@ -487,7 +486,7 @@ ucl_emitter_common_elt(struct ucl_emitter_context *ctx,
 		break;
 	case UCL_ARRAY:
 		ucl_emitter_common_start_array(ctx, obj, false, true, print_key, compact);
-		ucl_emitter_common_end_array(ctx, obj, compact);
+		ucl_emitter_common_end_array(ctx, obj, false, compact);
 		break;
 	case UCL_USERDATA:
 		ud = (struct ucl_object_userdata *) obj;
@@ -545,7 +544,7 @@ ucl_emitter_common_elt(struct ucl_emitter_context *ctx,
 	static void ucl_emit_##type##_end_array(struct ucl_emitter_context *ctx,                       \
 											const ucl_object_t *obj)                               \
 	{                                                                                              \
-		ucl_emitter_common_end_array(ctx, obj, (compact));                                         \
+		ucl_emitter_common_end_array(ctx, obj, false, (compact));                                  \
 	}
 
 UCL_EMIT_TYPE_IMPL(json, false)
