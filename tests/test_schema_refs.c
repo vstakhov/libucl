@@ -38,11 +38,13 @@
 #undef NDEBUG
 #endif
 #include <assert.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
+#include <fcntl.h>
 #include <unistd.h>
+#endif
 
 static ucl_object_t *
 parse(const char *str)
@@ -342,6 +344,7 @@ test_binary_string_compare(void)
 	ucl_object_unref(schema);
 }
 
+#ifndef _WIN32
 /*
  * A $ref to a file or URL is fetched and parsed, and everything this
  * allocates is released whether or not that works. A file is mapped
@@ -399,6 +402,7 @@ test_external_ref(void)
 	assert(strstr(err.msg, "cannot fetch reference") != NULL);
 	ucl_object_unref(schema);
 }
+#endif
 
 int main(int argc, char **argv)
 {
@@ -412,7 +416,9 @@ int main(int argc, char **argv)
 	test_malformed_type_array();
 	test_binary_string_pattern();
 	test_binary_string_compare();
+#ifndef _WIN32
 	test_external_ref();
+#endif
 
 	printf("All schema $ref tests passed\n");
 
