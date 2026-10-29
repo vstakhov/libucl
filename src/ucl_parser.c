@@ -3512,9 +3512,10 @@ bool ucl_parser_insert_chunk(struct ucl_parser *parser, const unsigned char *dat
 		/*
 		 * A macro cannot go on in the outer chunk: its name and handler are
 		 * locals of the parse that has just returned, and the outer parse
-		 * would use its own on the data that follows
+		 * would use its own on the data that follows. Keep the error of a
+		 * chunk that has failed already.
 		 */
-		ucl_set_err(parser, UCL_ESYNTAX, "unfinished macro", &parser->err);
+		ucl_set_err_fallback(parser, UCL_ESYNTAX, "unfinished macro");
 		res = false;
 	}
 
@@ -3554,6 +3555,21 @@ bool ucl_parser_insert_chunk(struct ucl_parser *parser, const unsigned char *dat
 	if (new_depth == depth && parser->stack->obj == frame &&
 		parser->stack->obj->type == frame_type) {
 		parser->state = state;
+	}
+	else if (parser->state == UCL_STATE_AFTER_VALUE &&
+			 state != UCL_STATE_AFTER_VALUE && parser->stack != NULL) {
+		/*
+		 * The outer chunk has its separator already (a macro value takes
+		 * the one after it), so the end of the inserted chunk separates its
+		 * last value from what follows, as on the same frame, where the
+		 * restored state expects no separator either
+		 */
+		if (parser->stack->obj->type == UCL_OBJECT) {
+			parser->state = UCL_STATE_KEY;
+		}
+		else {
+			parser->state = UCL_STATE_VALUE;
+		}
 	}
 
 	return res;

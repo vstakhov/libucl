@@ -705,6 +705,23 @@ main(void)
 	/* On the same frame the outer chunk goes on, but without the macro */
 	ok = check_macro_insert("a { .insert \"x = 1; .priority \" y = 2 }",
 							false, "a { x = 1; y = 2 }") && ok;
+	/*
+	 * The macro value takes the separator after it, so an inserted chunk
+	 * that changes the frame and ends on a value needs none before the next
+	 * key, as on the same frame
+	 */
+	ok = check_macro_insert("a { .insert \"b { c = 1\"\nd = 2 } }", false,
+							"a { b { c = 1\nd = 2 } }") && ok;
+	ok = check_macro_insert("a { .insert \"} b = 1\"\nc = 2", true,
+							"a { } b = 1\nc = 2") && ok;
+	ok = check_macro_insert("a { .insert \"} b = 1\"; c = 2", true,
+							"a { } b = 1; c = 2") && ok;
+	ok = check_resumed_chunk("a { b = 1; ", "} c = 2", "d = 3",
+							 "a { b = 1; } c = 2; d = 3") && ok;
+	/* Without a separator in the outer chunk, the next chunk needs one */
+	ok = check_resumed_chunk("a { b = 1", "} c = 2", "d = 3", NULL) && ok;
+	ok = check_resumed_chunk("a { b = 1", "} c = 2", "; d = 3",
+							 "a { b = 1 } c = 2; d = 3") && ok;
 	ok = check_null_retyped_chunk("a = 1") && ok;
 	ok = check_null_retyped_chunk("a = \"str\"") && ok;
 	ok = check_keyless_include("a = 1", "[{}") && ok;
