@@ -284,6 +284,41 @@ test_merge_split_value(void)
 }
 
 /*
+ * A chunk inserted between a key and its value, as a macro can do, adds a
+ * key before the merge left pending for the first one is settled. That merge
+ * is dropped, which leaves the old container as the value of its key. Settled
+ * later instead, it took the value of the inserted key, which became null.
+ */
+static void
+test_merge_pending_insert(void)
+{
+	static const char first[] = "a {x = 1}\na =\n";
+	static const char inserted[] = "b = 2";
+	struct ucl_parser *p = ucl_parser_new(0);
+	ucl_object_t *obj;
+	unsigned char *json;
+
+	assert(p != NULL);
+	assert(ucl_parser_add_chunk_full(p, (const unsigned char *) first,
+									 sizeof(first) - 1, 0,
+									 UCL_DUPLICATE_MERGE, UCL_PARSE_UCL));
+	assert(ucl_parser_insert_chunk(p, (const unsigned char *) inserted,
+								   sizeof(inserted) - 1));
+
+	obj = ucl_parser_get_object(p);
+	ucl_parser_free(p);
+	json = ucl_object_emit(obj, UCL_EMIT_JSON_COMPACT);
+	assert(json != NULL);
+	if (strcmp((const char *) json, "{\"a\":{\"x\":1},\"b\":2}") != 0) {
+		fprintf(stderr, "pending insert: got %s\n", (const char *) json);
+	}
+	assert(strcmp((const char *) json, "{\"a\":{\"x\":1},\"b\":2}") == 0);
+
+	free(json);
+	ucl_object_unref(obj);
+}
+
+/*
  * The comments before a key whose value starts in a later chunk belong to
  * that value, as in a single chunk. With the merge pending at the end of
  * the chunk, they went to the old container as trailing comments, and so
@@ -410,6 +445,7 @@ int main(int argc, char **argv)
 	test_merge_no_implicit_arrays();
 	test_emit_repeated_key();
 	test_merge_split_value();
+	test_merge_pending_insert();
 	test_merge_split_comment();
 	test_replace_comments();
 
