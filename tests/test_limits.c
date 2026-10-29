@@ -22,7 +22,8 @@
  */
 
 /*
- * Parser budgets (ucl_parser_set_limits) and the iterative tree destructor.
+ * Parser budgets (ucl_parser_set_limits), the include nesting limit and the
+ * iterative tree destructor.
  * The destruction tests matter as much as the limit ones: they are what keeps
  * a deeply nested document from exhausting the stack on cleanup, long after
  * the parser has returned successfully.
@@ -686,6 +687,80 @@ test_implicit_array_chain(void)
 	ucl_parser_free(p);
 }
 
+#ifndef _WIN32
+/*
+ * The include nesting limit counts the includes in progress, so each include
+ * gives its level back once its file is parsed. A URL include did not, and a
+ * document with more URL includes in a row than that limit was rejected.
+ * The URL half only runs when the library has been built with URL support.
+ */
+static void
+test_sequential_includes(void)
+{
+	const char *dir = getenv("TEST_OUT_DIR");
+	char path[PATH_MAX], real[PATH_MAX], line[PATH_MAX + 64];
+	char *doc;
+	size_t doc_len, doc_size;
+	struct ucl_parser *p;
+	ucl_object_t *top;
+	FILE *out;
+	unsigned i;
+	int url;
+
+	snprintf(path, sizeof(path), "%s/limits_include.inc",
+			 dir != NULL ? dir : ".");
+	out = fopen(path, "w");
+	assert(out != NULL);
+	fputs("key = 1;\n", out);
+	assert(fclose(out) == 0);
+	assert(realpath(path, real) != NULL);
+
+	doc_size = (UCL_MAX_RECURSION * 2) * sizeof(line);
+	doc = malloc(doc_size);
+	assert(doc != NULL);
+
+	for (url = 0; url < 2; url++) {
+		doc_len = 0;
+
+		for (i = 0; i < UCL_MAX_RECURSION * 2; i++) {
+			int n = snprintf(line, sizeof(line), "%s\"%s%s\"\n",
+							 url ? ".include(url=true) " : ".include ",
+							 url ? "file://" : "", real);
+
+			assert(n > 0 && (size_t) n < sizeof(line));
+			memcpy(doc + doc_len, line, n);
+			doc_len += n;
+		}
+
+		p = make_parser(NULL);
+
+		if (!parse(p, doc, doc_len)) {
+			const char *err = ucl_parser_get_error(p);
+
+			if (url && err != NULL &&
+				strstr(err, "URL support is disabled") != NULL) {
+				ucl_parser_free(p);
+				continue;
+			}
+
+			fprintf(stderr, "%s includes in a row failed: %s\n",
+					url ? "URL" : "file", err != NULL ? err : "no error");
+			abort();
+		}
+
+		assert(p->recursion == 1);
+		top = ucl_parser_get_object(p);
+		assert(top != NULL);
+		assert(ucl_object_toint(ucl_object_lookup(top, "key")) == 1);
+		ucl_object_unref(top);
+		ucl_parser_free(p);
+	}
+
+	free(doc);
+	remove(path);
+}
+#endif
+
 int main(int argc, char **argv)
 {
 	(void) argc;
@@ -701,6 +776,9 @@ int main(int argc, char **argv)
 	test_deep_destruction();
 	test_shared_subtree();
 	test_implicit_array_chain();
+#ifndef _WIN32
+	test_sequential_includes();
+#endif
 
 	printf("All limits tests passed\n");
 

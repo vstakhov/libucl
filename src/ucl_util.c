@@ -1211,6 +1211,7 @@ ucl_include_url(const unsigned char *data, size_t len,
 		if (chunk != NULL) {
 			parser->chunks = chunk->next;
 			ucl_chunk_free(chunk);
+			parser->recursion--;
 		}
 	}
 
