@@ -739,6 +739,7 @@ test_sequential_includes(void)
 
 			if (url && err != NULL &&
 				strstr(err, "URL support is disabled") != NULL) {
+				printf("URL includes in a row skipped: no URL support\n");
 				ucl_parser_free(p);
 				continue;
 			}

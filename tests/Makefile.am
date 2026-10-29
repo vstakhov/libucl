@@ -17,7 +17,8 @@ TESTS = basic.test \
 		test_copy_failure \
 		test_object_free \
 		test_dup_error_key \
-		test_special_handlers
+		test_special_handlers \
+		test_limits
 
 TESTS_ENVIRONMENT = $(SH) \
 			TEST_DIR=$(top_srcdir)/tests \
@@ -81,7 +82,7 @@ check_PROGRAMS = test_basic test_speed test_generate test_variables test_empty_c
 		 test_schema_refs \
 		 test_streamline test_msgpack test_cbor test_cbor_vectors \
 		 test_roundtrip test_strnstr test_size_overflow test_copy_failure test_object_free \
-		 test_dup_error_key test_special_handlers
+		 test_dup_error_key test_special_handlers test_limits
 
 test_strnstr_SOURCES = test_strnstr.c
 test_strnstr_LDADD = $(common_test_ldadd)
@@ -106,3 +107,7 @@ test_dup_error_key_CFLAGS = $(common_test_cflags)
 test_special_handlers_SOURCES = test_special_handlers.c
 test_special_handlers_LDADD = $(common_test_ldadd)
 test_special_handlers_CFLAGS = $(common_test_cflags) -I$(top_srcdir)/klib
+
+test_limits_SOURCES = test_limits.c
+test_limits_LDADD = $(common_test_ldadd)
+test_limits_CFLAGS = $(common_test_cflags)
