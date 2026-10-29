@@ -343,13 +343,18 @@ done:
 }
 
 static bool
-check_closing_include(const char *base, const char *rest)
+check_closing_include(const char *base, const char *macro, const char *rest,
+					  int code)
 {
 	/*
 	 * .include restores the state it was called in, so an included } that
 	 * closed an object inside an array left the parser expecting a key with
 	 * the array on top of the stack: the next key in the including file went
 	 * to ucl_hash_insert() with the array's storage.
+	 * A prefixed include pushes a frame of its own and pops it after the
+	 * included file. That frame copied the braces of the enclosing one, so an
+	 * included } popped and freed it first, and the include then popped it
+	 * again.
 	 */
 	const char *dir = getenv("TEST_OUT_DIR");
 	struct ucl_parser *parser = ucl_parser_new(0);
@@ -359,8 +364,8 @@ check_closing_include(const char *base, const char *rest)
 
 	snprintf(path, sizeof(path), "%s/empty_chunks_closing.inc",
 			 dir != NULL ? dir : ".");
-	snprintf(conf, sizeof(conf), "%s\n.include \"$CLOSING_INC\"\n%s\n",
-			 base, rest);
+	snprintf(conf, sizeof(conf), "%s\n%s \"$CLOSING_INC\"\n%s\n",
+			 base, macro, rest);
 	CHECK(parser != NULL, "cannot create parser");
 	out = fopen(path, "w");
 	CHECK(out != NULL, "cannot create the included file");
@@ -368,9 +373,9 @@ check_closing_include(const char *base, const char *rest)
 	CHECK(fclose(out) == 0, "cannot write the included file");
 	ucl_parser_register_variable(parser, "CLOSING_INC", path);
 	CHECK(!ucl_parser_add_string(parser, conf, 0),
-		  "a key after the include must be rejected in an array frame");
-	CHECK(ucl_parser_get_error_code(parser) == UCL_ESYNTAX,
-		  "expected a syntax error after the include");
+		  "an included } must not close the frame of the include");
+	CHECK(ucl_parser_get_error_code(parser) == code,
+		  "unexpected error code");
 
 done:
 	remove(path);
@@ -505,7 +510,13 @@ main(void)
 	ok = check_failed_include("p = 1\n"
 							  ".include(prefix=true; key=\"p\") \"$OUTER_INC\"\n",
 							  "q = 2\n", "", "empty_chunks_outer.inc") && ok;
-	ok = check_closing_include("a = [{", "b = 1 }]") && ok;
-	ok = check_closing_include("[{", "b = 1 }]") && ok;
+	ok = check_closing_include("a = [{", ".include", "b = 1 }]",
+							   UCL_ESYNTAX) && ok;
+	ok = check_closing_include("[{", ".include", "b = 1 }]", UCL_ESYNTAX) && ok;
+	ok = check_closing_include("x {", ".include(prefix=true; key=\"p\")",
+							   "y = 1 }", UCL_EUNPAIRED) && ok;
+	ok = check_closing_include("x {",
+							   ".include(prefix=true; key=\"p\"; target=\"array\")",
+							   "y = 1 }", UCL_EUNPAIRED) && ok;
 	return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }

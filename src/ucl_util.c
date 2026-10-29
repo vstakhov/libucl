@@ -1484,7 +1484,12 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 		}
 		st->obj = nest_obj;
 		st->e.params.level = parser->stack->e.params.level;
-		st->e.params.flags = parser->stack->e.params.flags;
+		/*
+		 * No brace opens this frame, so none may close it: with the flags of
+		 * the enclosing frame, a } in the included file popped and freed it,
+		 * and the pop below then used it after free.
+		 */
+		st->e.params.flags = 0;
 		st->e.params.line = parser->stack->e.params.line;
 		st->chunk = parser->chunks;
 		LL_PREPEND(parser->stack, st);
