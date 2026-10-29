@@ -31,6 +31,10 @@
 #include "ucl.h"
 #include "ucl_internal.h"
 
+/* The checks below call the code under test, so they must run in release builds */
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
