@@ -293,11 +293,11 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 			while ((elt = ucl_object_iterate(obj, &iter, true)) != NULL) {
 				found = ucl_object_lookup(prop, ucl_object_key(elt));
 				if (found == NULL) {
-					/* Try patternProperties */
+					/* Try patternProperties against this key, not any other */
 					pat = ucl_object_lookup(schema, "patternProperties");
 					piter = NULL;
 					while ((pelt = ucl_object_iterate(pat, &piter, true)) != NULL) {
-						found = ucl_schema_test_pattern(obj, ucl_object_key(pelt), true);
+						found = ucl_schema_test_pattern(elt, ucl_object_key(pelt), false);
 						if (found != NULL) {
 							break;
 						}
