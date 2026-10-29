@@ -760,6 +760,42 @@ test_sequential_includes(void)
 	free(doc);
 	remove(path);
 }
+
+/*
+ * An inserted chunk gives its level back even when it fails. An include that
+ * failed inside it leaves its own chunk on top of the stack, so taking only
+ * the top chunk off kept the inserted one: it pointed to the caller's data,
+ * and its level was never given back.
+ */
+static void
+test_failed_insert_include(void)
+{
+	const char *dir = getenv("TEST_OUT_DIR");
+	char path[PATH_MAX], doc[PATH_MAX + 32];
+	struct ucl_parser *p;
+	struct ucl_chunk *base;
+	FILE *out;
+	int n;
+
+	snprintf(path, sizeof(path), "%s/limits_bad_include.inc",
+			 dir != NULL ? dir : ".");
+	out = fopen(path, "w");
+	assert(out != NULL);
+	fputs("a = {{;\n", out);
+	assert(fclose(out) == 0);
+	n = snprintf(doc, sizeof(doc), ".include \"%s\"\n", path);
+	assert(n > 0 && (size_t) n < sizeof(doc));
+
+	p = make_parser(NULL);
+	assert(parse(p, "a = 1;", strlen("a = 1;")) == true);
+	base = p->chunks;
+	assert(base != NULL && p->recursion == 1);
+	assert(ucl_parser_insert_chunk(p, (const unsigned char *) doc, n) == false);
+	assert(p->chunks == base && base->next == NULL);
+	assert(p->recursion == 1);
+	ucl_parser_free(p);
+	remove(path);
+}
 #endif
 
 int main(int argc, char **argv)
@@ -779,6 +815,7 @@ int main(int argc, char **argv)
 	test_implicit_array_chain();
 #ifndef _WIN32
 	test_sequential_includes();
+	test_failed_insert_include();
 #endif
 
 	printf("All limits tests passed\n");
