@@ -3926,7 +3926,19 @@ bool ucl_object_toint_safe(const ucl_object_t *obj, int64_t *target)
 		break;
 	case UCL_FLOAT:
 	case UCL_TIME:
-		*target = obj->value.dv; /* Losing of decimal points */
+		/* The cast is undefined for NaN and out of range values */
+		if (isnan(obj->value.dv)) {
+			return false;
+		}
+		else if (obj->value.dv >= 9223372036854775808.0) {
+			*target = INT64_MAX;
+		}
+		else if (obj->value.dv < -9223372036854775808.0) {
+			*target = INT64_MIN;
+		}
+		else {
+			*target = obj->value.dv; /* Losing of decimal points */
+		}
 		break;
 	default:
 		return false;

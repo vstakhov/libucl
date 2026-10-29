@@ -267,16 +267,26 @@ ucl_utstring_append_int(int64_t val, void *ud)
 	return 0;
 }
 
+/*
+ * Casting a double to int is undefined for NaN and for values out of the int
+ * range, so these are always printed with "%lf"
+ */
+static inline bool
+ucl_double_fits_int(double val)
+{
+	return val > (double) INT_MIN - 1.0 && val < (double) INT_MAX + 1.0;
+}
+
 static int
 ucl_utstring_append_double(double val, void *ud)
 {
 	UT_string *buf = ud;
 	const double delta = 0.0000001;
 
-	if (val == (double) (int) val) {
+	if (ucl_double_fits_int(val) && val == (double) (int) val) {
 		utstring_printf(buf, "%.1lf", val);
 	}
-	else if (fabs(val - (double) (int) val) < delta) {
+	else if (ucl_double_fits_int(val) && fabs(val - (double) (int) val) < delta) {
 		/* Write at maximum precision */
 		utstring_printf(buf, "%.*lg", DBL_DIG, val);
 	}
@@ -328,10 +338,10 @@ ucl_file_append_double(double val, void *ud)
 	FILE *fp = ud;
 	const double delta = 0.0000001;
 
-	if (val == (double) (int) val) {
+	if (ucl_double_fits_int(val) && val == (double) (int) val) {
 		fprintf(fp, "%.1lf", val);
 	}
-	else if (fabs(val - (double) (int) val) < delta) {
+	else if (ucl_double_fits_int(val) && fabs(val - (double) (int) val) < delta) {
 		/* Write at maximum precision */
 		fprintf(fp, "%.*lg", DBL_DIG, val);
 	}
@@ -400,12 +410,13 @@ ucl_fd_append_double(double val, void *ud)
 {
 	int fd = *(int *) ud;
 	const double delta = 0.0000001;
-	char nbuf[64];
+	/* "%lf" of DBL_MAX takes more than 300 characters */
+	char nbuf[DBL_MAX_10_EXP + 64];
 
-	if (val == (double) (int) val) {
+	if (ucl_double_fits_int(val) && val == (double) (int) val) {
 		snprintf(nbuf, sizeof(nbuf), "%.1lf", val);
 	}
-	else if (fabs(val - (double) (int) val) < delta) {
+	else if (ucl_double_fits_int(val) && fabs(val - (double) (int) val) < delta) {
 		/* Write at maximum precision */
 		snprintf(nbuf, sizeof(nbuf), "%.*lg", DBL_DIG, val);
 	}

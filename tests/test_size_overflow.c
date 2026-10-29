@@ -23,7 +23,8 @@
 
 /*
  * Overflow checked size helpers (ucl_size_add/ucl_size_mul and their
- * portable fallbacks) and the kvec _safe macros built on top of them.
+ * portable fallbacks) and the kvec _safe macros built on top of them, and
+ * numbers that do not fit the integer types they are converted to.
  */
 
 #include "ucl_internal.h"
@@ -33,8 +34,13 @@
 /* These checks must also run in release builds */
 #undef NDEBUG
 #include <assert.h>
+#include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 typedef bool (*size_op_t)(size_t, size_t, size_t *);
 
@@ -247,6 +253,151 @@ test_public_reserve(void)
 	ucl_object_unref(obj);
 }
 
+static const char *
+parse_error(const char *text)
+{
+	static char buf[256];
+	struct ucl_parser *p = ucl_parser_new(0);
+	const char *err;
+
+	assert(p != NULL);
+	ucl_parser_add_string(p, text, strlen(text));
+	err = ucl_parser_get_error(p);
+	buf[0] = '\0';
+	if (err != NULL) {
+		snprintf(buf, sizeof(buf), "%s", err);
+	}
+	ucl_parser_free(p);
+
+	return err != NULL ? buf : NULL;
+}
+
+static int64_t
+parse_int(const char *text)
+{
+	struct ucl_parser *p = ucl_parser_new(0);
+	ucl_object_t *top;
+	int64_t v;
+
+	assert(p != NULL);
+	assert(ucl_parser_add_string(p, text, strlen(text)));
+	top = ucl_parser_get_object(p);
+	assert(top != NULL);
+	assert(ucl_object_type(ucl_object_lookup(top, "a")) == UCL_INT);
+	v = ucl_object_toint(ucl_object_lookup(top, "a"));
+	ucl_object_unref(top);
+	ucl_parser_free(p);
+
+	return v;
+}
+
+/* A suffix that takes a number out of the int64_t range is an error */
+static void
+test_number_suffix_overflow(void)
+{
+	static const char *const too_big[] = {
+		/* The suffix is the last byte of the input */
+		"a = 9223372036854775807k",
+		/* The suffix is followed by the end of an atom */
+		"a = 9223372036854775807k\n",
+		"a = -9223372036854775807m;",
+		"a = 10000000000g\n",
+		/* A byte suffix converts a double to an integer */
+		"a = 9223372036854775807kb",
+		"a = 1e300kb\n",
+		"a = -1e19kb\n",
+	};
+
+	for (size_t i = 0; i < sizeof(too_big) / sizeof(too_big[0]); i++) {
+		const char *err = parse_error(too_big[i]);
+
+		assert(err != NULL && strstr(err, "out of range") != NULL);
+	}
+
+	assert(parse_int("a = 9223372036854775k") == INT64_C(9223372036854775000));
+	assert(parse_int("a = -9223372036854775k") == -INT64_C(9223372036854775000));
+	assert(parse_int("a = 8gb") == INT64_C(8589934592));
+	assert(parse_int("a = 1e3kb") == INT64_C(1024000));
+}
+
+/* A float out of the int64_t range is clamped, NaN is not converted */
+static void
+test_float_to_int(void)
+{
+	ucl_object_t *obj;
+	int64_t v = 42;
+
+	obj = ucl_object_fromdouble(1e300);
+	assert(ucl_object_toint_safe(obj, &v) && v == INT64_MAX);
+	ucl_object_unref(obj);
+	obj = ucl_object_fromdouble(-1e300);
+	assert(ucl_object_toint_safe(obj, &v) && v == INT64_MIN);
+	ucl_object_unref(obj);
+	obj = ucl_object_fromdouble(-1.5);
+	assert(ucl_object_toint_safe(obj, &v) && v == -1);
+	ucl_object_unref(obj);
+	obj = ucl_object_fromdouble(NAN);
+	v = 42;
+	assert(!ucl_object_toint_safe(obj, &v) && v == 42);
+	assert(ucl_object_toint(obj) == 0);
+	ucl_object_unref(obj);
+}
+
+#ifndef _WIN32
+static char *
+emit_to_file(const ucl_object_t *obj, bool use_fd)
+{
+	FILE *fp = tmpfile();
+	struct ucl_emitter_functions *funcs;
+	char *out;
+	long len;
+
+	assert(fp != NULL);
+	funcs = use_fd ? ucl_object_emit_fd_funcs(fileno(fp)) : ucl_object_emit_file_funcs(fp);
+	assert(funcs != NULL);
+	assert(ucl_object_emit_full(obj, UCL_EMIT_JSON_COMPACT, funcs, NULL));
+	ucl_object_emit_funcs_free(funcs);
+	fflush(fp);
+	len = lseek(fileno(fp), 0, SEEK_END);
+	assert(len >= 0);
+	out = malloc(len + 1);
+	assert(out != NULL);
+	assert(pread(fileno(fp), out, len, 0) == len);
+	out[len] = '\0';
+	fclose(fp);
+
+	return out;
+}
+#endif
+
+/* Floats out of the int range are printed in full by every emitter */
+static void
+test_float_emit(void)
+{
+	const double vals[] = {1e300, -1e300, -3e9, 1e10 + 0.5, 2147483648.0,
+						   -2147483649.0, 0.5, 3.0, INFINITY, NAN};
+
+	for (size_t i = 0; i < sizeof(vals) / sizeof(vals[0]); i++) {
+		ucl_object_t *obj = ucl_object_fromdouble(vals[i]);
+		unsigned char *mem = ucl_object_emit(obj, UCL_EMIT_JSON_COMPACT);
+
+		assert(mem != NULL);
+		if (isfinite(vals[i])) {
+			assert(strtod((const char *) mem, NULL) == vals[i]);
+		}
+#ifndef _WIN32
+		for (int use_fd = 0; use_fd < 2; use_fd++) {
+			char *out = emit_to_file(obj, use_fd);
+
+			assert(strcmp(out, (const char *) mem) == 0);
+			free(out);
+		}
+#endif
+		free(mem);
+		ucl_object_unref(obj);
+	}
+}
+
 int main(void)
 {
 	test_add(ucl_size_add);
@@ -262,6 +413,10 @@ int main(void)
 	test_hash_reserve();
 	test_public_reserve();
 	test_hash_sizes();
+
+	test_number_suffix_overflow();
+	test_float_to_int();
+	test_float_emit();
 
 	return 0;
 }

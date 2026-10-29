@@ -637,10 +637,11 @@ UCL_EXTERN bool ucl_object_todouble_safe(const ucl_object_t *obj, double *target
 UCL_EXTERN double ucl_object_todouble(const ucl_object_t *obj);
 
 /**
- * Converts an object to integer value
+ * Converts an object to integer value, a float out of the int64_t range is
+ * clamped to INT64_MIN or INT64_MAX
  * @param obj CL object
  * @param target target integer variable
- * @return true if conversion was successful
+ * @return true if conversion was successful, false for NaN
  */
 UCL_EXTERN bool ucl_object_toint_safe(const ucl_object_t *obj, int64_t *target);
 

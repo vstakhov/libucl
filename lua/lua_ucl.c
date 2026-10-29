@@ -501,7 +501,9 @@ ucl_object_lua_fromelt (lua_State *L, int idx, ucl_string_flags_t flags)
 		break;
 	case LUA_TNUMBER:
 		num = lua_tonumber (L, idx);
-		if (num == (int64_t)num) {
+		/* The cast is undefined for NaN and out of range values */
+		if (num >= -9223372036854775808.0 && num < 9223372036854775808.0 &&
+				num == (int64_t)num) {
 			obj = ucl_object_fromint (num);
 		}
 		else {

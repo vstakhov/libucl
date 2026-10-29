@@ -269,6 +269,43 @@ ucl_lex_num_multiplier(const unsigned char c, bool is_bytes)
 
 
 /**
+ * Multiply a parsed integer by a suffix multiplier, failing on overflow
+ * @param lv
+ * @param mult positive multiplier
+ * @return false if the result does not fit int64_t
+ */
+static inline bool
+ucl_lex_num_mul(int64_t *lv, long mult)
+{
+	if (*lv > INT64_MAX / mult || *lv < INT64_MIN / mult) {
+		return false;
+	}
+
+	*lv *= mult;
+
+	return true;
+}
+
+/**
+ * Convert a parsed double to an integer, failing if it does not fit
+ * @param dv
+ * @param lv
+ * @return false for NaN and for values out of the int64_t range
+ */
+static inline bool
+ucl_lex_double_to_int(double dv, int64_t *lv)
+{
+	/* -2^63 and 2^63 are exact doubles, INT64_MAX is not */
+	if (!(dv >= -9223372036854775808.0 && dv < 9223372036854775808.0)) {
+		return false;
+	}
+
+	*lv = (int64_t) dv;
+
+	return true;
+}
+
+/**
  * Return multiplier for time scaling
  * @param c
  * @return
@@ -1100,9 +1137,15 @@ int ucl_maybe_parse_number(ucl_object_t *obj,
 					/* Bytes */
 					if (need_double) {
 						need_double = false;
-						lv = dv;
+						if (!ucl_lex_double_to_int(dv, &lv)) {
+							*pos = start;
+							return ERANGE;
+						}
 					}
-					lv *= ucl_lex_num_multiplier(*p, true);
+					if (!ucl_lex_num_mul(&lv, ucl_lex_num_multiplier(*p, true))) {
+						*pos = start;
+						return ERANGE;
+					}
 					p += 2;
 					if (end - p > 0 && !ucl_lex_is_atom_end(*p)) {
 						*pos = start;
@@ -1114,8 +1157,9 @@ int ucl_maybe_parse_number(ucl_object_t *obj,
 					if (need_double) {
 						dv *= ucl_lex_num_multiplier(*p, false);
 					}
-					else {
-						lv *= ucl_lex_num_multiplier(*p, number_bytes);
+					else if (!ucl_lex_num_mul(&lv, ucl_lex_num_multiplier(*p, number_bytes))) {
+						*pos = start;
+						return ERANGE;
 					}
 					p++;
 					goto set_obj;
@@ -1144,8 +1188,9 @@ int ucl_maybe_parse_number(ucl_object_t *obj,
 				if (need_double) {
 					dv *= ucl_lex_num_multiplier(*p, false);
 				}
-				else {
-					lv *= ucl_lex_num_multiplier(*p, number_bytes);
+				else if (!ucl_lex_num_mul(&lv, ucl_lex_num_multiplier(*p, number_bytes))) {
+					*pos = start;
+					return ERANGE;
 				}
 				p++;
 				if (end - p > 0 && !ucl_lex_is_atom_end(*p)) {
