@@ -325,6 +325,15 @@ void ucl_parser_pop_container(struct ucl_parser *parser, struct ucl_stack *st);
 void ucl_array_detach_elements(ucl_object_t *ar);
 
 /**
+ * Remove the comments of an object about to be unreferenced, and of all it
+ * holds, as far as that releases them. Comments are keyed by address, so
+ * objects allocated later would take them otherwise.
+ * @param comments comments object of a parser
+ * @param obj object to be unreferenced
+ */
+void ucl_comments_forget(ucl_object_t *comments, const ucl_object_t *obj);
+
+/**
  * Account for one more element in the resulting tree
  * @param parser parser object
  * @return false if either the node or the allocation budget is exhausted

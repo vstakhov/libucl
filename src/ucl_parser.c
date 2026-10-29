@@ -1429,6 +1429,25 @@ ucl_parser_append_elt(struct ucl_parser *parser, ucl_hash_t *cont,
 }
 
 /*
+ * Replace the old value of a key with a new one. With comments saved, the
+ * comment of the key goes to the new value, and those of everything released
+ * with the old one are dropped rather than left to objects reusing addresses.
+ */
+static void
+ucl_parser_replace_elt(struct ucl_parser *parser, ucl_hash_t *cont,
+					   ucl_object_t *old, ucl_object_t *nobj)
+{
+	ucl_hash_replace(cont, old, nobj);
+
+	if (parser->comments != NULL) {
+		ucl_comments_move(parser->comments, old, nobj);
+		ucl_comments_forget(parser->comments, old);
+	}
+
+	ucl_object_unref(old);
+}
+
+/*
  * What the value of a new element of an object is known to be, as only a
  * container is merged into an old one. The text parser adds a key before it
  * reads the value, which may even start in a later chunk.
@@ -1523,16 +1542,14 @@ ucl_parser_add_object_element(struct ucl_parser *parser, ucl_object_t *nobj,
 				DL_APPEND(parser->trash_objs, nobj);
 			}
 			else {
-				ucl_hash_replace(container, tobj, nobj);
-				ucl_object_unref(tobj);
+				ucl_parser_replace_elt(parser, container, tobj, nobj);
 			}
 
 			break;
 
 		case UCL_DUPLICATE_REWRITE:
 			/* We just rewrite old values regardless of priority */
-			ucl_hash_replace(container, tobj, nobj);
-			ucl_object_unref(tobj);
+			ucl_parser_replace_elt(parser, container, tobj, nobj);
 
 			break;
 
@@ -1601,8 +1618,7 @@ ucl_parser_add_object_element(struct ucl_parser *parser, ucl_object_t *nobj,
 				DL_APPEND(parser->trash_objs, nobj);
 			}
 			else {
-				ucl_hash_replace(container, tobj, nobj);
-				ucl_object_unref(tobj);
+				ucl_parser_replace_elt(parser, container, tobj, nobj);
 			}
 			break;
 		}

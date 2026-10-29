@@ -338,6 +338,68 @@ test_merge_split_comment(void)
 	free(expect);
 }
 
+/*
+ * A value of a higher priority replaces the old value of its key, which is
+ * released. The comments of all it held stayed with the parser, keyed by
+ * addresses that objects allocated later reused, and so were written above
+ * unrelated keys. Its own comment, which belongs to the key, was lost.
+ */
+static void
+test_replace_comments(void)
+{
+	static const char base[] = "# about sec\nsec {\n# about a\na {\n# about x\n"
+							   "x = 1\n}\n# about b\nb [\n# about el\n1\n]\n}\n";
+	static const char over[] = "sec = 5\nn1 = 1\nn2 = 2\nn3 {\ny = 1\n}\n";
+	static const char expect[] = "# about sec\nsec = 5;\nn1 = 1;\nn2 = 2;\n"
+								 "n3 {\n    y = 1;\n}\n";
+	static const enum ucl_duplicate_strategy strategies[] = {
+		UCL_DUPLICATE_MERGE, UCL_DUPLICATE_APPEND, UCL_DUPLICATE_REWRITE};
+	size_t i;
+
+	for (i = 0; i < sizeof(strategies) / sizeof(strategies[0]); i++) {
+		struct ucl_parser *p = ucl_parser_new(UCL_PARSER_SAVE_COMMENTS);
+		struct ucl_emitter_functions *func;
+		const ucl_object_t *comments, *comment;
+		ucl_object_iter_t it = NULL;
+		ucl_object_t *obj;
+		char *out = NULL;
+		unsigned int n = 0;
+
+		assert(p != NULL);
+		assert(ucl_parser_add_chunk_full(p, (const unsigned char *) base,
+										 sizeof(base) - 1, 0, strategies[i],
+										 UCL_PARSE_UCL));
+		assert(ucl_parser_add_chunk_full(p, (const unsigned char *) over,
+										 sizeof(over) - 1, 1, strategies[i],
+										 UCL_PARSE_UCL));
+		obj = ucl_parser_get_object(p);
+		assert(obj != NULL);
+
+		comments = ucl_parser_get_comments(p);
+		while (ucl_object_iterate(comments, &it, true) != NULL) {
+			n++;
+		}
+		assert(n == 1);
+		comment = ucl_comments_find(comments, ucl_object_lookup(obj, "sec"));
+		assert(comment != NULL);
+		assert(strcmp(ucl_object_tostring(comment), "# about sec") == 0);
+
+		func = ucl_object_emit_memory_funcs((void **) &out);
+		assert(func != NULL);
+		assert(ucl_object_emit_full(obj, UCL_EMIT_CONFIG, func, comments));
+		ucl_object_emit_funcs_free(func);
+		if (strcmp(out, expect) != 0) {
+			fprintf(stderr, "strategy %d: got '%s', expected '%s'\n",
+					(int) strategies[i], out, expect);
+		}
+		assert(strcmp(out, expect) == 0);
+
+		free(out);
+		ucl_object_unref(obj);
+		ucl_parser_free(p);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	(void) argc;
@@ -349,6 +411,7 @@ int main(int argc, char **argv)
 	test_emit_repeated_key();
 	test_merge_split_value();
 	test_merge_split_comment();
+	test_replace_comments();
 
 	printf("All duplicate-key error tests passed\n");
 

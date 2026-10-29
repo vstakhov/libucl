@@ -4375,6 +4375,56 @@ void ucl_comments_add(ucl_object_t *comments, const ucl_object_t *obj,
 	}
 }
 
+void ucl_comments_forget(ucl_object_t *comments, const ucl_object_t *obj)
+{
+	kvec_t(const ucl_object_t *) todo;
+	const ucl_object_t *cur = NULL, *elt, *sib;
+	ucl_object_iter_t it = NULL;
+
+	/* Released only with its last reference, and its siblings with it */
+	if (comments == NULL || obj == NULL || obj->ref != 1) {
+		return;
+	}
+
+	kv_init(todo);
+
+	LL_FOREACH(obj, sib)
+	{
+		kv_push_safe(const ucl_object_t *, todo, sib, enomem);
+	}
+
+	while (kv_size(todo) > 0) {
+		cur = kv_pop(todo);
+
+		/* Shared, so it outlives the release along with all it holds */
+		if (cur->ref != 1) {
+			continue;
+		}
+
+		ucl_object_delete_keyl(comments, (const char *) &cur, sizeof(void *));
+
+		if (cur->type == UCL_OBJECT || cur->type == UCL_ARRAY) {
+			it = NULL;
+
+			while ((elt = ucl_object_iterate(cur, &it, true)) != NULL) {
+				LL_FOREACH(elt, sib)
+				{
+					kv_push_safe(const ucl_object_t *, todo, sib, enomem);
+				}
+			}
+		}
+	}
+
+	kv_destroy(todo);
+
+	return;
+
+enomem:
+	/* Comments left behind may only go to the wrong objects */
+	ucl_object_iterate_end(cur, &it);
+	kv_destroy(todo);
+}
+
 void ucl_parser_set_include_tracer(struct ucl_parser *parser,
 								   ucl_include_trace_func_t func,
 								   void *user_data)
