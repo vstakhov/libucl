@@ -151,6 +151,91 @@ done:
 	return ok;
 }
 
+static bool
+check_keyless_chunk(const char *base, const char *chunk)
+{
+	/*
+	 * A chunk that starts with [ inside an object frame has no key to attach
+	 * its value to. Reusing parser->cur_obj there gave away the previous key's
+	 * value: an inserted [5 overwrote it silently, and [{ or [[ reused its
+	 * scalar storage as the new container's, crashing in ucl_hash_destroy()
+	 * when the tree was freed.
+	 */
+	struct ucl_parser *parser = ucl_parser_new(0);
+	bool ok = true;
+
+	CHECK(parser != NULL, "cannot create parser");
+	CHECK(ucl_parser_add_string(parser, base, 0), "base object failed");
+	CHECK(!ucl_parser_insert_chunk(parser, (const unsigned char *) chunk,
+								   strlen(chunk)),
+		  "a keyless array chunk must be rejected in an object frame");
+
+done:
+	ucl_parser_free(parser);
+	return ok;
+}
+
+static bool
+check_null_retyped_chunk(const char *base)
+{
+	/*
+	 * Parsing null over the stale value sets type = UCL_NULL and leaves value.*
+	 * in place, so [null followed by [{} slipped past a check on the type alone.
+	 * Both chunks are now rejected before a value is parsed; the UCL_NULL
+	 * storage check in ucl_parser_add_container() is a backstop that this
+	 * sequence no longer reaches.
+	 */
+	struct ucl_parser *parser = ucl_parser_new(0);
+	bool ok = true;
+
+	CHECK(parser != NULL, "cannot create parser");
+	CHECK(ucl_parser_add_string(parser, base, 0), "base object failed");
+	CHECK(!ucl_parser_insert_chunk(parser, (const unsigned char *) "[null", 5),
+		  "keyless [null must be rejected");
+	CHECK(!ucl_parser_insert_chunk(parser, (const unsigned char *) "[{}", 3),
+		  "keyless [{} must be rejected");
+
+done:
+	ucl_parser_free(parser);
+	return ok;
+}
+
+static bool
+check_keyless_include(const char *base, const char *included)
+{
+	/*
+	 * .include feeds a file through the same path as an inserted chunk, so a
+	 * single malformed included file was enough to reach the stale value, or
+	 * the root object itself when the include is the first statement.
+	 * UCL_PARSER_NO_FILEVARS keeps the parser's own FILENAME and CURDIR out of
+	 * the include failure path, which does not restore them.
+	 */
+	const char *dir = getenv("TEST_OUT_DIR");
+	struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_NO_FILEVARS);
+	char path[1024], conf[256];
+	FILE *out;
+	bool ok = true;
+
+	snprintf(path, sizeof(path), "%s/empty_chunks_keyless.inc",
+			 dir != NULL ? dir : ".");
+	snprintf(conf, sizeof(conf), "%s\n.include \"$KEYLESS_INC\"\n", base);
+	CHECK(parser != NULL, "cannot create parser");
+	out = fopen(path, "w");
+	CHECK(out != NULL, "cannot create the included file");
+	fputs(included, out);
+	CHECK(fclose(out) == 0, "cannot write the included file");
+	ucl_parser_register_variable(parser, "KEYLESS_INC", path);
+	CHECK(!ucl_parser_add_string(parser, conf, 0),
+		  "a keyless array include must be rejected in an object frame");
+	CHECK(ucl_parser_get_error_code(parser) == UCL_ESYNTAX,
+		  "expected a syntax error from the included file");
+
+done:
+	remove(path);
+	ucl_parser_free(parser);
+	return ok;
+}
+
 int
 main(void)
 {
@@ -189,5 +274,15 @@ main(void)
 	ok = check_root_limit("answer = 42;") && ok;
 	ok = check_root_limit("[42]") && ok;
 	ok = check_finished_root() && ok;
+	ok = check_keyless_chunk("a = 1", "[{}") && ok;
+	ok = check_keyless_chunk("a = 1", "[[") && ok;
+	ok = check_keyless_chunk("a = 1", "[5") && ok;
+	ok = check_keyless_chunk("a = \"str\"", "[{}") && ok;
+	/* Nothing parsed yet: the stale value is the root object */
+	ok = check_keyless_chunk(" ", "[5") && ok;
+	ok = check_null_retyped_chunk("a = 1") && ok;
+	ok = check_null_retyped_chunk("a = \"str\"") && ok;
+	ok = check_keyless_include("a = 1", "[{}") && ok;
+	ok = check_keyless_include("", "[5") && ok;
 	return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
