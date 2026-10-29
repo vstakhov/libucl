@@ -1544,8 +1544,8 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 
 		st = UCL_ALLOC(sizeof(struct ucl_stack));
 		if (st == NULL) {
+			/* nest_obj is in the tree already, which owns it */
 			ucl_create_err(&parser->err, "cannot allocate memory for an object");
-			ucl_object_unref(nest_obj);
 
 			if (buf) {
 				ucl_munmap(buf, buflen);

@@ -29,6 +29,8 @@
 
 static size_t fail_at, allocations, live;
 static void *owned[4096];
+/* The size expression of the next UCL_ALLOC to fail, if any */
+static const char *fail_site;
 
 static void *
 copy_test_alloc(size_t size)
@@ -70,9 +72,19 @@ copy_test_free(void *p)
 	free(p);
 }
 
+static void *
+copy_test_alloc_site(size_t size, const char *site)
+{
+	if (fail_site != NULL && strcmp(site, fail_site) == 0) {
+		fail_site = NULL;
+		return NULL;
+	}
+	return copy_test_alloc(size);
+}
+
 #define malloc(size) copy_test_alloc(size)
 #define free(ptr) copy_test_free(ptr)
-#define UCL_ALLOC(size) copy_test_alloc(size)
+#define UCL_ALLOC(size) copy_test_alloc_site(size, #size)
 #define UCL_FREE(size, ptr) copy_test_free(ptr)
 /* Compile this translation unit with its allocator hooks; other library
  * sources use their normal allocators. No production fault-injection API. */
@@ -180,10 +192,87 @@ test_userdata_failure(void)
 	assert(userdata_freed == 1 && live == 0);
 }
 
+static bool
+is_live(const void *p)
+{
+	size_t i;
+
+	for (i = 0; i < sizeof(owned) / sizeof(owned[0]); i++) {
+		if (owned[i] == p) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/*
+ * A prefixed include puts the object that receives the file into the tree
+ * before it allocates the stack frame nesting the file in it. When that
+ * allocation fails, the object belongs to the tree and must stay there.
+ */
+static void
+check_include_frame_failure(const char *path, const char *key,
+							const char *target)
+{
+	struct ucl_parser *parser = ucl_parser_new(0);
+	ucl_object_t *args = ucl_object_new(), *old;
+	const ucl_object_t *nested;
+	struct ucl_stack *stack;
+
+	assert(parser != NULL && args != NULL);
+	assert(ucl_parser_add_string(parser, "obj { a = 1; } arr = [1];", 0));
+	assert(ucl_object_insert_key(args, ucl_object_fromstring(key), "key", 0, false));
+	assert(ucl_object_insert_key(args, ucl_object_fromstring(target), "target",
+								 0, false));
+	old = __DECONST(ucl_object_t *, ucl_object_lookup(parser->top_obj, key));
+	assert(old != NULL);
+	ucl_object_ref(old);
+	stack = parser->stack;
+
+	fail_site = "sizeof(struct ucl_stack)";
+	assert(!ucl_include_handler((const unsigned char *) path, strlen(path),
+								args, parser));
+	assert(fail_site == NULL && parser->stack == stack);
+	assert(strstr(ucl_parser_get_error(parser), "cannot allocate") != NULL);
+	if (ucl_object_type(old) == UCL_ARRAY) {
+		/* A new element, which nothing but the array refers to */
+		assert(ucl_array_size(old) == 2);
+		nested = ucl_array_tail(old);
+		assert(nested != NULL && is_live(nested) && nested->ref == 1);
+	}
+	else {
+		/* The existing object, held by the tree and by this test */
+		assert(old->ref == 2);
+	}
+	ucl_object_unref(old);
+	ucl_object_unref(args);
+	ucl_parser_free(parser);
+}
+
+static void
+test_include_frame_failure(void)
+{
+	const char *dir = getenv("TEST_OUT_DIR");
+	char path[PATH_MAX];
+	FILE *out;
+
+	snprintf(path, sizeof(path), "%s/copy_failure_include.conf",
+			 dir != NULL ? dir : ".");
+	out = fopen(path, "w");
+	assert(out != NULL);
+	fputs("b = 2;\n", out);
+	assert(fclose(out) == 0);
+
+	check_include_frame_failure(path, "obj", "object");
+	check_include_frame_failure(path, "arr", "array");
+	remove(path);
+}
+
 int main(void)
 {
 	test_copy_failures();
 	test_escaped_sizes();
 	test_userdata_failure();
+	test_include_frame_failure();
 	return 0;
 }
