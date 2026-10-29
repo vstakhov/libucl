@@ -460,18 +460,19 @@ write_file(const char *path, const char *content)
 
 static bool
 check_failed_include(const char *conf, const char *outer, const char *inner,
-					 const char *failing)
+					 const char *error)
 {
 	/*
 	 * ucl_include_file_single() swaps in FILENAME, CURDIR and the current file
 	 * for the included file, and put the old ones back only if the include
 	 * succeeded: a failed include leaked them, at every level of a nested
-	 * include. The current file must still name the file that failed.
+	 * include. The including document's file context must be back, while
+	 * the error still tells what failed.
 	 */
 	const char *dir = getenv("TEST_OUT_DIR");
 	struct ucl_parser *parser = ucl_parser_new(0);
 	char outer_path[1024], inner_path[1024];
-	const char *cur;
+	const char *err;
 	bool ok = true;
 
 	snprintf(outer_path, sizeof(outer_path), "%s/empty_chunks_outer.inc",
@@ -484,9 +485,11 @@ check_failed_include(const char *conf, const char *outer, const char *inner,
 	ucl_parser_register_variable(parser, "OUTER_INC", outer_path);
 	ucl_parser_register_variable(parser, "INNER_INC", inner_path);
 	CHECK(!ucl_parser_add_string(parser, conf, 0), "the include must fail");
-	cur = ucl_parser_get_cur_file(parser);
-	CHECK(cur != NULL && strstr(cur, failing) != NULL,
-		  "the current file must name the file that failed");
+	CHECK(ucl_parser_get_cur_file(parser) == NULL,
+		  "the failed include is still the current file");
+	err = ucl_parser_get_error(parser);
+	CHECK(err != NULL && strstr(err, error) != NULL,
+		  "the error must tell what failed");
 
 done:
 	remove(outer_path);
@@ -732,7 +735,7 @@ main(void)
 	/* Fails before the included file is parsed */
 	ok = check_failed_include("p = 1\n"
 							  ".include(prefix=true; key=\"p\") \"$OUTER_INC\"\n",
-							  "q = 2\n", "", "empty_chunks_outer.inc") && ok;
+							  "q = 2\n", "", "Conflicting type for key: p") && ok;
 	ok = check_closing_include("a = [{", ".include", "b = 1 }]",
 							   UCL_ESYNTAX) && ok;
 	ok = check_closing_include("[{", ".include", "b = 1 }]", UCL_ESYNTAX) && ok;

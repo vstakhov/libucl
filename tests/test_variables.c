@@ -1,4 +1,5 @@
 #include "ucl.h"
+#include "ucl_internal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -100,6 +101,97 @@ done:
 	return ok;
 }
 
+static struct ucl_variable *
+find_variable(struct ucl_parser *parser, const char *name, int *count)
+{
+	struct ucl_variable *var, *found = NULL;
+
+	*count = 0;
+	for (var = parser->variables; var != NULL; var = var->next) {
+		if (strcmp(var->var, name) == 0) {
+			found = var;
+			(*count)++;
+		}
+	}
+
+	return found;
+}
+
+/*
+ * While an included file is parsed, its own FILENAME, CURDIR and current file
+ * replace those of the including document. A failed include must hand them
+ * back just like a successful one: they used to stay detached from the parser
+ * and leak, with the included file left as the current one.
+ */
+static bool
+check_failed_include(const char *base, const char *args, const char *included,
+					 const char *top_file)
+{
+	const char *dir = getenv("TEST_OUT_DIR");
+	struct ucl_parser *parser = ucl_parser_new(0);
+	struct ucl_variable *filename, *curdir, *var;
+	char path[1024], config[2048];
+	const char *cur_file;
+	FILE *out;
+	int count;
+	bool ok = false;
+
+	if (parser == NULL) {
+		return false;
+	}
+
+	snprintf(path, sizeof(path), "%s/variables_failed.inc",
+			 dir != NULL ? dir : ".");
+	out = fopen(path, "w");
+	if (out == NULL) {
+		fprintf(stderr, "cannot create %s\n", path);
+		goto done;
+	}
+	fputs(included, out);
+	if (fclose(out) != 0) {
+		fprintf(stderr, "cannot write %s\n", path);
+		goto done;
+	}
+
+	if (top_file != NULL) {
+		ucl_parser_set_filevars(parser, top_file, false);
+	}
+	filename = find_variable(parser, "FILENAME", &count);
+	curdir = find_variable(parser, "CURDIR", &count);
+	snprintf(config, sizeof(config), "%s\n.include%s \"%s\"\n", base, args, path);
+
+	if (ucl_parser_add_string(parser, config, 0)) {
+		fprintf(stderr, "%s: the include must fail\n", included);
+		goto done;
+	}
+
+	ok = true;
+	cur_file = ucl_parser_get_cur_file(parser);
+	if (top_file != NULL ? (cur_file == NULL || strcmp(cur_file, top_file) != 0)
+						 : cur_file != NULL) {
+		fprintf(stderr, "%s: current file is %s after a failed include\n",
+				included, cur_file != NULL ? cur_file : "(null)");
+		ok = false;
+	}
+	var = find_variable(parser, "FILENAME", &count);
+	if (var != filename || count != 1) {
+		fprintf(stderr, "%s: FILENAME was not restored after a failed include\n",
+				included);
+		ok = false;
+	}
+	var = find_variable(parser, "CURDIR", &count);
+	if (var != curdir || count != 1) {
+		fprintf(stderr, "%s: CURDIR was not restored after a failed include\n",
+				included);
+		ok = false;
+	}
+
+done:
+	remove(path);
+	ucl_parser_free(parser);
+	return ok;
+}
+
 int
 main(void)
 {
@@ -136,5 +228,11 @@ main(void)
 			ok = false;
 		}
 	}
+	/* The included file does not parse */
+	ok = check_failed_include("", "", "a = {{;", NULL) && ok;
+	ok = check_failed_include("", "", "a = {{;", "/nonexistent/top.conf") && ok;
+	/* Rejected before parsing: the prefix names a key that is not an object */
+	ok = check_failed_include("key = 1;", "(key=\"key\")", "a = 1;",
+							  "/nonexistent/top.conf") && ok;
 	return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }

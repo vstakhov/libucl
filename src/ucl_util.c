@@ -1220,6 +1220,45 @@ ucl_include_url(const unsigned char *data, size_t len,
 	return res;
 }
 
+/*
+ * Hand the file context of the including document back to the parser once an
+ * included file is done with, whether it has been parsed or not
+ */
+static void
+ucl_include_restore_filevars(struct ucl_parser *parser, char *old_curfile,
+							 struct ucl_variable *old_curdir,
+							 struct ucl_variable *old_filename)
+{
+	struct ucl_variable *cur_var, *tmp_var;
+
+	if (parser->cur_file) {
+		UCL_FREE(strlen(parser->cur_file) + 1, parser->cur_file);
+	}
+
+	parser->cur_file = old_curfile;
+	DL_FOREACH_SAFE(parser->variables, cur_var, tmp_var)
+	{
+		if (strcmp(cur_var->var, "CURDIR") == 0 && old_curdir) {
+			DL_DELETE(parser->variables, cur_var);
+			UCL_FREE(cur_var->var_len + 1, cur_var->var);
+			UCL_FREE(cur_var->value_len + 1, cur_var->value);
+			UCL_FREE(sizeof(struct ucl_variable), cur_var);
+		}
+		else if (strcmp(cur_var->var, "FILENAME") == 0 && old_filename) {
+			DL_DELETE(parser->variables, cur_var);
+			UCL_FREE(cur_var->var_len + 1, cur_var->var);
+			UCL_FREE(cur_var->value_len + 1, cur_var->value);
+			UCL_FREE(sizeof(struct ucl_variable), cur_var);
+		}
+	}
+	if (old_filename) {
+		DL_APPEND(parser->variables, old_filename);
+	}
+	if (old_curdir) {
+		DL_APPEND(parser->variables, old_curdir);
+	}
+}
+
 /**
  * Include a single file to the parser
  * @param data
@@ -1392,8 +1431,13 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 					if (nest_obj == NULL) {
 						ucl_create_err(&parser->err,
 									   "cannot allocate memory for an object");
-						res = false;
-						goto restore_filevars;
+						if (buf) {
+							ucl_munmap(buf, buflen);
+						}
+
+						ucl_include_restore_filevars(parser, old_curfile, old_curdir, old_filename);
+
+						return false;
 					}
 					nest_obj->prev = nest_obj;
 					nest_obj->next = NULL;
@@ -1406,8 +1450,13 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 					if (new_obj == NULL) {
 						ucl_create_err(&parser->err,
 									   "cannot allocate memory for an object");
-						res = false;
-						goto restore_filevars;
+						if (buf) {
+							ucl_munmap(buf, buflen);
+						}
+
+						ucl_include_restore_filevars(parser, old_curfile, old_curdir, old_filename);
+
+						return false;
 					}
 					new_obj->key = old_obj->key;
 					new_obj->keylen = old_obj->keylen;
@@ -1420,9 +1469,15 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 					if (nest_obj == NULL) {
 						ucl_create_err(&parser->err,
 									   "cannot allocate memory for an object");
+						if (buf) {
+							ucl_munmap(buf, buflen);
+						}
+
 						ucl_object_unref(new_obj);
-						res = false;
-						goto restore_filevars;
+
+						ucl_include_restore_filevars(parser, old_curfile, old_curdir, old_filename);
+
+						return false;
 					}
 					nest_obj->prev = nest_obj;
 					nest_obj->next = NULL;
@@ -1441,8 +1496,13 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 
 				if (nest_obj == NULL) {
 					ucl_create_err(&parser->err, "cannot allocate memory for an object");
-					res = false;
-					goto restore_filevars;
+					if (buf) {
+						ucl_munmap(buf, buflen);
+					}
+
+					ucl_include_restore_filevars(parser, old_curfile, old_curdir, old_filename);
+
+					return false;
 				}
 
 				nest_obj->key = params->prefix;
@@ -1466,8 +1526,13 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 								   "Conflicting type for key: %s, asked %s, has %s",
 								   params->prefix, params->target,
 								   ucl_object_type_to_string(ucl_object_type(old_obj)));
-					res = false;
-					goto restore_filevars;
+					if (buf) {
+						ucl_munmap(buf, buflen);
+					}
+
+					ucl_include_restore_filevars(parser, old_curfile, old_curdir, old_filename);
+
+					return false;
 				}
 			}
 		}
@@ -1480,8 +1545,14 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 		if (st == NULL) {
 			ucl_create_err(&parser->err, "cannot allocate memory for an object");
 			ucl_object_unref(nest_obj);
-			res = false;
-			goto restore_filevars;
+
+			if (buf) {
+				ucl_munmap(buf, buflen);
+			}
+
+			ucl_include_restore_filevars(parser, old_curfile, old_curdir, old_filename);
+
+			return false;
 		}
 		st->obj = nest_obj;
 		st->e.params.level = parser->stack->e.params.level;
@@ -1518,44 +1589,8 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 		parser->state = prev_state;
 	}
 
-restore_filevars:
-	/*
-	 * Restore old file vars, whether the include has succeeded or not. A
-	 * failed include keeps the failed file as the current one, so drop the
-	 * old name instead.
-	 */
-	if (res) {
-		if (parser->cur_file) {
-			UCL_FREE(strlen(parser->cur_file) + 1, parser->cur_file);
-		}
-
-		parser->cur_file = old_curfile;
-	}
-	else if (old_curfile) {
-		UCL_FREE(strlen(old_curfile) + 1, old_curfile);
-	}
-
-	DL_FOREACH_SAFE(parser->variables, cur_var, tmp_var)
-	{
-		if (strcmp(cur_var->var, "CURDIR") == 0 && old_curdir) {
-			DL_DELETE(parser->variables, cur_var);
-			UCL_FREE(cur_var->var_len + 1, cur_var->var);
-			UCL_FREE(cur_var->value_len + 1, cur_var->value);
-			UCL_FREE(sizeof(struct ucl_variable), cur_var);
-		}
-		else if (strcmp(cur_var->var, "FILENAME") == 0 && old_filename) {
-			DL_DELETE(parser->variables, cur_var);
-			UCL_FREE(cur_var->var_len + 1, cur_var->var);
-			UCL_FREE(cur_var->value_len + 1, cur_var->value);
-			UCL_FREE(sizeof(struct ucl_variable), cur_var);
-		}
-	}
-	if (old_filename) {
-		DL_APPEND(parser->variables, old_filename);
-	}
-	if (old_curdir) {
-		DL_APPEND(parser->variables, old_curdir);
-	}
+	/* Restore old file vars */
+	ucl_include_restore_filevars(parser, old_curfile, old_curdir, old_filename);
 
 	if (buflen > 0) {
 		ucl_munmap(buf, buflen);
