@@ -217,6 +217,28 @@ done:
 }
 
 static bool
+check_failed_insert(const char *base, const char *chunk)
+{
+	/*
+	 * ucl_parser_add_chunk() refuses to continue a failed parse, but
+	 * ucl_parser_insert_chunk() reset UCL_STATE_ERROR and went on adding to
+	 * the half-built tree.
+	 */
+	struct ucl_parser *parser = ucl_parser_new(0);
+	bool ok = true;
+
+	CHECK(parser != NULL, "cannot create parser");
+	CHECK(!ucl_parser_add_string(parser, base, 0), "the base must fail");
+	CHECK(!ucl_parser_insert_chunk(parser, (const unsigned char *) chunk,
+								   strlen(chunk)),
+		  "a failed parser must not take an inserted chunk");
+
+done:
+	ucl_parser_free(parser);
+	return ok;
+}
+
+static bool
 check_null_retyped_chunk(const char *base)
 {
 	/*
@@ -364,6 +386,8 @@ main(void)
 	/* The root itself is the array frame */
 	ok = check_keyed_chunk("[1, ", "b = 1") && ok;
 	ok = check_keyed_chunk("[1, ", "{b = 1}") && ok;
+	ok = check_failed_insert("a = 1; b = }", "c = 2") && ok;
+	ok = check_failed_insert("a = [1, }", "[2") && ok;
 	ok = check_null_retyped_chunk("a = 1") && ok;
 	ok = check_null_retyped_chunk("a = \"str\"") && ok;
 	ok = check_keyless_include("a = 1", "[{}") && ok;

@@ -3474,6 +3474,12 @@ bool ucl_parser_insert_chunk(struct ucl_parser *parser, const unsigned char *dat
 		return false;
 	}
 
+	if (parser->state == UCL_STATE_ERROR) {
+		/* As in ucl_parser_add_chunk_full(): a failed parse stays failed */
+		ucl_create_err(&parser->err, "a parser is in an invalid state");
+		return false;
+	}
+
 	bool res;
 	struct ucl_chunk *chunk;
 
