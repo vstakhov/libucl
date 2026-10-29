@@ -250,26 +250,29 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 			const ucl_object_t *vobj;
 			ucl_object_iter_t viter;
 
-			if (elt->type != UCL_OBJECT) {
-				/* Patterns are the keys, which only an object has */
-				ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, elt,
-										"patternProperties attribute is invalid in schema");
-				ret = false;
-				break;
-			}
-			piter = NULL;
-			while (ret && (prop = ucl_object_iterate(elt, &piter, true)) != NULL) {
-				viter = NULL;
-				while (ret && (vobj = ucl_object_iterate(obj, &viter, true)) != NULL) {
-					found = ucl_schema_test_pattern(vobj, ucl_object_key(prop), false);
-					if (found) {
-						ret = ucl_schema_validate(prop, found, true, err, root,
-												  ext_ref, refs);
-					}
+			/* Each value of a repeated patternProperties adds its patterns */
+			for (pat = elt; ret && pat != NULL; pat = pat->next) {
+				if (pat->type != UCL_OBJECT) {
+					/* Patterns are the keys, which only an object has */
+					ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, pat,
+											"patternProperties attribute is invalid in schema");
+					ret = false;
+					break;
 				}
-				ucl_object_iterate_end(obj, &viter);
+				piter = NULL;
+				while (ret && (prop = ucl_object_iterate(pat, &piter, true)) != NULL) {
+					viter = NULL;
+					while (ret && (vobj = ucl_object_iterate(obj, &viter, true)) != NULL) {
+						found = ucl_schema_test_pattern(vobj, ucl_object_key(prop), false);
+						if (found) {
+							ret = ucl_schema_validate(prop, found, true, err, root,
+													  ext_ref, refs);
+						}
+					}
+					ucl_object_iterate_end(obj, &viter);
+				}
+				ucl_object_iterate_end(pat, &piter);
 			}
-			ucl_object_iterate_end(elt, &piter);
 		}
 		else if (elt->type == UCL_OBJECT &&
 				 strcmp(ucl_object_key(elt), "dependencies") == 0) {
@@ -284,25 +287,32 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 		if (!allow_additional || additional_schema != NULL) {
 			/*
 			 * Check if we have exactly the same properties in schema and object.
-			 * Iterate own keys only, as above: the safe iterator would also walk
-			 * the values that follow obj or pat in an implicit array, and items
-			 * of an array there have no keys.
+			 * Iterate own keys only, as above: each value repeated in the data
+			 * is checked on its own, and the safe iterator would walk on into
+			 * the values that follow obj.
 			 */
 			iter = NULL;
 			prop = ucl_object_lookup(schema, "properties");
 			while ((elt = ucl_object_iterate(obj, &iter, true)) != NULL) {
 				found = ucl_object_lookup(prop, ucl_object_key(elt));
 				if (found == NULL) {
-					/* Try patternProperties against this key, not any other */
+					/*
+					 * Try patternProperties against this key, not any other,
+					 * with each value of a repeated one: the loop above has
+					 * made sure that they all are objects
+					 */
 					pat = ucl_object_lookup(schema, "patternProperties");
-					piter = NULL;
-					while ((pelt = ucl_object_iterate(pat, &piter, true)) != NULL) {
-						found = ucl_schema_test_pattern(elt, ucl_object_key(pelt), false);
-						if (found != NULL) {
-							break;
+					while (found == NULL && pat != NULL) {
+						piter = NULL;
+						while ((pelt = ucl_object_iterate(pat, &piter, true)) != NULL) {
+							found = ucl_schema_test_pattern(elt, ucl_object_key(pelt), false);
+							if (found != NULL) {
+								break;
+							}
 						}
+						ucl_object_iterate_end(pat, &piter);
+						pat = pat->next;
 					}
-					ucl_object_iterate_end(pat, &piter);
 				}
 				if (found == NULL) {
 					if (!allow_additional) {

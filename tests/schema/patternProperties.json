@@ -134,5 +134,29 @@
                 "valid": true
             }
         ]
+    },
+    {
+        "description": "repeated patternProperties all apply",
+        "schema": {
+            "patternProperties": {"^x": {"type": "integer"}},
+            "patternProperties": {"^y": {"type": "string"}}
+        },
+        "tests": [
+            {
+                "description": "properties matching either patterns are valid",
+                "data": {"x": 1, "y": "s"},
+                "valid": true
+            },
+            {
+                "description": "a mismatch for the first patterns is invalid",
+                "data": {"x": "s"},
+                "valid": false
+            },
+            {
+                "description": "a mismatch for the repeated patterns is invalid",
+                "data": {"y": 1},
+                "valid": false
+            }
+        ]
     }
 ]

@@ -188,6 +188,10 @@ test_malformed_keywords(void)
 		{"{\"type\": null}", "{\"v\": 1}"},
 		{"{\"patternProperties\": [{\"type\": \"integer\"}]}",
 		 "{\"v\": {\"a\": 1}}"},
+		/* Repeated, the array used to reach regcomp() as keyless items */
+		{"{\"patternProperties\": {\"^x\": {}}, \"patternProperties\": [{}], "
+		 "\"additionalProperties\": false}",
+		 "{\"v\": {\"y\": 1}}"},
 		{"{\"required\": [1]}", "{\"v\": {\"a\": 1}}"},
 		{"{\"dependencies\": {\"a\": [1]}}", "{\"v\": {\"a\": 1}}"},
 	};

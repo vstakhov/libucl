@@ -98,7 +98,7 @@
     },
     {
         "description":
-            "additionalProperties ignores a repeated patternProperties",
+            "additionalProperties with a repeated patternProperties that is not an object",
         "schema": {
             "patternProperties": {"^x": {}},
             "patternProperties": [{}],
@@ -106,12 +106,12 @@
         },
         "tests": [
             {
-                "description": "a property matching the first patterns is valid",
+                "description": "a property matching the first patterns is checked against an invalid schema",
                 "data": {"x": 1},
-                "valid": true
+                "valid": false
             },
             {
-                "description": "an additional property is invalid",
+                "description": "an additional property is checked against an invalid schema",
                 "data": {"y": 1},
                 "valid": false
             }
@@ -119,7 +119,7 @@
     },
     {
         "description":
-            "additionalProperties uses only the first of repeated patternProperties",
+            "additionalProperties uses all of repeated patternProperties",
         "schema": {
             "patternProperties": {"^x": {}},
             "patternProperties": {"^y": {"type": "string"}},
@@ -132,8 +132,13 @@
                 "valid": true
             },
             {
-                "description": "a property matching only the repeated patterns is invalid",
-                "data": {"y": 1},
+                "description": "a property matching the repeated patterns is valid",
+                "data": {"y": "s"},
+                "valid": true
+            },
+            {
+                "description": "a property matching no patterns is invalid",
+                "data": {"z": 1},
                 "valid": false
             }
         ]
