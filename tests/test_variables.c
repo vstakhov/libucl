@@ -192,6 +192,127 @@ done:
 	return ok;
 }
 
+/* The value of a variable, or NULL unless it is registered exactly once */
+static const char *
+registered_variable(struct ucl_parser *parser, const char *name)
+{
+	struct ucl_variable *var;
+	const char *value = NULL;
+	int found = 0;
+
+	for (var = parser->variables; var != NULL; var = var->next) {
+		if (strcmp(var->var, name) == 0) {
+			value = var->value;
+			found++;
+		}
+	}
+
+	return found == 1 ? value : NULL;
+}
+
+static void
+test_path(char *buf, size_t len, const char *name)
+{
+	const char *dir = getenv("TEST_OUT_DIR");
+
+	snprintf(buf, len, "%s/%s", dir != NULL ? dir : ".", name);
+}
+
+static bool
+write_test_file(const char *name, const char *content)
+{
+	char path[1024];
+	FILE *out;
+
+	test_path(path, sizeof(path), name);
+	out = fopen(path, "w");
+	if (out == NULL) {
+		return false;
+	}
+	fputs(content, out);
+	return fclose(out) == 0;
+}
+
+static bool
+same_string(const char *a, const char *b)
+{
+	return a != NULL && b != NULL && strcmp(a, b) == 0;
+}
+
+/*
+ * An include replaces FILENAME, CURDIR and the current file with the ones of
+ * the included file while it is parsed. They must belong to the including
+ * file again afterwards, whether the include succeeded or not. A config that
+ * parses expands them into "file" and "dir" after its include.
+ */
+static bool
+check_include_filevars(const char *config, bool expect_ok)
+{
+	struct ucl_parser *parser = ucl_parser_new(0);
+	ucl_object_t *obj = NULL;
+	char path[1024], *cur_file = NULL, *filename = NULL, *curdir = NULL;
+	bool ok = false;
+
+	test_path(path, sizeof(path), "variables_parent.conf");
+	if (parser == NULL || !write_test_file("variables_parent.conf", config) ||
+		!ucl_parser_set_filevars(parser, path, true)) {
+		fprintf(stderr, "%s: cannot set up the including file\n", config);
+		goto done;
+	}
+
+	/* What the including file sees; ucl_parser_add_file() sets the same */
+	if (ucl_parser_get_cur_file(parser) != NULL) {
+		cur_file = strdup(ucl_parser_get_cur_file(parser));
+	}
+	if (registered_variable(parser, "FILENAME") != NULL) {
+		filename = strdup(registered_variable(parser, "FILENAME"));
+	}
+	if (registered_variable(parser, "CURDIR") != NULL) {
+		curdir = strdup(registered_variable(parser, "CURDIR"));
+	}
+	if (cur_file == NULL || filename == NULL || curdir == NULL) {
+		fprintf(stderr, "%s: file variables are not set\n", config);
+		goto done;
+	}
+
+	if (ucl_parser_add_file(parser, path) != expect_ok) {
+		fprintf(stderr, "%s: parse %s: %s\n", config,
+				expect_ok ? "failed" : "succeeded",
+				ucl_parser_get_error(parser) ? ucl_parser_get_error(parser) : "");
+		goto done;
+	}
+	ok = true;
+	if (!same_string(ucl_parser_get_cur_file(parser), cur_file)) {
+		fprintf(stderr, "%s: current file is not restored\n", config);
+		ok = false;
+	}
+	if (!same_string(registered_variable(parser, "FILENAME"), filename) ||
+		!same_string(registered_variable(parser, "CURDIR"), curdir)) {
+		fprintf(stderr, "%s: FILENAME or CURDIR is not restored\n", config);
+		ok = false;
+	}
+	if (expect_ok) {
+		obj = ucl_parser_get_object(parser);
+		if (!same_string(ucl_object_tostring(ucl_object_lookup(obj, "file")),
+						 filename) ||
+			!same_string(ucl_object_tostring(ucl_object_lookup(obj, "dir")),
+						 curdir)) {
+			fprintf(stderr, "%s: wrong FILENAME or CURDIR after the include\n",
+					config);
+			ok = false;
+		}
+	}
+
+done:
+	ucl_object_unref(obj);
+	free(curdir);
+	free(filename);
+	free(cur_file);
+	remove(path);
+	ucl_parser_free(parser);
+	return ok;
+}
+
 int
 main(void)
 {
@@ -220,7 +341,35 @@ main(void)
 		CASE("pre${BINARY}post", "preA\0Bpost"),
 #undef CASE
 	};
-	bool ok = true;
+	static const struct {
+		const char *config;
+		bool expect_ok;
+	} includes[] = {
+		{"a = 1; .include \"${CURDIR}/variables_good.inc\"; "
+		 "file = \"${FILENAME}\"; dir = \"${CURDIR}\"",
+		 true},
+		/* The include fails, yet a glob with try goes on with the parse */
+		{"a = 1; .try_include(glob=true, key=\"a\") \"${CURDIR}/variables_goo*.inc\"; "
+		 "file = \"${FILENAME}\"; dir = \"${CURDIR}\"",
+		 true},
+		{"a = 1; .include \"${CURDIR}/variables_bad.inc\"", false},
+		/* Each level of a nested include has to restore its parent's */
+		{"a = 1; .include \"${CURDIR}/variables_nested.inc\"", false},
+		{"a = 1; .include(glob=true) \"${CURDIR}/variables_ba*.inc\"", false},
+		/* Fails before the included file is parsed */
+		{"a = 1; .include(key=\"a\") \"${CURDIR}/variables_good.inc\"", false},
+	};
+	static const struct {
+		const char *name;
+		const char *content;
+	} include_files[] = {
+		{"variables_good.inc", "b = 2;\n"},
+		{"variables_bad.inc", "}}}\n"},
+		{"variables_nested.inc",
+		 "c = 3;\n.include \"${CURDIR}/variables_bad.inc\"\n"},
+	};
+	char path[1024];
+	bool ok = true, created = true;
 
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
 		if (!check_expansion(cases[i].input, cases[i].expected,
@@ -234,5 +383,28 @@ main(void)
 	/* Rejected before parsing: the prefix names a key that is not an object */
 	ok = check_failed_include("key = 1;", "(key=\"key\")", "a = 1;",
 							  "/nonexistent/top.conf") && ok;
+
+	for (size_t i = 0; i < sizeof(include_files) / sizeof(include_files[0]); i++) {
+		if (!write_test_file(include_files[i].name, include_files[i].content)) {
+			created = false;
+		}
+	}
+	if (!created) {
+		fprintf(stderr, "cannot create the included files\n");
+		ok = false;
+	}
+	else {
+		for (size_t i = 0; i < sizeof(includes) / sizeof(includes[0]); i++) {
+			if (!check_include_filevars(includes[i].config,
+										includes[i].expect_ok)) {
+				ok = false;
+			}
+		}
+	}
+	for (size_t i = 0; i < sizeof(include_files) / sizeof(include_files[0]); i++) {
+		test_path(path, sizeof(path), include_files[i].name);
+		remove(path);
+	}
+
 	return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }

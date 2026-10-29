@@ -372,7 +372,7 @@ done:
 }
 
 static bool
-check_keyless_include(const char *base, const char *included)
+check_keyless_include(const char *base, const char *included, int flags)
 {
 	/*
 	 * .include feeds a file through the same path as an inserted chunk, so a
@@ -380,7 +380,7 @@ check_keyless_include(const char *base, const char *included)
 	 * the root object itself when the include is the first statement.
 	 */
 	const char *dir = getenv("TEST_OUT_DIR");
-	struct ucl_parser *parser = ucl_parser_new(0);
+	struct ucl_parser *parser = ucl_parser_new(flags);
 	char path[1024], conf[256];
 	FILE *out;
 	bool ok = true;
@@ -730,8 +730,10 @@ main(void)
 							 "a { b = 1 } c = 2; d = 3") && ok;
 	ok = check_null_retyped_chunk("a = 1") && ok;
 	ok = check_null_retyped_chunk("a = \"str\"") && ok;
-	ok = check_keyless_include("a = 1", "[{}") && ok;
-	ok = check_keyless_include("", "[5") && ok;
+	ok = check_keyless_include("a = 1", "[{}", 0) && ok;
+	ok = check_keyless_include("", "[5", 0) && ok;
+	ok = check_keyless_include("a = 1", "[{}", UCL_PARSER_NO_FILEVARS) && ok;
+	ok = check_keyless_include("", "[5", UCL_PARSER_NO_FILEVARS) && ok;
 	ok = check_failed_include("a { .include \"$OUTER_INC\" }",
 							  ".include \"$INNER_INC\"\nc = 3\n", "x = }",
 							  "empty_chunks_inner.inc") && ok;
