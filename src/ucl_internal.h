@@ -834,10 +834,13 @@ bool ucl_fetch_file(const unsigned char *filename,
  * Add new element to an object using the current merge strategy and priority
  * @param parser
  * @param nobj
+ * @param is_container true if the value of nobj is, or is going to be, an
+ * object or an array: only those are merged into an existing container
  * @return
  */
 bool ucl_parser_process_object_element(struct ucl_parser *parser,
-									   ucl_object_t *nobj);
+									   ucl_object_t *nobj,
+									   bool is_container);
 
 /**
  * Parse msgpack chunk

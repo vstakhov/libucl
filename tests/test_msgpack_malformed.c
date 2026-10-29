@@ -470,6 +470,77 @@ test_merge_container_type_mismatch(void)
 	}
 }
 
+/*
+ * With UCL_DUPLICATE_MERGE, a scalar for a key that holds a container used to
+ * be dropped. Only containers merge, so like any other duplicate of the same
+ * priority the scalar has to join the container in an implicit array.
+ */
+static void
+test_merge_scalar_over_container(void)
+{
+	/* {"a": [7], "a": 5} */
+	static const unsigned char int_over_array[] = {
+		0x82,
+		0xa1, 0x61, 0x91, 0x07,
+		0xa1, 0x61, 0x05};
+	/* {"a": {"x":1}, "a": "s"} */
+	static const unsigned char string_over_map[] = {
+		0x82,
+		0xa1, 0x61, 0x81, 0xa1, 0x78, 0x01,
+		0xa1, 0x61, 0xa1, 0x73};
+	/* {"a": [7], "a": nil} */
+	static const unsigned char nil_over_array[] = {
+		0x82,
+		0xa1, 0x61, 0x91, 0x07,
+		0xa1, 0x61, 0xc0};
+	static const struct {
+		const char *what;
+		const unsigned char *data;
+		size_t len;
+		ucl_type_t container;
+		ucl_type_t scalar;
+	} cases[] = {
+		{"int over array", int_over_array, sizeof(int_over_array),
+		 UCL_ARRAY, UCL_INT},
+		{"string over map", string_over_map, sizeof(string_over_map),
+		 UCL_OBJECT, UCL_STRING},
+		{"nil over array", nil_over_array, sizeof(nil_over_array),
+		 UCL_ARRAY, UCL_NULL}};
+	size_t i;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		struct ucl_parser *parser = ucl_parser_new(UCL_PARSER_DISABLE_MACRO);
+		ucl_object_t *obj = NULL;
+		const ucl_object_t *elt, *first, *second;
+		ucl_object_iter_t it = NULL;
+		bool ok;
+
+		if (ucl_parser_add_chunk_full(parser, cases[i].data, cases[i].len,
+									  0, UCL_DUPLICATE_MERGE,
+									  UCL_PARSE_MSGPACK)) {
+			obj = ucl_parser_get_object(parser);
+		}
+
+		ucl_parser_free(parser);
+		CHECK(obj != NULL, cases[i].what);
+
+		/* Iterate the implicit array rather than the container's elements */
+		elt = ucl_object_lookup(obj, "a");
+		first = ucl_object_iterate(elt, &it, false);
+		second = ucl_object_iterate(elt, &it, false);
+		ok = first != NULL && ucl_object_type(first) == cases[i].container &&
+			 first->len == 1 &&
+			 second != NULL && ucl_object_type(second) == cases[i].scalar &&
+			 ucl_object_iterate(elt, &it, false) == NULL;
+		ucl_object_unref(obj);
+
+		if (!ok) {
+			FAIL("merge %s: the scalar did not join the container",
+				 cases[i].what);
+		}
+	}
+}
+
 /* ------------------------------------------------------------------ */
 
 int
@@ -498,6 +569,7 @@ main(void)
 	test_userdata_emit();
 	test_after_ucl_open_object();
 	test_merge_container_type_mismatch();
+	test_merge_scalar_over_container();
 
 	if (failed) {
 		fprintf(stderr, "%d test(s) FAILED\n", failed);

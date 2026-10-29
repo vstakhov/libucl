@@ -1428,7 +1428,8 @@ ucl_parser_append_elt(struct ucl_parser *parser, ucl_hash_t *cont,
 	return true;
 }
 
-bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *nobj)
+bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *nobj,
+									   bool is_container)
 {
 	ucl_hash_t *container;
 	ucl_object_t *tobj = NULL, *cur;
@@ -1527,8 +1528,15 @@ bool ucl_parser_process_object_element(struct ucl_parser *parser, ucl_object_t *
 			/*
 			 * Here we do have some old object so we just push it on top of objects stack
 			 * Check priority and then perform the merge on the remaining objects
+			 *
+			 * Only a container can be merged into a container: a scalar would
+			 * be parsed over the old one, retyping it in place and leaking its
+			 * elements, so it is subject to priorities like any other scalar.
+			 * A container of the other kind still gets the old one, so that
+			 * opening it reports the mismatch.
 			 */
-			if (tobj->type == UCL_OBJECT || tobj->type == UCL_ARRAY) {
+			if ((tobj->type == UCL_OBJECT || tobj->type == UCL_ARRAY) &&
+				is_container) {
 				ucl_object_unref(nobj);
 				nobj = tobj;
 			}
@@ -1576,7 +1584,7 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 	const char *key = NULL;
 	bool got_quote = false, got_eq = false, got_semicolon = false,
 		 need_unescape = false, ucl_escape = false, var_expand = false,
-		 got_sep = false;
+		 got_sep = false, is_container;
 	ucl_object_t *nobj;
 	ssize_t keylen;
 
@@ -1755,6 +1763,25 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 		}
 	}
 
+	/*
+	 * The value is not parsed yet, but a merge has to know whether it is a
+	 * container: either nested keys follow, or the value opens with a brace
+	 * or a bracket once ucl_parse_value has skipped the whitespace before it
+	 */
+	if (!got_sep && *next_key) {
+		is_container = true;
+	}
+	else {
+		t = p;
+
+		while (t < chunk->end &&
+			   ucl_test_character(*t, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
+			t++;
+		}
+
+		is_container = t < chunk->end && (*t == '{' || *t == '[');
+	}
+
 	/* Create a new object */
 	nobj = ucl_object_new_full(UCL_NULL, parser->chunks->priority);
 	if (nobj == NULL) {
@@ -1791,7 +1818,7 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 		nobj->flags |= UCL_OBJECT_NEED_KEY_ESCAPE;
 	}
 
-	return ucl_parser_process_object_element(parser, nobj);
+	return ucl_parser_process_object_element(parser, nobj, is_container);
 }
 
 /**

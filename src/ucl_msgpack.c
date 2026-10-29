@@ -831,7 +831,9 @@ ucl_msgpack_insert_object(struct ucl_parser *parser,
 			ucl_copy_key_trash(obj);
 		}
 
-		if (!ucl_parser_process_object_element(parser, obj)) {
+		if (!ucl_parser_process_object_element(parser, obj,
+											   obj->type == UCL_OBJECT ||
+												   obj->type == UCL_ARRAY)) {
 			/*
 			 * None of its failure paths take ownership of the element, and
 			 * ignoring them used to lose both the error - UCL_DUPLICATE_ERROR
