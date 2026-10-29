@@ -4047,10 +4047,19 @@ int ucl_object_compare(const ucl_object_t *o1, const ucl_object_t *o2)
 			ret = o1->len - o2->len;
 		}
 		break;
-	case UCL_FLOAT:
 	case UCL_INT:
+		/*
+		 * Compare rather than subtract: a difference of less than one, or
+		 * one too large for an int, would be wrong once stored in ret, and
+		 * a double cannot hold every int64 value
+		 */
+		ret = (ucl_object_toint(o1) > ucl_object_toint(o2)) -
+			  (ucl_object_toint(o1) < ucl_object_toint(o2));
+		break;
+	case UCL_FLOAT:
 	case UCL_TIME:
-		ret = ucl_object_todouble(o1) - ucl_object_todouble(o2);
+		ret = (ucl_object_todouble(o1) > ucl_object_todouble(o2)) -
+			  (ucl_object_todouble(o1) < ucl_object_todouble(o2));
 		break;
 	case UCL_BOOLEAN:
 		ret = ucl_object_toboolean(o1) - ucl_object_toboolean(o2);
