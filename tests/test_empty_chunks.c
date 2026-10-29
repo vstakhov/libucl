@@ -656,6 +656,17 @@ main(void)
 							false, "a { x { b = 2 } }") && ok;
 	/* Braces opened by the inserted chunk stay unmatched in the outer one */
 	ok = check_macro_insert("a { .insert \"b {\"", false, NULL) && ok;
+	/*
+	 * A macro cannot go on in the outer chunk, which would run .insert on
+	 * "y = 2" in place of .priority, or read a name from the wrong chunk
+	 */
+	ok = check_macro_insert("a { b { .insert \"x = 1 } .priority \" \"y = 2\" }",
+							false, NULL) && ok;
+	ok = check_macro_insert("a { b { .insert \"x = 1 } .pri\" \"y = 2\" }",
+							false, NULL) && ok;
+	/* On the same frame the outer chunk goes on, but without the macro */
+	ok = check_macro_insert("a { .insert \"x = 1; .priority \" y = 2 }",
+							false, "a { x = 1; y = 2 }") && ok;
 	ok = check_null_retyped_chunk("a = 1") && ok;
 	ok = check_null_retyped_chunk("a = \"str\"") && ok;
 	ok = check_keyless_include("a = 1", "[{}") && ok;

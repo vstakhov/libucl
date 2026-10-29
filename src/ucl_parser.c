@@ -3500,6 +3500,17 @@ bool ucl_parser_insert_chunk(struct ucl_parser *parser, const unsigned char *dat
 	res = ucl_parser_add_chunk_full(parser, data, len, outer->priority,
 									outer->strategy, outer->parse_type);
 
+	if (parser->state == UCL_STATE_MACRO_NAME ||
+		parser->state == UCL_STATE_MACRO) {
+		/*
+		 * A macro cannot go on in the outer chunk: its name and handler are
+		 * locals of the parse that has just returned, and the outer parse
+		 * would use its own on the data that follows
+		 */
+		ucl_set_err(parser, UCL_ESYNTAX, "unfinished macro", &parser->err);
+		res = false;
+	}
+
 	/*
 	 * Remove the inserted chunk and resume the outer one. The insert can fail
 	 * before its chunk is added (a special handler refusing the data, for
