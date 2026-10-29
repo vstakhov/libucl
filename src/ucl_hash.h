@@ -65,7 +65,8 @@ bool ucl_hash_insert(ucl_hash_t *hashlin, const ucl_object_t *obj, const char *k
 					 unsigned keylen);
 
 /**
- * Replace element in the hash
+ * Replace element in the hash with one that has the same key, keeping its
+ * position in the insertion order; nothing is allocated
  */
 void ucl_hash_replace(ucl_hash_t *hashlin, const ucl_object_t *old,
 					  const ucl_object_t *new);

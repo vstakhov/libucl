@@ -827,8 +827,12 @@ ucl_msgpack_insert_object(struct ucl_parser *parser,
 		obj->key = key;
 		obj->keylen = keylen;
 
-		if (!(parser->flags & UCL_PARSER_ZEROCOPY)) {
-			ucl_copy_key_trash(obj);
+		if (!(parser->flags & UCL_PARSER_ZEROCOPY) &&
+			ucl_copy_key_trash(obj) == NULL) {
+			ucl_create_err(&parser->err, "cannot allocate memory for a key");
+			ucl_object_unref(obj);
+
+			return false;
 		}
 
 		if (!ucl_parser_process_object_element(parser, obj,

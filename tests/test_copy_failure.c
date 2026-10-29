@@ -22,7 +22,7 @@
  */
 
 /* Exercise copy and include cleanup with deterministic allocation failures in
- * ucl_util.c. */
+ * ucl_util.c and ucl_hash.c. */
 #include <stdlib.h>
 #include <string.h>
 #undef NDEBUG
@@ -87,9 +87,10 @@ copy_test_alloc_site(size_t size, const char *site)
 #define free(ptr) copy_test_free(ptr)
 #define UCL_ALLOC(size) copy_test_alloc_site(size, #size)
 #define UCL_FREE(size, ptr) copy_test_free(ptr)
-/* Compile this translation unit with its allocator hooks; other library
+/* Compile these translation units with their allocator hooks; other library
  * sources use their normal allocators. No production fault-injection API. */
 #include "../src/ucl_util.c"
+#include "../src/ucl_hash.c"
 #undef malloc
 #undef free
 
@@ -357,6 +358,11 @@ test_include_failures(void)
 			if (res) {
 				assert(strcmp((char *) actual, (char *) expected) == 0);
 			}
+			else {
+				assert(ucl_parser_get_error(parser) != NULL);
+			}
+			/* A failed insert of the receiver used to drop the whole parent */
+			assert(strstr((char *) actual, "\"a\":1") != NULL);
 			free(actual);
 			ucl_parser_free(parser);
 		}
@@ -417,6 +423,65 @@ test_discarded_value(void)
 	}
 }
 
+/*
+ * Inserting or merging a key that fails to allocate must leave the target as
+ * it was, with the caller still owning what was not inserted. A failed insert
+ * into the hash replaced the whole hash with NULL, and a failed element
+ * allocation in it was written through.
+ */
+static void
+test_insert_failures(void)
+{
+	ucl_object_t *top, *elt, *src;
+	size_t baseline, total, i, pass;
+	bool res;
+
+	for (pass = 0; pass < 2; pass++) {
+		total = 0;
+
+		for (i = 0; i == 0 || i <= total; i++) {
+			forget_allocations();
+			baseline = live;
+			top = ucl_object_typed_new(UCL_OBJECT);
+			assert(top != NULL);
+			assert(ucl_object_insert_key(top, ucl_object_fromint(1), "a", 0, true));
+			src = NULL;
+			if (pass == 1) {
+				src = ucl_object_typed_new(UCL_OBJECT);
+				assert(src != NULL);
+				assert(ucl_object_insert_key(src, ucl_object_fromint(2), "b", 0, true));
+				assert(ucl_object_insert_key(src, ucl_object_fromint(3), "c", 0, true));
+			}
+
+			allocations = 0;
+			fail_at = i;
+			if (pass == 0) {
+				elt = ucl_object_fromint(2);
+				res = elt != NULL && ucl_object_insert_key(top, elt, "b", 0, true);
+				if (!res) {
+					ucl_object_unref(elt);
+				}
+			}
+			else {
+				res = ucl_object_merge(top, src, true);
+			}
+			fail_at = 0;
+			if (i == 0) {
+				total = allocations;
+				assert(res);
+			}
+
+			assert(ucl_object_toint(ucl_object_lookup(top, "a")) == 1);
+			if (res) {
+				assert(ucl_object_toint(ucl_object_lookup(top, "b")) == 2);
+			}
+			ucl_object_unref(src);
+			ucl_object_unref(top);
+			assert(live == baseline);
+		}
+	}
+}
+
 int main(void)
 {
 	test_copy_failures();
@@ -425,5 +490,6 @@ int main(void)
 	test_include_frame_failure();
 	test_include_failures();
 	test_discarded_value();
+	test_insert_failures();
 	return 0;
 }

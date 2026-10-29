@@ -1508,6 +1508,8 @@ ucl_parser_add_object_element(struct ucl_parser *parser, ucl_object_t *nobj,
 		container = ucl_hash_insert_object(container, nobj,
 										   parser->flags & UCL_PARSER_KEY_LOWERCASE);
 		if (container == NULL) {
+			ucl_set_err(parser, UCL_EINTERNAL, "cannot allocate memory for an object",
+						&parser->err);
 			return false;
 		}
 		nobj->prev = nobj;
@@ -1879,6 +1881,8 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 	/* Create a new object */
 	nobj = ucl_object_new_full(UCL_NULL, parser->chunks->priority);
 	if (nobj == NULL) {
+		ucl_set_err(parser, UCL_EINTERNAL, "cannot allocate memory for an object",
+					&parser->err);
 		return false;
 	}
 
@@ -2071,6 +2075,12 @@ ucl_parser_get_container(struct ucl_parser *parser)
 		obj = ucl_object_new_full(UCL_NULL, parser->chunks->priority);
 		t = parser->stack->obj;
 
+		if (obj == NULL) {
+			ucl_set_err(parser, UCL_EINTERNAL, "cannot allocate memory for an object",
+						&parser->err);
+			return NULL;
+		}
+
 		if (!ucl_parser_account_node(parser)) {
 			ucl_object_unref(obj);
 			return NULL;
@@ -2078,6 +2088,8 @@ ucl_parser_get_container(struct ucl_parser *parser)
 
 		if (!ucl_array_append(t, obj)) {
 			ucl_object_unref(obj);
+			ucl_set_err(parser, UCL_EINTERNAL, "cannot allocate memory for an array",
+						&parser->err);
 			return NULL;
 		}
 

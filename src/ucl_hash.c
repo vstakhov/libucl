@@ -317,6 +317,10 @@ bool ucl_hash_insert(ucl_hash_t *hashlin, const ucl_object_t *obj,
 		k = kh_put(ucl_hash_caseless_node, h, obj, &ret);
 		if (ret > 0) {
 			elt = UCL_ALLOC(sizeof(*elt));
+			if (elt == NULL) {
+				kh_del(ucl_hash_caseless_node, h, k);
+				goto e0;
+			}
 			pelt = &kh_value(h, k);
 			*pelt = elt;
 			DL_APPEND(hashlin->head, elt);
@@ -332,6 +336,10 @@ bool ucl_hash_insert(ucl_hash_t *hashlin, const ucl_object_t *obj,
 		k = kh_put(ucl_hash_node, h, obj, &ret);
 		if (ret > 0) {
 			elt = UCL_ALLOC(sizeof(*elt));
+			if (elt == NULL) {
+				kh_del(ucl_hash_node, h, k);
+				goto e0;
+			}
 			pelt = &kh_value(h, k);
 			*pelt = elt;
 			DL_APPEND(hashlin->head, elt);
@@ -350,8 +358,6 @@ void ucl_hash_replace(ucl_hash_t *hashlin, const ucl_object_t *old,
 					  const ucl_object_t *new)
 {
 	khiter_t k;
-	int ret;
-	struct ucl_hash_elt *elt, *nelt;
 
 	if (hashlin == NULL) {
 		return;
@@ -360,31 +366,21 @@ void ucl_hash_replace(ucl_hash_t *hashlin, const ucl_object_t *old,
 	if (hashlin->caseless) {
 		khash_t(ucl_hash_caseless_node) *h = (khash_t(ucl_hash_caseless_node) *)
 												 hashlin->hash;
-		k = kh_put(ucl_hash_caseless_node, h, old, &ret);
-		if (ret == 0) {
-			elt = kh_value(h, k);
-			kh_del(ucl_hash_caseless_node, h, k);
-			k = kh_put(ucl_hash_caseless_node, h, new, &ret);
-			nelt = UCL_ALLOC(sizeof(*nelt));
-			nelt->obj = new;
-			kh_value(h, k) = nelt;
-			DL_REPLACE_ELEM(hashlin->head, elt, nelt);
-			UCL_FREE(sizeof(*elt), elt);
+		k = kh_get(ucl_hash_caseless_node, h, old);
+		if (k != kh_end(h) && ucl_hash_caseless_equal(old, new)) {
+			/* The same key hashes to the same slot */
+			kh_key(h, k) = new;
+			kh_value(h, k)->obj = new;
 		}
 	}
 	else {
 		khash_t(ucl_hash_node) *h = (khash_t(ucl_hash_node) *)
 										hashlin->hash;
-		k = kh_put(ucl_hash_node, h, old, &ret);
-		if (ret == 0) {
-			elt = kh_value(h, k);
-			kh_del(ucl_hash_node, h, k);
-			k = kh_put(ucl_hash_node, h, new, &ret);
-			nelt = UCL_ALLOC(sizeof(*nelt));
-			nelt->obj = new;
-			kh_value(h, k) = nelt;
-			DL_REPLACE_ELEM(hashlin->head, elt, nelt);
-			UCL_FREE(sizeof(*elt), elt);
+		k = kh_get(ucl_hash_node, h, old);
+		if (k != kh_end(h) && ucl_hash_equal(old, new)) {
+			/* The same key hashes to the same slot */
+			kh_key(h, k) = new;
+			kh_value(h, k)->obj = new;
 		}
 	}
 }

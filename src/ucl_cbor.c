@@ -535,7 +535,12 @@ ucl_cbor_insert_object(struct ucl_parser *parser, const unsigned char *key,
 				return false;
 			}
 
-			ucl_copy_key_trash(obj);
+			if (ucl_copy_key_trash(obj) == NULL) {
+				ucl_create_err(&parser->err, "cannot allocate memory for a key");
+				ucl_object_unref(obj);
+
+				return false;
+			}
 		}
 
 		if (!ucl_parser_process_object_element(parser, obj,
