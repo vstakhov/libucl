@@ -111,5 +111,28 @@
                 "valid": false
             }
         ]
+    },
+    {
+        "description": "patternProperties that is not an object",
+        "schema": {
+            "patternProperties": [{"type": "integer"}]
+        },
+        "tests": [
+            {
+                "description": "an object is checked against an invalid schema",
+                "data": {"foo": 1},
+                "valid": false
+            },
+            {
+                "description": "an empty object is checked against an invalid schema",
+                "data": {},
+                "valid": false
+            },
+            {
+                "description": "ignores non-objects",
+                "data": 12,
+                "valid": true
+            }
+        ]
     }
 ]

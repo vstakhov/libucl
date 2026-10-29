@@ -131,6 +131,7 @@ ucl_schema_validate_dependencies(const ucl_object_t *deps,
 								 const struct ucl_schema_ref_frame *refs)
 {
 	const ucl_object_t *elt, *cur, *cur_dep;
+	const char *dep;
 	ucl_object_iter_t iter = NULL, piter;
 	bool ret = true;
 
@@ -141,10 +142,17 @@ ucl_schema_validate_dependencies(const ucl_object_t *deps,
 			if (cur->type == UCL_ARRAY) {
 				piter = NULL;
 				while (ret && (cur_dep = ucl_object_iterate(cur, &piter, true)) != NULL) {
-					if (ucl_object_lookup(obj, ucl_object_tostring(cur_dep)) == NULL) {
+					dep = ucl_object_tostring(cur_dep);
+					if (dep == NULL) {
+						ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, cur_dep,
+												"dependencies attribute is invalid in schema");
+						ret = false;
+						break;
+					}
+					if (ucl_object_lookup(obj, dep) == NULL) {
 						ucl_schema_create_error(err, UCL_SCHEMA_MISSING_DEPENDENCY, elt,
 												"dependency %s is missing for key %s",
-												ucl_object_tostring(cur_dep), ucl_object_key(cur));
+												dep, ucl_object_key(cur));
 						ret = false;
 						break;
 					}
@@ -173,6 +181,7 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 {
 	const ucl_object_t *elt, *prop, *found, *additional_schema = NULL,
 											*required = NULL, *pat, *pelt;
+	const char *name;
 	ucl_object_iter_t iter = NULL, piter = NULL;
 	bool ret = true, allow_additional = true;
 	int64_t minmax;
@@ -240,6 +249,14 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 		else if (strcmp(ucl_object_key(elt), "patternProperties") == 0) {
 			const ucl_object_t *vobj;
 			ucl_object_iter_t viter;
+
+			if (elt->type != UCL_OBJECT) {
+				/* Patterns are the keys, which only an object has */
+				ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, elt,
+										"patternProperties attribute is invalid in schema");
+				ret = false;
+				break;
+			}
 			piter = NULL;
 			while (ret && (prop = ucl_object_iterate(elt, &piter, true)) != NULL) {
 				viter = NULL;
@@ -307,10 +324,17 @@ ucl_schema_validate_object(const ucl_object_t *schema,
 		if (required != NULL) {
 			iter = NULL;
 			while ((elt = ucl_object_iterate(required, &iter, true)) != NULL) {
-				if (ucl_object_lookup(obj, ucl_object_tostring(elt)) == NULL) {
+				name = ucl_object_tostring(elt);
+				if (name == NULL) {
+					ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, elt,
+											"required attribute is invalid in schema");
+					ret = false;
+					break;
+				}
+				if (ucl_object_lookup(obj, name) == NULL) {
 					ucl_schema_create_error(err, UCL_SCHEMA_MISSING_PROPERTY, obj,
 											"object has missing property %s",
-											ucl_object_tostring(elt));
+											name);
 					ret = false;
 					break;
 				}
@@ -400,6 +424,7 @@ ucl_schema_validate_string(const ucl_object_t *schema,
 	int64_t constraint;
 #ifdef HAVE_REGEX_H
 	regex_t re;
+	const char *pattern, *str;
 #endif
 
 	while (ret && (elt = ucl_object_iterate(schema, &iter, true)) != NULL) {
@@ -428,17 +453,25 @@ ucl_schema_validate_string(const ucl_object_t *schema,
 #ifdef HAVE_REGEX_H
 		else if (elt->type == UCL_STRING &&
 				 strcmp(ucl_object_key(elt), "pattern") == 0) {
-			if (regcomp(&re, ucl_object_tostring(elt),
-						REG_EXTENDED | REG_NOSUB) != 0) {
+			/* Binary strings have no C string to compile or match */
+			pattern = ucl_object_tostring(elt);
+			if (pattern == NULL) {
 				ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, elt,
-										"cannot compile pattern %s", ucl_object_tostring(elt));
+										"pattern attribute is invalid in schema");
 				ret = false;
 				break;
 			}
-			if (regexec(&re, ucl_object_tostring(obj), 0, NULL, 0) != 0) {
+			if (regcomp(&re, pattern, REG_EXTENDED | REG_NOSUB) != 0) {
+				ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, elt,
+										"cannot compile pattern %s", pattern);
+				ret = false;
+				break;
+			}
+			str = ucl_object_tostring(obj);
+			if (str == NULL || regexec(&re, str, 0, NULL, 0) != 0) {
 				ucl_schema_create_error(err, UCL_SCHEMA_CONSTRAINT, obj,
 										"string doesn't match regexp %s",
-										ucl_object_tostring(elt));
+										pattern);
 				ret = false;
 			}
 			regfree(&re);
@@ -656,7 +689,7 @@ ucl_schema_type_is_allowed(const ucl_object_t *type, const ucl_object_t *obj,
 	}
 	else if (type->type == UCL_STRING) {
 		type_str = ucl_object_tostring(type);
-		if (!ucl_object_string_to_type(type_str, &t)) {
+		if (type_str == NULL || !ucl_object_string_to_type(type_str, &t)) {
 			ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, type,
 									"Type attribute is invalid in schema");
 			return false;
@@ -680,6 +713,10 @@ ucl_schema_type_is_allowed(const ucl_object_t *type, const ucl_object_t *obj,
 			/* Types are equal */
 			return true;
 		}
+	}
+	else {
+		ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, type,
+								"Type attribute is invalid in schema");
 	}
 
 	return false;

@@ -169,6 +169,77 @@ test_non_string_ref(void)
 	ucl_object_unref(schema);
 }
 
+/*
+ * Keywords whose value has the wrong type, or is a binary string, make the
+ * schema invalid instead of reaching the validator as a NULL key or string.
+ */
+static void
+test_malformed_keywords(void)
+{
+	static const struct {
+		const char *schema;
+		const char *data;
+	} cases[] = {
+		{"{\"type\": 1}", "{\"v\": 1}"},
+		{"{\"type\": null}", "{\"v\": 1}"},
+		{"{\"patternProperties\": [{\"type\": \"integer\"}]}",
+		 "{\"v\": {\"a\": 1}}"},
+		{"{\"required\": [1]}", "{\"v\": {\"a\": 1}}"},
+		{"{\"dependencies\": {\"a\": [1]}}", "{\"v\": {\"a\": 1}}"},
+	};
+	/* {"type": <bin "integer">} */
+	static const char mp_type[] = "\x81\xa4type\xc4\x07integer";
+	/* {"pattern": <bin "x">} */
+	static const char mp_pattern[] = "\x81\xa7pattern\xc4\x01x";
+	struct ucl_schema_error err;
+	ucl_object_t *schema;
+	unsigned int i;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		schema = parse(cases[i].schema);
+		assert(!validate(schema, NULL, cases[i].data, &err));
+		assert(err.code == UCL_SCHEMA_INVALID_SCHEMA);
+		/* No NULL string made it into the message */
+		assert(strstr(err.msg, "(null)") == NULL);
+		ucl_object_unref(schema);
+	}
+
+	schema = parse_msgpack(mp_type, sizeof(mp_type) - 1);
+	assert(ucl_object_lookup(schema, "type")->flags & UCL_OBJECT_BINARY);
+	assert(!validate(schema, NULL, "{\"v\": 1}", &err));
+	assert(err.code == UCL_SCHEMA_INVALID_SCHEMA);
+	ucl_object_unref(schema);
+
+	schema = parse_msgpack(mp_pattern, sizeof(mp_pattern) - 1);
+	assert(ucl_object_lookup(schema, "pattern")->flags & UCL_OBJECT_BINARY);
+	assert(!validate(schema, NULL, "{\"v\": \"x\"}", &err));
+	assert(err.code == UCL_SCHEMA_INVALID_SCHEMA);
+	assert(strstr(err.msg, "(null)") == NULL);
+	ucl_object_unref(schema);
+}
+
+/*
+ * A binary string cannot be passed to regexec(), so it does not satisfy
+ * a pattern.
+ */
+static void
+test_binary_string_pattern(void)
+{
+	/* [<bin "x">] */
+	static const char mp_data[] = "\x91\xc4\x01x";
+	struct ucl_schema_error err;
+	ucl_object_t *schema, *data;
+
+	schema = parse("{\"items\": {\"pattern\": \"x\"}}");
+	data = parse_msgpack(mp_data, sizeof(mp_data) - 1);
+	assert(ucl_array_head(data)->flags & UCL_OBJECT_BINARY);
+	memset(&err, 0, sizeof(err));
+	assert(!ucl_object_validate(schema, data, &err));
+	assert(err.code == UCL_SCHEMA_CONSTRAINT);
+	ucl_object_unref(data);
+	ucl_object_unref(schema);
+}
+
 int main(int argc, char **argv)
 {
 	(void) argc;
@@ -177,6 +248,8 @@ int main(int argc, char **argv)
 	test_shared_subschema();
 	test_cross_root_cycle();
 	test_non_string_ref();
+	test_malformed_keywords();
+	test_binary_string_pattern();
 
 	printf("All schema $ref tests passed\n");
 
