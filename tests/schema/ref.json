@@ -159,5 +159,49 @@
                 "valid": false
             }
         ]
+    },
+    {
+        "description": "integer ref",
+        "schema": {"$ref": 1},
+        "tests": [
+            {
+                "description": "a ref that is not a string is an invalid schema",
+                "data": 1,
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description": "null ref",
+        "schema": {"$ref": null},
+        "tests": [
+            {
+                "description": "a ref that is not a string is an invalid schema",
+                "data": 1,
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description": "object ref",
+        "schema": {"$ref": {}},
+        "tests": [
+            {
+                "description": "a ref that is not a string is an invalid schema",
+                "data": 1,
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description": "array ref",
+        "schema": {"$ref": ["#"]},
+        "tests": [
+            {
+                "description": "a ref that is not a string is an invalid schema",
+                "data": 1,
+                "valid": false
+            }
+        ]
     }
 ]

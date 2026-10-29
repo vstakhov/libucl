@@ -27,6 +27,9 @@
  * such a schema resolve against whichever root it was reached under, so
  * reaching it again under another root is not a cycle. The JSON suites in
  * tests/schema cannot express shared objects, hence the C API here.
+ *
+ * It also covers malformed schemas, where the exact error code matters, and
+ * binary strings, which only msgpack input can produce.
  */
 
 #include "ucl.h"
@@ -45,6 +48,22 @@ parse(const char *str)
 
 	assert(parser != NULL);
 	assert(ucl_parser_add_string(parser, str, 0));
+	obj = ucl_parser_get_object(parser);
+	assert(obj != NULL);
+	ucl_parser_free(parser);
+
+	return obj;
+}
+
+static ucl_object_t *
+parse_msgpack(const char *data, size_t len)
+{
+	struct ucl_parser *parser = ucl_parser_new(0);
+	ucl_object_t *obj;
+
+	assert(parser != NULL);
+	assert(ucl_parser_add_chunk_full(parser, (const unsigned char *) data, len,
+									 0, UCL_DUPLICATE_APPEND, UCL_PARSE_MSGPACK));
 	obj = ucl_parser_get_object(parser);
 	assert(obj != NULL);
 	ucl_parser_free(parser);
@@ -118,6 +137,38 @@ test_cross_root_cycle(void)
 	ucl_object_unref(sub);
 }
 
+/*
+ * A $ref without a C string value, either not a string at all or a binary
+ * string, is an invalid schema rather than a NULL reference to resolve.
+ */
+static void
+test_non_string_ref(void)
+{
+	static const char *const refs[] = {"1", "null", "true", "{}", "[\"#\"]"};
+	/* {"$ref": <bin "#">} */
+	static const char mp_ref[] = "\x81\xa4$ref\xc4\x01#";
+	struct ucl_schema_error err;
+	ucl_object_t *schema;
+	char buf[64];
+	unsigned int i;
+
+	for (i = 0; i < sizeof(refs) / sizeof(refs[0]); i++) {
+		snprintf(buf, sizeof(buf), "{\"$ref\": %s}", refs[i]);
+		schema = parse(buf);
+		assert(!validate(schema, NULL, "{\"v\": 1}", &err));
+		assert(err.code == UCL_SCHEMA_INVALID_SCHEMA);
+		assert(err.obj == ucl_object_lookup(schema, "$ref"));
+		ucl_object_unref(schema);
+	}
+
+	schema = parse_msgpack(mp_ref, sizeof(mp_ref) - 1);
+	assert(ucl_object_lookup(schema, "$ref")->flags & UCL_OBJECT_BINARY);
+	assert(!validate(schema, NULL, "{\"v\": 1}", &err));
+	assert(err.code == UCL_SCHEMA_INVALID_SCHEMA);
+	assert(err.obj == ucl_object_lookup(schema, "$ref"));
+	ucl_object_unref(schema);
+}
+
 int main(int argc, char **argv)
 {
 	(void) argc;
@@ -125,6 +176,7 @@ int main(int argc, char **argv)
 
 	test_shared_subschema();
 	test_cross_root_cycle();
+	test_non_string_ref();
 
 	printf("All schema $ref tests passed\n");
 

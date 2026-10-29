@@ -783,6 +783,12 @@ ucl_schema_resolve_ref(const ucl_object_t *root, const char *ref,
 	unsigned char *url_buf;
 	size_t url_buflen;
 
+	if (ref == NULL) {
+		ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, root,
+								"reference is invalid, not a string");
+		return NULL;
+	}
+
 	if (ref[0] != '#') {
 		hash_ptr = strrchr(ref, '#');
 
@@ -968,6 +974,7 @@ ucl_schema_validate(const ucl_object_t *schema,
 	const struct ucl_schema_ref_frame *frame;
 	struct ucl_schema_ref_frame ref_frame;
 	const ucl_object_t *elt, *cur, *ref_root;
+	const char *ref;
 	ucl_object_iter_t iter = NULL;
 	bool ret;
 
@@ -1068,9 +1075,15 @@ ucl_schema_validate(const ucl_object_t *schema,
 
 	elt = ucl_object_lookup(schema, "$ref");
 	if (elt != NULL) {
+		/* NULL for anything but a string, binary strings included */
+		ref = ucl_object_tostring(elt);
+		if (ref == NULL) {
+			ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, elt,
+									"$ref attribute is invalid in schema");
+			return false;
+		}
 		ref_root = root;
-		cur = ucl_schema_resolve_ref(root, ucl_object_tostring(elt),
-									 err, external_refs, &ref_root);
+		cur = ucl_schema_resolve_ref(root, ref, err, external_refs, &ref_root);
 
 		if (cur == NULL) {
 			return false;
@@ -1085,8 +1098,7 @@ ucl_schema_validate(const ucl_object_t *schema,
 			if (frame->schema == cur && frame->obj == obj &&
 				frame->root == ref_root) {
 				ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, elt,
-										"cyclic reference: %s",
-										ucl_object_tostring(elt));
+										"cyclic reference: %s", ref);
 				return false;
 			}
 		}
