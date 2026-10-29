@@ -1009,6 +1009,48 @@ test_skipped_try_include(void)
 }
 
 /*
+ * A signed include of a file without a valid signature has to fail. A build
+ * without openssl skipped the check and loaded the file as it was.
+ */
+static void
+test_unsigned_include(void)
+{
+	static const char *const macros[] = {
+		".include(sign=true)",
+		".includes",
+		".try_include(sign=true)",
+		".include(sign=true,glob=true)",
+	};
+	char path[PATH_MAX], doc[PATH_MAX + 64];
+	const char *err;
+	struct ucl_parser *p;
+	ucl_object_t *top;
+	int n;
+
+	write_include(path, sizeof(path), "limits_unsigned.inc", "b = 2\n");
+
+	for (size_t i = 0; i < sizeof(macros) / sizeof(macros[0]); i++) {
+		n = snprintf(doc, sizeof(doc), "a = 1\n%s \"%s\"\n", macros[i], path);
+		assert(n > 0 && (size_t) n < sizeof(doc));
+		p = make_parser(NULL);
+		assert(parse(p, doc, n) == false);
+		err = ucl_parser_get_error(p);
+		if (err == NULL || (strstr(err, "built without signatures support") == NULL &&
+							strstr(err, ".sig") == NULL)) {
+			fprintf(stderr, "'%s': unexpected error '%s'\n", doc,
+					err != NULL ? err : "(null)");
+			abort();
+		}
+		top = ucl_parser_get_object(p);
+		assert(top == NULL || ucl_object_lookup(top, "b") == NULL);
+		ucl_object_unref(top);
+		ucl_parser_free(p);
+	}
+
+	remove(path);
+}
+
+/*
  * A required URL include that cannot be fetched reported no error: the
  * fetch set its message only when the URL did not have to exist.
  */
@@ -1060,6 +1102,7 @@ int main(int argc, char **argv)
 	test_failed_insert_include();
 	test_failed_glob_include();
 	test_skipped_try_include();
+	test_unsigned_include();
 	test_missing_url_include();
 #endif
 

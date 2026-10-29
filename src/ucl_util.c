@@ -824,7 +824,7 @@ bool ucl_pubkey_add(struct ucl_parser *parser, const unsigned char *key, size_t 
 #else
 #if (OPENSSL_VERSION_NUMBER < 0x10000000L)
 	ucl_create_err(&parser->err, "cannot check signatures, openssl version is unsupported");
-	return EXIT_FAILURE;
+	return false;
 #else
 	struct ucl_pubkey *nkey;
 	BIO *mem;
@@ -1166,6 +1166,12 @@ ucl_include_url(const unsigned char *data, size_t len,
 		if (siglen > 0) {
 			UCL_FREE(siglen, sigbuf);
 		}
+#else
+		ucl_create_err(&parser->err, "cannot verify url %.*s: "
+									 "libucl is built without signatures support",
+					   (int) len, data);
+		UCL_FREE(buflen, buf);
+		return false;
 #endif
 	}
 
@@ -1353,6 +1359,15 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 		if (sigbuf) {
 			ucl_munmap(sigbuf, siglen);
 		}
+#else
+		ucl_create_err(&parser->err, "cannot verify file %s: "
+									 "libucl is built without signatures support",
+					   realbuf);
+		if (buf) {
+			ucl_munmap(buf, buflen);
+		}
+
+		return false;
 #endif
 	}
 

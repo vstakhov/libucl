@@ -308,7 +308,8 @@ this file as non-fatal. For example, such a file can be absent but it won't stop
 of the top-level document.
 * `sign` (default: **false**) - if this option is `true` UCL loads and checks the signature for
 a file from path named `<FILEPATH>.sig`. Trusted public keys should be provided for UCL API after
-parser is created but before any configurations are parsed.
+parser is created but before any configurations are parsed. If ucl is built without `openssl`, a
+signed include always fails.
 * `glob` (default: **false**) - if this option is `true` UCL treats the filename as GLOB pattern and load
 all files that matches the specified pattern (normally the format of patterns is defined in `glob` manual page
 for your operating system). This option is meaningless for URL includes.
