@@ -385,67 +385,60 @@ void ucl_hash_replace(ucl_hash_t *hashlin, const ucl_object_t *old,
 	}
 }
 
-struct ucl_hash_real_iter {
-	const struct ucl_hash_elt *cur;
-};
-
 #define UHI_SETERR(ep, ern)          \
 	{                                \
 		if (ep != NULL) *ep = (ern); \
 	}
 
+/*
+ * An iterator is the element to return next, so that the one returned last
+ * may be deleted while iterating, or the end once the last one is returned.
+ * Iterating allocates nothing, so it cannot stop short of the end.
+ */
+static const char ucl_hash_iter_end;
+#define UCL_HASH_ITER_END ((ucl_hash_iter_t) &ucl_hash_iter_end)
+
 const void *
 ucl_hash_iterate2(ucl_hash_t *hashlin, ucl_hash_iter_t *iter, int *ep)
 {
-	struct ucl_hash_real_iter *it = (struct ucl_hash_real_iter *) (*iter);
-	const ucl_object_t *ret = NULL;
-
-	if (hashlin == NULL) {
-		UHI_SETERR(ep, EINVAL);
-		return NULL;
-	}
-
-	if (it == NULL) {
-		it = UCL_ALLOC(sizeof(*it));
-
-		if (it == NULL) {
-			UHI_SETERR(ep, ENOMEM);
-			return NULL;
-		}
-
-		it->cur = hashlin->head;
-	}
+	const struct ucl_hash_elt *elt;
 
 	UHI_SETERR(ep, 0);
-	if (it->cur) {
-		ret = it->cur->obj;
-		it->cur = it->cur->next;
+
+	/* An object that has never had a key has no hash */
+	if (hashlin == NULL || *iter == UCL_HASH_ITER_END) {
+		elt = NULL;
+	}
+	else if (*iter == NULL) {
+		elt = hashlin->head;
 	}
 	else {
-		UCL_FREE(sizeof(*it), it);
+		elt = *iter;
+	}
+
+	if (elt == NULL) {
 		*iter = NULL;
 		return NULL;
 	}
 
-	*iter = it;
+	*iter = elt->next != NULL ? (ucl_hash_iter_t) elt->next : UCL_HASH_ITER_END;
 
-	return ret;
+	return elt->obj;
 }
 
 bool ucl_hash_iter_has_next(ucl_hash_t *hashlin, ucl_hash_iter_t iter)
 {
-	struct ucl_hash_real_iter *it = (struct ucl_hash_real_iter *) (iter);
+	if (iter == NULL) {
+		return hashlin != NULL && hashlin->head != NULL;
+	}
 
-	return it->cur != NULL;
+	return iter != UCL_HASH_ITER_END;
 }
 
 void ucl_hash_iterate_free(ucl_hash_iter_t iter)
 {
-	struct ucl_hash_real_iter *it = (struct ucl_hash_real_iter *) (iter);
-
-	if (it != NULL) {
-		UCL_FREE(sizeof(*it), it);
-	}
+	/* Nothing is allocated for an iterator */
+	(void) iter;
 }
 
 const ucl_object_t *

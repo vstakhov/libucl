@@ -3273,7 +3273,7 @@ ucl_object_iterate_reset(ucl_object_iter_t it, const ucl_object_t *obj)
 
 	if (rit->expl_it != NULL) {
 		if (rit->flags == UCL_ITERATE_FLAG_INSIDE_OBJECT) {
-			UCL_FREE(sizeof(*rit->expl_it), rit->expl_it);
+			ucl_hash_iterate_free(rit->expl_it);
 		}
 	}
 
@@ -3357,7 +3357,7 @@ void ucl_object_iterate_free(ucl_object_iter_t it)
 
 	if (rit->expl_it != NULL) {
 		if (rit->flags == UCL_ITERATE_FLAG_INSIDE_OBJECT) {
-			UCL_FREE(sizeof(*rit->expl_it), rit->expl_it);
+			ucl_hash_iterate_free(rit->expl_it);
 		}
 	}
 

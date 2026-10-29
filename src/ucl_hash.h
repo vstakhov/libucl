@@ -87,7 +87,8 @@ const ucl_object_t *ucl_hash_search(ucl_hash_t *hashlin, const char *key,
  * Iterate over hash table
  * @param hashlin hash
  * @param iter iterator (must be NULL on first iteration)
- * @param ep pointer record exception (such as ENOMEM), could be NULL
+ * @param ep pointer record exception, could be NULL; iterating allocates
+ * nothing and sets it to 0 always
  * @return the next object
  */
 const void *ucl_hash_iterate2(ucl_hash_t *hashlin, ucl_hash_iter_t *iter, int *ep);
@@ -103,7 +104,8 @@ const void *ucl_hash_iterate2(ucl_hash_t *hashlin, ucl_hash_iter_t *iter, int *e
 bool ucl_hash_iter_has_next(ucl_hash_t *hashlin, ucl_hash_iter_t iter);
 
 /**
- * Free a hash iterator (used when iteration is abandoned early)
+ * Free a hash iterator (used when iteration is abandoned early), which holds
+ * nothing to free now
  * @param iter iterator to free, may be NULL
  */
 void ucl_hash_iterate_free(ucl_hash_iter_t iter);

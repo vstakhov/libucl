@@ -482,6 +482,59 @@ test_insert_failures(void)
 	}
 }
 
+/*
+ * Iterating an object allocated an iterator, and a failed allocation ended
+ * the iteration as if the object had no more keys, which cut short the
+ * output of the emitters among others
+ */
+static void
+test_iterate_without_memory(void)
+{
+	struct ucl_parser *parser;
+	ucl_object_t *top;
+	const ucl_object_t *cur;
+	ucl_object_iter_t it;
+	unsigned char *out;
+	int ep, n;
+
+	forget_allocations();
+	parser = ucl_parser_new(0);
+	assert(parser != NULL);
+	assert(ucl_parser_add_string(parser, "x = 1; y = 2; e {} e { z = 3 }", 0));
+	top = ucl_parser_get_object(parser);
+	assert(top != NULL);
+	ucl_parser_free(parser);
+
+	allocations = 0;
+	fail_at = 1;
+	it = NULL;
+	n = 0;
+	while ((cur = ucl_object_iterate_with_error(top, &it, true, &ep)) != NULL) {
+		n++;
+	}
+	assert(ep == 0 && n == 3);
+
+	out = ucl_object_emit(top, UCL_EMIT_JSON_COMPACT);
+	fail_at = 0;
+	assert(allocations == 0);
+	assert(out != NULL);
+	assert(strcmp((const char *) out, "{\"x\":1,\"y\":2,\"e\":[{},{\"z\":3}]}") == 0);
+	free(out);
+
+	/* The safe iterator goes on past an empty object */
+	it = ucl_object_iterate_new(ucl_object_lookup(top, "e"));
+	assert(it != NULL);
+	n = 0;
+	while ((cur = ucl_object_iterate_safe(it, true)) != NULL) {
+		assert(strcmp(ucl_object_key(cur), "z") == 0);
+		n++;
+	}
+	assert(n == 1 && !ucl_object_iter_chk_excpn(it));
+	ucl_object_iterate_free(it);
+
+	ucl_object_unref(top);
+}
+
 int main(void)
 {
 	test_copy_failures();
@@ -491,5 +544,6 @@ int main(void)
 	test_include_failures();
 	test_discarded_value();
 	test_insert_failures();
+	test_iterate_without_memory();
 	return 0;
 }
