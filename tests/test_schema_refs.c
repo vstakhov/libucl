@@ -1,0 +1,132 @@
+/* Copyright (c) 2026, Vsevolod Stakhov
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *       * Redistributions of source code must retain the above copyright
+ *         notice, this list of conditions and the following disclaimer.
+ *       * Redistributions in binary form must reproduce the above copyright
+ *         notice, this list of conditions and the following disclaimer in the
+ *         documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED ''AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL AUTHOR BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * Regression tests for $ref cycle detection when a schema object is shared
+ * between the root document and an external reference. Local refs inside
+ * such a schema resolve against whichever root it was reached under, so
+ * reaching it again under another root is not a cycle. The JSON suites in
+ * tests/schema cannot express shared objects, hence the C API here.
+ */
+
+#include "ucl.h"
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+
+static ucl_object_t *
+parse(const char *str)
+{
+	struct ucl_parser *parser = ucl_parser_new(0);
+	ucl_object_t *obj;
+
+	assert(parser != NULL);
+	assert(ucl_parser_add_string(parser, str, 0));
+	obj = ucl_parser_get_object(parser);
+	assert(obj != NULL);
+	ucl_parser_free(parser);
+
+	return obj;
+}
+
+static bool
+validate(const ucl_object_t *root, ucl_object_t *ext, const char *data,
+		 struct ucl_schema_error *err)
+{
+	ucl_object_t *doc = parse(data);
+	bool ret;
+
+	memset(err, 0, sizeof(*err));
+	ret = ucl_object_validate_root_ext(root, ucl_object_lookup(doc, "v"),
+									   root, ext, err);
+	ucl_object_unref(doc);
+
+	return ret;
+}
+
+/*
+ * S is reached first under root R, where #/a leads to a ref back into SUB,
+ * then under root SUB, where #/a is a plain type check.
+ */
+static void
+test_shared_subschema(void)
+{
+	struct ucl_schema_error err;
+	ucl_object_t *sub, *root, *ext;
+
+	sub = parse("{\"s\": {\"$ref\": \"#/a\"}, \"a\": {\"type\": \"integer\"}}");
+	root = parse("{\"$ref\": \"#/sub/s\", \"a\": {\"$ref\": \"sub#/s\"}}");
+	ext = ucl_object_typed_new(UCL_OBJECT);
+	assert(ucl_object_insert_key(root, ucl_object_ref(sub), "sub", 0, false));
+	assert(ucl_object_insert_key(ext, ucl_object_ref(sub), "sub", 0, false));
+
+	assert(validate(root, ext, "{\"v\": 1}", &err));
+	assert(!validate(root, ext, "{\"v\": \"x\"}", &err));
+	assert(err.code == UCL_SCHEMA_TYPE_MISMATCH);
+
+	ucl_object_unref(ext);
+	ucl_object_unref(root);
+	ucl_object_unref(sub);
+}
+
+/*
+ * A real cycle that alternates between the two roots must still be
+ * reported: S under R -> R.t -> S under SUB -> SUB.t -> S under R.
+ */
+static void
+test_cross_root_cycle(void)
+{
+	struct ucl_schema_error err;
+	ucl_object_t *sub, *root, *ext;
+
+	sub = parse("{\"s\": {\"$ref\": \"#/t\"}, \"t\": {\"$ref\": \"r#/sub/s\"}}");
+	root = parse("{\"$ref\": \"#/sub/s\", \"t\": {\"$ref\": \"sub#/s\"}}");
+	ext = ucl_object_typed_new(UCL_OBJECT);
+	assert(ucl_object_insert_key(root, ucl_object_ref(sub), "sub", 0, false));
+	assert(ucl_object_insert_key(ext, ucl_object_ref(sub), "sub", 0, false));
+	assert(ucl_object_insert_key(ext, ucl_object_ref(root), "r", 0, false));
+
+	assert(!validate(root, ext, "{\"v\": 1}", &err));
+	assert(err.code == UCL_SCHEMA_INVALID_SCHEMA);
+	assert(strstr(err.msg, "cyclic reference") != NULL);
+
+	ucl_object_unref(ext);
+	ucl_object_unref(root);
+	ucl_object_unref(sub);
+}
+
+int main(int argc, char **argv)
+{
+	(void) argc;
+	(void) argv;
+
+	test_shared_subschema();
+	test_cross_root_cycle();
+
+	printf("All schema $ref tests passed\n");
+
+	return 0;
+}
