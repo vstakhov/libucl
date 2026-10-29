@@ -65,5 +65,73 @@
                 "valid": true
             }
         ]
+    },
+    {
+        "description":
+            "additionalProperties ignores a repeated patternProperties",
+        "schema": {
+            "patternProperties": {"^x": {}},
+            "patternProperties": [{}],
+            "additionalProperties": false
+        },
+        "tests": [
+            {
+                "description": "a property matching the first patterns is valid",
+                "data": {"x": 1},
+                "valid": true
+            },
+            {
+                "description": "an additional property is invalid",
+                "data": {"y": 1},
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description":
+            "additionalProperties uses only the first of repeated patternProperties",
+        "schema": {
+            "patternProperties": {"^x": {}},
+            "patternProperties": {"^y": {"type": "string"}},
+            "additionalProperties": false
+        },
+        "tests": [
+            {
+                "description": "a property matching the first patterns is valid",
+                "data": {"x": 1},
+                "valid": true
+            },
+            {
+                "description": "a property matching only the repeated patterns is invalid",
+                "data": {"y": 1},
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description":
+            "additionalProperties checks each of repeated values on its own",
+        "schema": {
+            "properties": {
+                "v": {"properties": {"a": {}}, "additionalProperties": false}
+            }
+        },
+        "tests": [
+            {
+                "description": "an object followed by an array is valid",
+                "data": {"v": {"a": 1}, "v": [1]},
+                "valid": true
+            },
+            {
+                "description": "an object followed by a number is valid",
+                "data": {"v": {"a": 1}, "v": 1},
+                "valid": true
+            },
+            {
+                "description": "an additional property in a later object is invalid",
+                "data": {"v": {"a": 1}, "v": {"b": 1}},
+                "valid": false
+            }
+        ]
     }
 ]
