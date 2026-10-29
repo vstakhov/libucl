@@ -3338,7 +3338,8 @@ bool ucl_parser_add_chunk_full(struct ucl_parser *parser, const unsigned char *d
 
 				if (!special_handler->handler(parser, data, len, &ndata, &nlen,
 											  special_handler->user_data)) {
-					UCL_FREE(sizeof(struct ucl_chunk), chunk);
+					/* Also releases the outputs of the previous handlers */
+					ucl_chunk_free(chunk);
 					ucl_create_err(&parser->err, "call for external handler failed");
 
 					return false;
@@ -3346,6 +3347,21 @@ bool ucl_parser_add_chunk_full(struct ucl_parser *parser, const unsigned char *d
 
 				struct ucl_parser_special_handler_chain *nchain;
 				nchain = UCL_ALLOC(sizeof(*nchain));
+				if (nchain == NULL) {
+					/* Release ndata the way ucl_chunk_free would have */
+					if (special_handler->free_function) {
+						special_handler->free_function(ndata, nlen,
+													   special_handler->user_data);
+					}
+					else {
+						UCL_FREE(nlen, ndata);
+					}
+					ucl_chunk_free(chunk);
+					ucl_create_err(&parser->err,
+								   "cannot allocate memory for special handler chain");
+
+					return false;
+				}
 				nchain->begin = ndata;
 				nchain->len = nlen;
 				nchain->special_handler = special_handler;

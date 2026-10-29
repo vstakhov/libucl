@@ -90,3 +90,11 @@ target_link_libraries(test_dup_error_key PRIVATE ${COMMON_TEST_LIBS})
 IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	add_test(NAME test_dup_error_key COMMAND test_dup_error_key)
 ENDIF()
+
+add_executable(test_special_handlers test_special_handlers.c)
+target_include_directories(test_special_handlers PRIVATE ${COMMON_TEST_INCLUDES}
+	${PROJECT_SOURCE_DIR}/klib)
+target_link_libraries(test_special_handlers PRIVATE ${COMMON_TEST_LIBS})
+IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	add_test(NAME test_special_handlers COMMAND test_special_handlers)
+ENDIF()
