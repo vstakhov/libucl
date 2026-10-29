@@ -350,11 +350,15 @@ static const struct text_case text_cases[] = {
 	{"comments_after_containers", 0,
 	 "a {\n    b [1]\n    # c\n}\n# d\n",
 	 "{\"a\": {\"b\": [1]}}",
-	 "a {\n    b [\n        1,\n    ]\n# c\n}\n# d\n"},
+	 "a {\n    b [\n        1,\n    ]\n    # c\n}\n# d\n"},
 	{"comments_around_container", 0,
 	 "# before\na {\n    b = 1;\n}\n# after\n",
 	 "{\"a\": {\"b\": 1}}",
 	 "# before\na {\n    b = 1;\n}\n# after\n"},
+	{"comments_after_last_values", 0,
+	 "a {\n    x = 1;\n    y = 2; # after y\n    # more\n}\nb [\n    1,\n    2 # after 2\n]\n",
+	 "{\"a\": {\"x\": 1, \"y\": 2}, \"b\": [1, 2]}",
+	 "a {\n    x = 1;\n    y = 2;\n    # after y\n    # more\n}\nb [\n    1,\n    2,\n    # after 2\n]\n"},
 };
 
 /*

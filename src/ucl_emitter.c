@@ -508,16 +508,14 @@ ucl_emitter_common_elt(struct ucl_emitter_context *ctx,
 	}
 
 	if (comment) {
+		/* The value has ended its line, so indent the first comment too */
 		DL_FOREACH(comment, cur_comment)
 		{
+			ucl_add_tabs(func, ctx->indent, compact);
 			func->ucl_emitter_append_len(cur_comment->value.sv,
 										 cur_comment->len,
 										 func->ud);
 			func->ucl_emitter_append_character('\n', 1, func->ud);
-
-			if (cur_comment->next) {
-				ucl_add_tabs(func, ctx->indent, compact);
-			}
 		}
 	}
 }
