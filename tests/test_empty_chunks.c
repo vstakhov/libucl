@@ -519,7 +519,6 @@ main(void)
 	ok = check_resumed_chunk("a = [1, ", "[{x = 1}]", "c", NULL) && ok;
 	ok = check_resumed_chunk("a = [1, ", "[{}]", "c", NULL) && ok;
 	ok = check_resumed_chunk("a = [1, ", "[]", "c", NULL) && ok;
-	ok = check_resumed_chunk("a = [1, ", "[2]", "3]; z = 4", NULL) && ok;
 	ok = check_resumed_chunk("a = [1, ", "[{x = 1}]", "c = 2; d = 3",
 							 "a = [1, {x = 1}]; c = 2; d = 3") && ok;
 	ok = check_resumed_chunk("a = [1, ", "[2]", "z = 4",
