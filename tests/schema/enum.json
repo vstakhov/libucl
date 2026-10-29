@@ -68,5 +68,21 @@
                 "valid": false
             }
         ]
+    },
+    {
+        "description": "enum with strings that contain a NUL byte",
+        "schema": {"enum": ["a\u0000b"]},
+        "tests": [
+            {
+                "description": "the same string is valid",
+                "data": "a\u0000b",
+                "valid": true
+            },
+            {
+                "description": "a string that differs after the NUL byte is invalid",
+                "data": "a\u0000c",
+                "valid": false
+            }
+        ]
     }
 ]

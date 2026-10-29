@@ -240,6 +240,56 @@ test_binary_string_pattern(void)
 	ucl_object_unref(schema);
 }
 
+/*
+ * Binary strings have no C string form either, but "enum" and "uniqueItems"
+ * compare them by their bytes, on both the schema and the data side.
+ */
+static void
+test_binary_string_compare(void)
+{
+	/* {"enum": [<bin "x">]} */
+	static const char mp_enum[] = "\x81\xa4" "enum\x91\xc4\x01x";
+	/* [<bin "x">, <bin "y">] */
+	static const char mp_xy[] = "\x92\xc4\x01x\xc4\x01y";
+	/* [<bin "x">, <bin "x">] */
+	static const char mp_xx[] = "\x92\xc4\x01x\xc4\x01x";
+	struct ucl_schema_error err;
+	ucl_object_t *schema, *data;
+
+	schema = parse_msgpack(mp_enum, sizeof(mp_enum) - 1);
+	assert(ucl_array_head(ucl_object_lookup(schema, "enum"))->flags &
+		   UCL_OBJECT_BINARY);
+	assert(validate(schema, NULL, "{\"v\": \"x\"}", &err));
+	assert(!validate(schema, NULL, "{\"v\": \"y\"}", &err));
+	assert(err.code == UCL_SCHEMA_CONSTRAINT);
+	ucl_object_unref(schema);
+
+	schema = parse("{\"items\": {\"enum\": [\"x\"]}}");
+	data = parse_msgpack(mp_xx, sizeof(mp_xx) - 1);
+	assert(ucl_array_head(data)->flags & UCL_OBJECT_BINARY);
+	memset(&err, 0, sizeof(err));
+	assert(ucl_object_validate(schema, data, &err));
+	ucl_object_unref(data);
+	data = parse_msgpack(mp_xy, sizeof(mp_xy) - 1);
+	memset(&err, 0, sizeof(err));
+	assert(!ucl_object_validate(schema, data, &err));
+	assert(err.code == UCL_SCHEMA_CONSTRAINT);
+	ucl_object_unref(data);
+	ucl_object_unref(schema);
+
+	schema = parse("{\"uniqueItems\": true}");
+	data = parse_msgpack(mp_xy, sizeof(mp_xy) - 1);
+	memset(&err, 0, sizeof(err));
+	assert(ucl_object_validate(schema, data, &err));
+	ucl_object_unref(data);
+	data = parse_msgpack(mp_xx, sizeof(mp_xx) - 1);
+	memset(&err, 0, sizeof(err));
+	assert(!ucl_object_validate(schema, data, &err));
+	assert(err.code == UCL_SCHEMA_CONSTRAINT);
+	ucl_object_unref(data);
+	ucl_object_unref(schema);
+}
+
 int main(int argc, char **argv)
 {
 	(void) argc;
@@ -250,6 +300,7 @@ int main(int argc, char **argv)
 	test_non_string_ref();
 	test_malformed_keywords();
 	test_binary_string_pattern();
+	test_binary_string_compare();
 
 	printf("All schema $ref tests passed\n");
 

@@ -4040,7 +4040,8 @@ int ucl_object_compare(const ucl_object_t *o1, const ucl_object_t *o2)
 	switch (o1->type) {
 	case UCL_STRING:
 		if (o1->len == o2->len && o1->len > 0) {
-			ret = strcmp(ucl_object_tostring(o1), ucl_object_tostring(o2));
+			/* Binary strings have no C string form, so compare the bytes */
+			ret = memcmp(o1->value.sv, o2->value.sv, o1->len);
 		}
 		else {
 			ret = o1->len - o2->len;
