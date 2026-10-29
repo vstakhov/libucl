@@ -365,6 +365,58 @@ test_include_failures(void)
 	remove(path);
 }
 
+/*
+ * Forget the allocations counted so far. Code out of reach of the hooks frees
+ * some of them, and malloc can hand their addresses out again, which would
+ * throw the count off: a leak check starts from a clean count instead.
+ */
+static void
+forget_allocations(void)
+{
+	memset(owned, 0, sizeof(owned));
+	live = 0;
+}
+
+/*
+ * A value dropped for a key that already has a higher priority goes to the
+ * parser's trash, with UCL_DUPLICATE_APPEND and UCL_DUPLICATE_MERGE alike.
+ * The parser has to release its whole subtree, not only its direct children.
+ */
+static void
+test_discarded_value(void)
+{
+	static const char *const docs[] = {
+		"b { y { z = 1 } }",          /* control: nothing is discarded */
+		"a { y { z = 1 } }",
+		"a [[1, [2]], { w { v = 1 } }]",
+	};
+	static const enum ucl_duplicate_strategy strats[] = {
+		UCL_DUPLICATE_APPEND,
+		UCL_DUPLICATE_MERGE,
+	};
+	struct ucl_parser *parser;
+	size_t baseline, i, j;
+
+	for (i = 0; i < sizeof(docs) / sizeof(docs[0]); i++) {
+		for (j = 0; j < sizeof(strats) / sizeof(strats[0]); j++) {
+			forget_allocations();
+			baseline = live;
+			parser = ucl_parser_new(0);
+			assert(parser != NULL);
+			assert(ucl_parser_add_chunk_full(parser,
+											 (const unsigned char *) "a = 1;", 6,
+											 2, strats[j], UCL_PARSE_UCL));
+			assert(ucl_parser_add_chunk_full(parser,
+											 (const unsigned char *) docs[i],
+											 strlen(docs[i]), 1, strats[j],
+											 UCL_PARSE_UCL));
+			assert((parser->trash_objs != NULL) == (i > 0));
+			ucl_parser_free(parser);
+			assert(live == baseline);
+		}
+	}
+}
+
 int main(void)
 {
 	test_copy_failures();
@@ -372,5 +424,6 @@ int main(void)
 	test_userdata_failure();
 	test_include_frame_failure();
 	test_include_failures();
+	test_discarded_value();
 	return 0;
 }

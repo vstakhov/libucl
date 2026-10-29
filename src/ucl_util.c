@@ -189,13 +189,6 @@ char *basename(char *path)
 static void ucl_object_dtor_free(ucl_object_t *obj);
 
 static void
-ucl_object_dtor_free_ud(void *obj, void *ud)
-{
-	(void) ud;
-	ucl_object_dtor_free((ucl_object_t *) obj);
-}
-
-static void
 ucl_object_dtor_free(ucl_object_t *obj)
 {
 	if (obj->trash_stack[UCL_TRASH_KEY] != NULL) {
@@ -350,50 +343,6 @@ ucl_object_free_internal(ucl_object_t *obj, bool allow_rec)
 
 		ucl_object_dtor_free(cur);
 	}
-}
-
-/*
- * Release `obj` along with the objects it directly holds, without descending
- * into them and without touching reference counts. Only valid for objects
- * that are known not to be shared - parser trash and the deprecated
- * ucl_object_free() below.
- */
-static void
-ucl_object_free_shallow(ucl_object_t *obj)
-{
-	ucl_object_t *sub, *tmp;
-
-	if (obj->type == UCL_ARRAY) {
-		UCL_ARRAY_GET(vec, obj);
-
-		if (vec != NULL) {
-			unsigned int i;
-
-			for (i = 0; i < vec->n; i++) {
-				sub = kv_A(*vec, i);
-
-				while (sub != NULL) {
-					tmp = sub->next;
-					ucl_object_dtor_free(sub);
-					sub = tmp;
-				}
-			}
-
-			kv_destroy(*vec);
-			UCL_FREE(sizeof(*vec), vec);
-		}
-
-		obj->value.av = NULL;
-	}
-	else if (obj->type == UCL_OBJECT) {
-		if (obj->value.ov != NULL) {
-			ucl_hash_destroy(obj->value.ov, ucl_object_dtor_free_ud, NULL);
-		}
-
-		obj->value.ov = NULL;
-	}
-
-	ucl_object_dtor_free(obj);
 }
 
 void ucl_array_detach_elements(ucl_object_t *ar)
@@ -779,7 +728,13 @@ void ucl_parser_free(struct ucl_parser *parser)
 	}
 	LL_FOREACH_SAFE(parser->trash_objs, tr, trtmp)
 	{
-		ucl_object_free_shallow(tr);
+		/*
+		 * A discarded value may hold a whole subtree. The trash list uses
+		 * its implicit-array links, so detach it before releasing it.
+		 */
+		tr->next = NULL;
+		tr->prev = tr;
+		ucl_object_unref(tr);
 	}
 
 	if (parser->err != NULL) {
