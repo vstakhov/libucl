@@ -244,11 +244,14 @@ ucl_emitter_common_end_array(struct ucl_emitter_context *ctx,
  * Start emit standard UCL array
  * @param ctx emitter context
  * @param obj object to write
+ * @param implicit write obj and the objects linked after it, the values of a
+ * repeated key, rather than the elements of obj
  * @param compact compact flag
  */
 static void
 ucl_emitter_common_start_array(struct ucl_emitter_context *ctx,
-							   const ucl_object_t *obj, bool first, bool print_key, bool compact)
+							   const ucl_object_t *obj, bool implicit,
+							   bool first, bool print_key, bool compact)
 {
 	const ucl_object_t *cur;
 	ucl_object_iter_t iter = NULL;
@@ -281,7 +284,7 @@ ucl_emitter_common_start_array(struct ucl_emitter_context *ctx,
 
 	ctx->indent++;
 
-	if (obj->type == UCL_ARRAY) {
+	if (!implicit) {
 		/* explicit array */
 		while ((cur = ucl_object_iterate(obj, &iter, true)) != NULL) {
 			ucl_emitter_common_elt(ctx, cur, first_key, false, compact);
@@ -289,7 +292,7 @@ ucl_emitter_common_start_array(struct ucl_emitter_context *ctx,
 		}
 	}
 	else {
-		/* implicit array */
+		/* implicit array, whose first value may be an explicit one */
 		cur = obj;
 		while (cur) {
 			ucl_emitter_common_elt(ctx, cur, first_key, false, compact);
@@ -364,7 +367,7 @@ ucl_emitter_common_start_object(struct ucl_emitter_context *ctx,
 					}
 				}
 				ucl_add_tabs(func, ctx->indent, compact);
-				ucl_emitter_common_start_array(ctx, cur, true, true, compact);
+				ucl_emitter_common_start_array(ctx, cur, true, true, true, compact);
 				ucl_emitter_common_end_array(ctx, cur, compact);
 			}
 			else {
@@ -483,7 +486,7 @@ ucl_emitter_common_elt(struct ucl_emitter_context *ctx,
 		ucl_emitter_common_end_object(ctx, obj, compact);
 		break;
 	case UCL_ARRAY:
-		ucl_emitter_common_start_array(ctx, obj, true, print_key, compact);
+		ucl_emitter_common_start_array(ctx, obj, false, true, print_key, compact);
 		ucl_emitter_common_end_array(ctx, obj, compact);
 		break;
 	case UCL_USERDATA:
@@ -532,7 +535,7 @@ ucl_emitter_common_elt(struct ucl_emitter_context *ctx,
 	static void ucl_emit_##type##_start_array(struct ucl_emitter_context *ctx,                     \
 											  const ucl_object_t *obj, bool first, bool print_key) \
 	{                                                                                              \
-		ucl_emitter_common_start_array(ctx, obj, first, print_key, (compact));                     \
+		ucl_emitter_common_start_array(ctx, obj, false, first, print_key, (compact));              \
 	}                                                                                              \
 	static void ucl_emit_##type##_end_object(struct ucl_emitter_context *ctx,                      \
 											 const ucl_object_t *obj)                              \

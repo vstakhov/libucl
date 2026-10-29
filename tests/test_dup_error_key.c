@@ -126,6 +126,47 @@ test_merge_no_implicit_arrays(void)
 	}
 }
 
+/*
+ * JSON and YAML write the values of a repeated key as an array. When the
+ * first of them was an array itself, its elements were written instead, and
+ * the other values were lost.
+ */
+static void
+test_emit_repeated_key(void)
+{
+	static const struct {
+		const char *doc;
+		enum ucl_emitter type;
+		const char *expect;
+	} cases[] = {
+		{"a [1, 2]; a = 5; b = 5; b [1, 2];", UCL_EMIT_JSON_COMPACT,
+		 "{\"a\":[[1,2],5],\"b\":[5,[1,2]]}"},
+		{"a [1, 2]; a = 5;", UCL_EMIT_YAML,
+		 "a: [\n    [\n        1,\n        2\n    ],\n    5\n]"},
+	};
+	size_t i;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		struct ucl_parser *p = ucl_parser_new(0);
+		assert(p != NULL);
+		assert(ucl_parser_add_string(p, cases[i].doc, 0));
+
+		ucl_object_t *obj = ucl_parser_get_object(p);
+		ucl_parser_free(p);
+		unsigned char *out = ucl_object_emit(obj, cases[i].type);
+		assert(out != NULL);
+
+		if (strcmp((const char *) out, cases[i].expect) != 0) {
+			fprintf(stderr, "'%s': got '%s', expected '%s'\n", cases[i].doc,
+					(const char *) out, cases[i].expect);
+		}
+		assert(strcmp((const char *) out, cases[i].expect) == 0);
+
+		free(out);
+		ucl_object_unref(obj);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	(void) argc;
@@ -133,6 +174,7 @@ int main(int argc, char **argv)
 
 	test_zerocopy_duplicate_error();
 	test_merge_no_implicit_arrays();
+	test_emit_repeated_key();
 
 	printf("All duplicate-key error tests passed\n");
 
