@@ -179,6 +179,7 @@ test_non_string_ref(void)
 /*
  * Keywords whose value has the wrong type, or is a binary string, make the
  * schema invalid instead of reaching the validator as a NULL key or string.
+ * So does an empty anyOf or oneOf, which nothing can satisfy.
  */
 static void
 test_malformed_keywords(void)
@@ -197,6 +198,10 @@ test_malformed_keywords(void)
 		 "{\"v\": {\"y\": 1}}"},
 		{"{\"required\": [1]}", "{\"v\": {\"a\": 1}}"},
 		{"{\"dependencies\": {\"a\": [1]}}", "{\"v\": {\"a\": 1}}"},
+		/* Nothing to match, which failed without an error */
+		{"{\"anyOf\": []}", "{\"v\": 1}"},
+		{"{\"allOf\": [{}], \"anyOf\": []}", "{\"v\": 1}"},
+		{"{\"oneOf\": []}", "{\"v\": 1}"},
 	};
 	/* {"type": <bin "integer">} */
 	static const char mp_type[] = "\x81\xa4type\xc4\x07integer";

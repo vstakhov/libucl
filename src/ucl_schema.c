@@ -1079,8 +1079,13 @@ ucl_schema_validate(const ucl_object_t *schema,
 
 	elt = ucl_object_lookup(schema, "anyOf");
 	if (elt != NULL && elt->type == UCL_ARRAY) {
+		/* Nothing could match: draft 4 requires at least one subschema */
+		if (elt->len == 0) {
+			ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, elt,
+									"anyOf attribute is invalid in schema");
+			return false;
+		}
 		iter = NULL;
-		/* An empty anyOf has no subschema to match, as for oneOf */
 		ret = false;
 		while ((cur = ucl_object_iterate(elt, &iter, true)) != NULL) {
 			ret = ucl_schema_validate(cur, obj, true, err, root, external_refs, refs);
@@ -1102,6 +1107,11 @@ ucl_schema_validate(const ucl_object_t *schema,
 
 	elt = ucl_object_lookup(schema, "oneOf");
 	if (elt != NULL && elt->type == UCL_ARRAY) {
+		if (elt->len == 0) {
+			ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, elt,
+									"oneOf attribute is invalid in schema");
+			return false;
+		}
 		iter = NULL;
 		ret = false;
 		while ((cur = ucl_object_iterate(elt, &iter, true)) != NULL) {
