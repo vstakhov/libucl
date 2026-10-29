@@ -398,6 +398,9 @@ check_keyless_include(const char *base, const char *included)
 		  "a keyless array include must be rejected in an object frame");
 	CHECK(ucl_parser_get_error_code(parser) == UCL_ESYNTAX,
 		  "expected a syntax error from the included file");
+	/* The including document's file context is back, as after a success */
+	CHECK(ucl_parser_get_cur_file(parser) == NULL,
+		  "the failed include is still the current file");
 
 done:
 	remove(path);
