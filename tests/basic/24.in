@@ -21,12 +21,34 @@ obj_brace {
 	key = value;
 }
 
+arr_comment [1, 2];
+
+obj_comment {
+	key = value;
+}
+
+obj_comment_ml {
+	key = value;
+}
+
+obj_comment_hi {
+	key = value;
+}
+
 .priority 2
 
 arr_lo [1, 2];
 
 obj_lo {
 	key = value;
+}
+
+arr_comment_lo [1, 2];
+
+obj_nested_lo {
+	nested {
+		key = value;
+	}
 }
 
 .include(duplicate="merge") "${CURDIR}/24-merge.inc"

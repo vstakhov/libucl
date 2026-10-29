@@ -236,6 +236,63 @@ start:
 }
 
 /**
+ * Check whether a value is an object or an array without consuming anything,
+ * past what ucl_parse_value skips before it: whitespace, then comments as
+ * ucl_skip_comments skips them, with no whitespace after those
+ * @param p start of the value
+ * @param end end of the chunk
+ * @return true if the value opens with a brace or a bracket
+ */
+static bool
+ucl_lex_value_is_container(const unsigned char *p, const unsigned char *end)
+{
+	int comments_nested;
+	bool quoted;
+
+	while (p < end && ucl_test_character(*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
+		p++;
+	}
+
+	while (p < end) {
+		if (*p == '#') {
+			p = memchr(p, '\n', end - p);
+
+			if (p == NULL) {
+				return false;
+			}
+
+			p++;
+		}
+		else if (end - p >= 2 && p[0] == '/' && p[1] == '*') {
+			comments_nested = 1;
+			quoted = false;
+			p += 2;
+
+			while (p < end && comments_nested > 0) {
+				if (*p == '"' && *(p - 1) != '\\') {
+					quoted = !quoted;
+				}
+				else if (!quoted && end - p >= 2 && p[0] == '*' && p[1] == '/') {
+					comments_nested--;
+					p++;
+				}
+				else if (!quoted && end - p >= 2 && p[0] == '/' && p[1] == '*') {
+					comments_nested++;
+					p++;
+				}
+
+				p++;
+			}
+		}
+		else {
+			break;
+		}
+	}
+
+	return p < end && (*p == '{' || *p == '[');
+}
+
+/**
  * Return multiplier for a character
  * @param c multiplier character
  * @param is_bytes if true use 1024 multiplier
@@ -1765,22 +1822,11 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 
 	/*
 	 * The value is not parsed yet, but a merge has to know whether it is a
-	 * container: either nested keys follow, or the value opens with a brace
-	 * or a bracket once ucl_parse_value has skipped the whitespace before it
+	 * container: either the caller nests the following keys into it, as it
+	 * does whenever next_key is set, even by an earlier key of the chain, or
+	 * the value opens with a brace or a bracket
 	 */
-	if (!got_sep && *next_key) {
-		is_container = true;
-	}
-	else {
-		t = p;
-
-		while (t < chunk->end &&
-			   ucl_test_character(*t, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
-			t++;
-		}
-
-		is_container = t < chunk->end && (*t == '{' || *t == '[');
-	}
+	is_container = *next_key || ucl_lex_value_is_container(p, chunk->end);
 
 	/* Create a new object */
 	nobj = ucl_object_new_full(UCL_NULL, parser->chunks->priority);
