@@ -28,8 +28,9 @@
  * reaching it again under another root is not a cycle. The JSON suites in
  * tests/schema cannot express shared objects, hence the C API here.
  *
- * It also covers malformed schemas, where the exact error code matters, and
- * binary strings, which only msgpack input can produce.
+ * It also covers malformed schemas, where the exact error code matters,
+ * binary strings, which only msgpack input can produce, and references to
+ * files, which need one to exist.
  */
 
 #include "ucl.h"
@@ -37,8 +38,11 @@
 #undef NDEBUG
 #endif
 #include <assert.h>
+#include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 static ucl_object_t *
 parse(const char *str)
@@ -334,6 +338,64 @@ test_binary_string_compare(void)
 	ucl_object_unref(schema);
 }
 
+/*
+ * A $ref to a file or URL is fetched and parsed, and everything this
+ * allocates is released whether or not that works. A file is mapped
+ * rather than allocated, so it must not be passed to free().
+ */
+static void
+test_external_ref(void)
+{
+	static const char content[] = "{\"type\": \"integer\"}";
+	struct ucl_schema_error err;
+	ucl_object_t *schema;
+	char fname[] = "schema_ref_XXXXXX", buf[128];
+	int fd;
+
+	fd = mkstemp(fname);
+	assert(fd != -1);
+	assert(write(fd, content, sizeof(content) - 1) == sizeof(content) - 1);
+	close(fd);
+
+	snprintf(buf, sizeof(buf), "{\"$ref\": \"%s\"}", fname);
+	schema = parse(buf);
+	assert(validate(schema, NULL, "{\"v\": 1}", &err));
+	assert(!validate(schema, NULL, "{\"v\": \"x\"}", &err));
+	assert(err.code == UCL_SCHEMA_TYPE_MISMATCH);
+	ucl_object_unref(schema);
+
+	snprintf(buf, sizeof(buf), "{\"$ref\": \"%s#\"}", fname);
+	schema = parse(buf);
+	assert(validate(schema, NULL, "{\"v\": 1}", &err));
+	ucl_object_unref(schema);
+
+	/* A file that does not parse */
+	fd = open(fname, O_WRONLY | O_TRUNC);
+	assert(fd != -1);
+	assert(write(fd, "{", 1) == 1);
+	close(fd);
+	schema = parse(buf);
+	assert(!validate(schema, NULL, "{\"v\": 1}", &err));
+	assert(err.code == UCL_SCHEMA_INVALID_SCHEMA);
+	assert(strstr(err.msg, "cannot fetch reference") != NULL);
+	ucl_object_unref(schema);
+	unlink(fname);
+
+	/* A file that does not exist */
+	schema = parse(buf);
+	assert(!validate(schema, NULL, "{\"v\": 1}", &err));
+	assert(err.code == UCL_SCHEMA_INVALID_SCHEMA);
+	assert(strstr(err.msg, "cannot fetch reference") != NULL);
+	ucl_object_unref(schema);
+
+	/* A URL that cannot be fetched, or no URL support at all */
+	schema = parse("{\"$ref\": \"http://127.0.0.1:1/schema\"}");
+	assert(!validate(schema, NULL, "{\"v\": 1}", &err));
+	assert(err.code == UCL_SCHEMA_INVALID_SCHEMA);
+	assert(strstr(err.msg, "cannot fetch reference") != NULL);
+	ucl_object_unref(schema);
+}
+
 int main(int argc, char **argv)
 {
 	(void) argc;
@@ -346,6 +408,7 @@ int main(int argc, char **argv)
 	test_malformed_type_array();
 	test_binary_string_pattern();
 	test_binary_string_compare();
+	test_external_ref();
 
 	printf("All schema $ref tests passed\n");
 

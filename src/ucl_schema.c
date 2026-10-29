@@ -837,6 +837,7 @@ ucl_schema_resolve_ref(const ucl_object_t *root, const char *ref,
 	char *url_copy = NULL;
 	unsigned char *url_buf;
 	size_t url_buflen;
+	bool parsed;
 
 	if (ref == NULL) {
 		ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, root,
@@ -867,6 +868,16 @@ ucl_schema_resolve_ref(const ucl_object_t *root, const char *ref,
 		ext_obj = ucl_object_lookup(ext_ref, p);
 
 		if (ext_obj == NULL) {
+			parser = ucl_parser_new(0);
+
+			if (parser == NULL) {
+				ucl_schema_create_error(err, UCL_SCHEMA_INTERNAL_ERROR, root,
+										"cannot allocate memory");
+				free(url_copy);
+
+				return NULL;
+			}
+
 			if (ucl_strnstr(p, "://", strlen(p)) != NULL) {
 				if (!ucl_fetch_url(p, &url_buf, &url_buflen, &url_err, true)) {
 
@@ -877,30 +888,24 @@ ucl_schema_resolve_ref(const ucl_object_t *root, const char *ref,
 											p,
 											url_err != NULL ? utstring_body(url_err)
 															: "unknown");
+					if (url_err != NULL) {
+						utstring_free(url_err);
+					}
+					ucl_parser_free(parser);
 					free(url_copy);
 
 					return NULL;
 				}
+
+				parsed = ucl_parser_add_chunk(parser, url_buf, url_buflen);
+				free(url_buf);
 			}
 			else {
-				if (!ucl_fetch_file(p, &url_buf, &url_buflen, &url_err,
-									true)) {
-					ucl_schema_create_error(err,
-											UCL_SCHEMA_INVALID_SCHEMA,
-											root,
-											"cannot fetch reference %s: %s",
-											p,
-											url_err != NULL ? utstring_body(url_err)
-															: "unknown");
-					free(url_copy);
-
-					return NULL;
-				}
+				/* A file is mapped, not allocated, and this unmaps it */
+				parsed = ucl_parser_add_file(parser, p);
 			}
 
-			parser = ucl_parser_new(0);
-
-			if (!ucl_parser_add_chunk(parser, url_buf, url_buflen)) {
+			if (!parsed) {
 				ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, root,
 										"cannot fetch reference %s: %s", p,
 										ucl_parser_get_error(parser));
@@ -911,9 +916,9 @@ ucl_schema_resolve_ref(const ucl_object_t *root, const char *ref,
 			}
 
 			url_obj = ucl_parser_get_object(parser);
+			ucl_parser_free(parser);
 			ext_obj = url_obj;
 			ucl_object_insert_key(ext_ref, url_obj, p, 0, true);
-			free(url_buf);
 		}
 
 		free(url_copy);
