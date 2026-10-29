@@ -219,6 +219,50 @@ test_malformed_keywords(void)
 }
 
 /*
+ * A "type" array that is empty, or has anything but a type name in it,
+ * makes the schema invalid, even if the object matches another entry.
+ */
+static void
+test_malformed_type_array(void)
+{
+	static const char *const types[] = {
+		"[]",
+		"[1, \"integer\"]",
+		"[\"integer\", null]",
+		"[\"integer\", \"foo\"]",
+		"[[\"integer\"]]",
+	};
+	/* {"type": [<bin "integer">, "integer"]} */
+	static const char mp_type[] = "\x81\xa4type\x92\xc4\x07integer\xa7integer";
+	struct ucl_schema_error err;
+	ucl_object_t *schema;
+	char buf[64];
+	unsigned int i;
+
+	for (i = 0; i < sizeof(types) / sizeof(types[0]); i++) {
+		snprintf(buf, sizeof(buf), "{\"type\": %s}", types[i]);
+		schema = parse(buf);
+		assert(!validate(schema, NULL, "{\"v\": 1}", &err));
+		assert(err.code == UCL_SCHEMA_INVALID_SCHEMA);
+		ucl_object_unref(schema);
+	}
+
+	schema = parse_msgpack(mp_type, sizeof(mp_type) - 1);
+	assert(ucl_array_head(ucl_object_lookup(schema, "type"))->flags &
+		   UCL_OBJECT_BINARY);
+	assert(!validate(schema, NULL, "{\"v\": 1}", &err));
+	assert(err.code == UCL_SCHEMA_INVALID_SCHEMA);
+	ucl_object_unref(schema);
+
+	/* Type names are still fine in any order */
+	schema = parse("{\"type\": [\"string\", \"integer\"]}");
+	assert(validate(schema, NULL, "{\"v\": 1}", &err));
+	assert(!validate(schema, NULL, "{\"v\": true}", &err));
+	assert(err.code == UCL_SCHEMA_TYPE_MISMATCH);
+	ucl_object_unref(schema);
+}
+
+/*
  * A binary string cannot be passed to regexec(), so it does not satisfy
  * a pattern.
  */
@@ -299,6 +343,7 @@ int main(int argc, char **argv)
 	test_cross_root_cycle();
 	test_non_string_ref();
 	test_malformed_keywords();
+	test_malformed_type_array();
 	test_binary_string_pattern();
 	test_binary_string_compare();
 

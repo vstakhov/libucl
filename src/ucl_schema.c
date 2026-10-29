@@ -682,7 +682,22 @@ ucl_schema_type_is_allowed(const ucl_object_t *type, const ucl_object_t *obj,
 	}
 
 	if (type->type == UCL_ARRAY) {
+		/* All entries must be type names, not only those before a match */
+		if (type->len == 0) {
+			ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, type,
+									"Type attribute is invalid in schema");
+			return false;
+		}
+		while ((elt = ucl_object_iterate(type, &iter, true)) != NULL) {
+			type_str = ucl_object_tostring(elt);
+			if (type_str == NULL || !ucl_object_string_to_type(type_str, &t)) {
+				ucl_schema_create_error(err, UCL_SCHEMA_INVALID_SCHEMA, elt,
+										"Type attribute is invalid in schema");
+				return false;
+			}
+		}
 		/* One of allowed types */
+		iter = NULL;
 		while ((elt = ucl_object_iterate(type, &iter, true)) != NULL) {
 			if (ucl_schema_type_is_allowed(elt, obj, err)) {
 				return true;
