@@ -347,6 +347,35 @@ done:
 }
 
 static bool
+check_unfinished_macro(const char *base, int code, const char *message)
+{
+	/*
+	 * An inserted chunk that ends inside a macro is rejected. The error for
+	 * it must not take the place of one recorded earlier: only the code was
+	 * replaced, leaving it with the message of that other error.
+	 */
+	static const char chunk[] = "x = 1; .priority ";
+	struct ucl_parser *parser = ucl_parser_new(0);
+	const char *err;
+	bool ok = true;
+
+	CHECK(parser != NULL, "cannot create parser");
+	(void) ucl_parser_add_string(parser, base, 0);
+	CHECK(!ucl_parser_insert_chunk(parser, (const unsigned char *) chunk,
+								   sizeof(chunk) - 1),
+		  "an unfinished macro must be rejected");
+	err = ucl_parser_get_error(parser);
+	CHECK(err != NULL && strstr(err, message) != NULL,
+		  "the error message is not the expected one");
+	CHECK(ucl_parser_get_error_code(parser) == code,
+		  "the error code does not match the message");
+
+done:
+	ucl_parser_free(parser);
+	return ok;
+}
+
+static bool
 check_null_retyped_chunk(const char *base)
 {
 	/*
@@ -728,6 +757,10 @@ main(void)
 	ok = check_resumed_chunk("a { b = 1", "} c = 2", "d = 3", NULL) && ok;
 	ok = check_resumed_chunk("a { b = 1", "} c = 2", "; d = 3",
 							 "a { b = 1 } c = 2; d = 3") && ok;
+	ok = check_unfinished_macro("a = 1; ", UCL_ESYNTAX, "unfinished macro") && ok;
+	/* The base leaves an unmatched brace, which does not stop an insert */
+	ok = check_unfinished_macro("a { ", UCL_EUNPAIRED, "unmatched open brace") &&
+		 ok;
 	ok = check_null_retyped_chunk("a = 1") && ok;
 	ok = check_null_retyped_chunk("a = \"str\"") && ok;
 	ok = check_keyless_include("a = 1", "[{}", 0) && ok;
