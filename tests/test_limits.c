@@ -40,6 +40,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
+#include <errno.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 static struct ucl_parser *
 make_parser(const struct ucl_parser_limits *limits)
@@ -796,6 +801,120 @@ test_failed_insert_include(void)
 	ucl_parser_free(p);
 	remove(path);
 }
+
+static void
+write_include(char *path, size_t len, const char *name, const char *content)
+{
+	const char *dir = getenv("TEST_OUT_DIR");
+	FILE *out;
+
+	snprintf(path, len, "%s/%s", dir != NULL ? dir : ".", name);
+	out = fopen(path, "w");
+	assert(out != NULL);
+	fputs(content, out);
+	assert(fclose(out) == 0);
+}
+
+/* Parse doc, which has to fail with err, and check the chunks are released */
+static void
+check_failed_include_parse(struct ucl_parser *p, const char *doc,
+						   const char *err)
+{
+	const char *res_err;
+
+	assert(parse(p, doc, strlen(doc)) == false);
+	res_err = ucl_parser_get_error(p);
+	if (res_err == NULL || strstr(res_err, err) == NULL) {
+		fprintf(stderr, "'%s': expected '%s', got '%s'\n", doc, err,
+				res_err != NULL ? res_err : "no error");
+		abort();
+	}
+	assert(p->chunks != NULL && p->chunks->next == NULL);
+	assert(p->recursion == 1);
+}
+
+/*
+ * A file that fails to parse leaves its chunk on top of the stack, pointing to
+ * the buffer that is unmapped once the include returns. A .try_include glob
+ * went on with its other files and the parse: the including file then read
+ * the buffer of the failed one, and an include that succeeded after it took
+ * that chunk off instead of its own. The same happened when the search for an
+ * include went on to the next path. A file that fails to parse now ends the
+ * glob or the search with its error, as for .try_include of that file alone.
+ * Without that, files that include each other through a glob would go on at
+ * the nesting limit, each level trying all of them again.
+ */
+static void
+test_failed_glob_include(void)
+{
+	const char *dir = getenv("TEST_OUT_DIR");
+	char path[4][PATH_MAX], doc[PATH_MAX + 64], content[PATH_MAX + 64];
+	struct ucl_parser *p;
+	ucl_object_t *paths;
+	unsigned i;
+	int n;
+
+	/* The first file fails in the middle, the second one parses */
+	n = snprintf(content, sizeof(content),
+				 ".include \"%s/limits_glob_missing.inc\"\nx = 1\n",
+				 dir != NULL ? dir : ".");
+	assert(n > 0 && (size_t) n < sizeof(content));
+	write_include(path[0], sizeof(path[0]), "limits_glob_1.inc", content);
+	write_include(path[1], sizeof(path[1]), "limits_glob_2.inc", "b = 2\n");
+	n = snprintf(doc, sizeof(doc),
+				 ".try_include(glob=true) \"%s/limits_glob_*.inc\"\nc = 3\n",
+				 dir != NULL ? dir : ".");
+	assert(n > 0 && (size_t) n < sizeof(doc));
+	p = make_parser(NULL);
+	check_failed_include_parse(p, doc, "limits_glob_missing.inc");
+	ucl_parser_free(p);
+	remove(path[0]);
+	remove(path[1]);
+
+	/* The search ends in the first path, whose file fails */
+	snprintf(path[2], sizeof(path[2]), "%s/limits_path1",
+			 dir != NULL ? dir : ".");
+	snprintf(path[3], sizeof(path[3]), "%s/limits_path2",
+			 dir != NULL ? dir : ".");
+	assert(mkdir(path[2], 0755) == 0 || errno == EEXIST);
+	assert(mkdir(path[3], 0755) == 0 || errno == EEXIST);
+	write_include(path[0], sizeof(path[0]), "limits_path1/limits.inc",
+				  ".include \"limits_missing.inc\"\nx = 1\n");
+	write_include(path[1], sizeof(path[1]), "limits_path2/limits.inc",
+				  "b = 2\n");
+	paths = ucl_object_typed_new(UCL_ARRAY);
+	assert(paths != NULL);
+	ucl_array_append(paths, ucl_object_fromstring(path[2]));
+	ucl_array_append(paths, ucl_object_fromstring(path[3]));
+	p = make_parser(NULL);
+	assert(ucl_set_include_path(p, paths));
+	ucl_object_unref(paths);
+	check_failed_include_parse(p, ".include \"limits.inc\"\nc = 3\n",
+							   "limits_missing.inc");
+	ucl_parser_free(p);
+	remove(path[0]);
+	remove(path[1]);
+	rmdir(path[2]);
+	rmdir(path[3]);
+
+	/* Files that include each other */
+	n = snprintf(content, sizeof(content),
+				 ".try_include(glob=true) \"%s/limits_cycle_*.inc\"\n",
+				 dir != NULL ? dir : ".");
+	assert(n > 0 && (size_t) n < sizeof(content));
+	for (i = 0; i < 3; i++) {
+		char name[32];
+
+		snprintf(name, sizeof(name), "limits_cycle_%u.inc", i);
+		write_include(path[i], sizeof(path[i]), name, content);
+	}
+	p = make_parser(NULL);
+	check_failed_include_parse(p, content, "maximum include nesting limit");
+	ucl_parser_free(p);
+	for (i = 0; i < 3; i++) {
+		remove(path[i]);
+	}
+}
 #endif
 
 int main(int argc, char **argv)
@@ -816,6 +935,7 @@ int main(int argc, char **argv)
 #ifndef _WIN32
 	test_sequential_includes();
 	test_failed_insert_include();
+	test_failed_glob_include();
 #endif
 
 	printf("All limits tests passed\n");

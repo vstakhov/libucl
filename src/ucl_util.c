@@ -1144,6 +1144,8 @@ struct ucl_include_params {
 	bool use_prefix;
 	bool soft_fail;
 	bool allow_glob;
+	/* An included file has been read, but has failed to parse */
+	bool parse_failed;
 	unsigned priority;
 	enum ucl_duplicate_strategy strat;
 	enum ucl_parse_type parse_type;
@@ -1281,7 +1283,7 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 						struct ucl_parser *parser, struct ucl_include_params *params)
 {
 	bool res;
-	struct ucl_chunk *chunk;
+	struct ucl_chunk *chunk, *outer;
 	unsigned char *buf = NULL;
 	char *old_curfile, *ext;
 	size_t buflen = 0;
@@ -1291,7 +1293,7 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 											*old_filename = NULL;
 	ucl_object_t *nest_obj = NULL, *old_obj = NULL, *new_obj = NULL;
 	ucl_hash_t *container = NULL;
-	struct ucl_stack *st = NULL;
+	struct ucl_stack *st = NULL, *cur_st;
 
 	if (parser->state == UCL_STATE_ERROR) {
 		/* Return immediately if we are in the error state... */
@@ -1594,6 +1596,7 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 		parser->cur_obj = nest_obj;
 	}
 
+	outer = parser->chunks;
 	res = ucl_parser_add_chunk_full(parser, buf, buflen, params->priority,
 									params->strat, params->parse_type);
 
@@ -1603,15 +1606,33 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 			ucl_parser_pop_container(parser, st);
 		}
 
-		/* Remove chunk from the stack */
-		chunk = parser->chunks;
-		if (chunk != NULL) {
-			parser->chunks = chunk->next;
-			ucl_chunk_free(chunk);
-			parser->recursion--;
-		}
-
 		parser->state = prev_state;
+	}
+	else if (parser->chunks != outer) {
+		/* Its chunk is there: the file has been read, but does not parse */
+		params->parse_failed = true;
+	}
+
+	/*
+	 * Remove the chunk of the included file, which points to the buffer
+	 * unmapped below, whether the file has parsed or not. A failed parse
+	 * leaves it on top, along with the chunks of includes that failed in it:
+	 * the including file read the unmapped buffer of the failed one when a
+	 * .try_include glob went on with the parse, and a successful include
+	 * after it removed that chunk instead of its own. Frames left open by a
+	 * removed chunk now belong to the including one, as for an inserted chunk.
+	 */
+	while (parser->chunks != NULL && parser->chunks != outer) {
+		chunk = parser->chunks;
+		parser->chunks = chunk->next;
+		LL_FOREACH(parser->stack, cur_st)
+		{
+			if (cur_st->chunk == chunk) {
+				cur_st->chunk = outer;
+			}
+		}
+		ucl_chunk_free(chunk);
+		parser->recursion--;
 	}
 
 	/* Restore old file vars */
@@ -1682,7 +1703,13 @@ ucl_include_file(const unsigned char *data, size_t len,
 
 				if (!ucl_include_file_single((unsigned char *) globbuf.gl_pathv[i],
 											 strlen(globbuf.gl_pathv[i]), parser, params)) {
-					if (params->soft_fail) {
+					if (params->soft_fail && !params->parse_failed) {
+						/*
+						 * Skip a file that cannot be included, but not one
+						 * that fails to parse, as for .try_include of that
+						 * file alone: the parse cannot go on from where the
+						 * file has left it
+						 */
 						continue;
 					}
 					globfree(&globbuf);
@@ -1737,6 +1764,7 @@ ucl_include_common(const unsigned char *data, size_t len,
 	/* Default values */
 	params.soft_fail = default_try;
 	params.allow_glob = false;
+	params.parse_failed = false;
 	params.check_signature = default_sign;
 	params.use_prefix = false;
 	params.target = "object";
@@ -1840,6 +1868,10 @@ ucl_include_common(const unsigned char *data, size_t len,
 					if (!params.allow_glob) {
 						break;
 					}
+				}
+				else if (params.parse_failed) {
+					/* The file is found, so the search ends with its error */
+					break;
 				}
 			}
 		}
