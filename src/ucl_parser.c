@@ -146,6 +146,16 @@ ucl_attach_comment(struct ucl_parser *parser, ucl_object_t *obj, bool before)
 	}
 }
 
+/* Attach the comments read inside a container that holds nothing else */
+static void
+ucl_attach_inner_comment(struct ucl_parser *parser, ucl_object_t *obj)
+{
+	if (parser->last_comment) {
+		parser->last_comment->flags |= UCL_OBJECT_INNER_COMMENT;
+		ucl_attach_comment(parser, obj, false);
+	}
+}
+
 /**
  * Skip all comments from the current pos resolving nested and multiline comments
  * @param parser
@@ -2568,7 +2578,11 @@ ucl_parse_after_value(struct ucl_parser *parser, struct ucl_chunk *chunk)
 						ucl_parser_pop_container(parser, st);
 					}
 
-					if (parser->cur_obj) {
+					if (closed != NULL && parser->cur_obj == closed) {
+						/* Nothing has been read inside the container */
+						ucl_attach_inner_comment(parser, closed);
+					}
+					else if (parser->cur_obj) {
 						ucl_attach_comment(parser, parser->cur_obj, true);
 					}
 

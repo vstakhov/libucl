@@ -359,6 +359,29 @@ static const struct text_case text_cases[] = {
 	 "a {\n    x = 1;\n    y = 2; # after y\n    # more\n}\nb [\n    1,\n    2 # after 2\n]\n",
 	 "{\"a\": {\"x\": 1, \"y\": 2}, \"b\": [1, 2]}",
 	 "a {\n    x = 1;\n    y = 2;\n    # after y\n    # more\n}\nb [\n    1,\n    2,\n    # after 2\n]\n"},
+	/*
+	 * Comments inside an empty container stay inside it, rather than follow
+	 * it, where a macro would no longer be inside
+	 */
+	{"comments_in_empty_containers", UCL_PARSER_DISABLE_MACRO,
+	 "# lead\nsec {\n  # c\n  .include \"x\"\n} # after\n"
+	 "a {\n  e {}\n  # after e\n}\n"
+	 "b [ /* in b */ ]\n"
+	 "c { d {\n.priority 1\n} }\n",
+	 "{\"sec\": {}, \"a\": {\"e\": {}}, \"b\": [], \"c\": {\"d\": {}}}",
+	 "# lead\nsec {\n    # c\n    .include \"x\"\n}\n# after\n"
+	 "a {\n    e {}\n    # after e\n}\n"
+	 "b [\n    /* in b */\n]\n"
+	 "c {\n    d {\n        .priority 1\n    }\n}\n"},
+	/* The top object is written without braces, so are its comments */
+	{"comments_in_empty_top_object", UCL_PARSER_DISABLE_MACRO,
+	 "{\n  # c\n  .include \"x\"\n}\n",
+	 "{}",
+	 "# c\n.include \"x\"\n"},
+	{"comments_in_empty_top_array", 0,
+	 "[\n  # c\n]\n",
+	 "[]",
+	 "[\n    # c\n]"},
 	/* A number ends where a comment starts, as at the end of any atom */
 	{"comments_after_numbers", 0,
 	 "a = 1 /* c */\nb = 2/* d */;\nc = 1kb # e\nd = 0x10 /* f */\n"

@@ -379,6 +379,47 @@ ucl_emitter_common_start_object(struct ucl_emitter_context *ctx,
 }
 
 /**
+ * Write the comments read inside a container before its closing brace
+ * @param ctx emitter context
+ * @param obj container, whose elements have been written
+ * @param comment comments of obj that are not written yet
+ * @param compact compact flag
+ * @return the comments after obj
+ */
+static const ucl_object_t *
+ucl_emitter_inner_comments(struct ucl_emitter_context *ctx,
+						   const ucl_object_t *obj, const ucl_object_t *comment,
+						   bool compact)
+{
+	const struct ucl_emitter_functions *func = ctx->func;
+	/* The top object of the configuration has neither braces nor indent */
+	bool braced = obj->type == UCL_ARRAY || UCL_EMIT_IDENT_TOP_OBJ(ctx, obj);
+
+	if (comment == NULL || !(comment->flags & UCL_OBJECT_INNER_COMMENT)) {
+		return comment;
+	}
+
+	/* An empty container has not ended the line of its opening brace */
+	if (braced && obj->len == 0) {
+		func->ucl_emitter_append_character('\n', 1, func->ud);
+	}
+
+	while (comment != NULL && !(comment->flags & UCL_OBJECT_INHERITED)) {
+		ucl_add_tabs(func, ctx->indent, compact);
+		func->ucl_emitter_append_len(comment->value.sv, comment->len, func->ud);
+		func->ucl_emitter_append_character('\n', 1, func->ud);
+		comment = comment->next;
+	}
+
+	/* Nor does it indent its closing brace */
+	if (braced && obj->len == 0) {
+		ucl_add_tabs(func, ctx->indent - 1, compact);
+	}
+
+	return comment;
+}
+
+/**
  * Common choice of object emitting
  * @param ctx emitter context
  * @param obj object to print
@@ -420,8 +461,8 @@ ucl_emitter_common_elt(struct ucl_emitter_context *ctx,
 			if (!(comment->flags & UCL_OBJECT_INHERITED)) {
 				DL_FOREACH(comment, cur_comment)
 				{
-					/* The comments after the value can follow these */
-					if (cur_comment->flags & UCL_OBJECT_INHERITED) {
+					/* The comments inside and after the value can follow these */
+					if (cur_comment->flags & (UCL_OBJECT_INHERITED | UCL_OBJECT_INNER_COMMENT)) {
 						break;
 					}
 
@@ -487,10 +528,12 @@ ucl_emitter_common_elt(struct ucl_emitter_context *ctx,
 		break;
 	case UCL_OBJECT:
 		ucl_emitter_common_start_object(ctx, obj, true, print_key, compact);
+		comment = ucl_emitter_inner_comments(ctx, obj, comment, compact);
 		ucl_emitter_common_end_object(ctx, obj, compact);
 		break;
 	case UCL_ARRAY:
 		ucl_emitter_common_start_array(ctx, obj, false, true, print_key, compact);
+		comment = ucl_emitter_inner_comments(ctx, obj, comment, compact);
 		ucl_emitter_common_end_array(ctx, obj, false, compact);
 		break;
 	case UCL_USERDATA:

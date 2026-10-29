@@ -153,6 +153,13 @@ typedef SSIZE_T ssize_t;
 #define UCL_TRASH_KEY 0
 #define UCL_TRASH_VALUE 1
 
+/*
+ * Flags the comments read inside a container that holds nothing else, which
+ * follow its leading comments and precede the ones after it, as
+ * UCL_OBJECT_INHERITED flags the latter. Not one of ucl_object_flags_t.
+ */
+#define UCL_OBJECT_INNER_COMMENT (1u << 15)
+
 enum ucl_parser_state {
 	UCL_STATE_INIT = 0,
 	UCL_STATE_OBJECT,
