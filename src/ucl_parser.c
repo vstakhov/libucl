@@ -3481,7 +3481,7 @@ bool ucl_parser_insert_chunk(struct ucl_parser *parser, const unsigned char *dat
 	}
 
 	bool res;
-	struct ucl_chunk *chunk;
+	struct ucl_chunk *chunk, *outer = parser->chunks;
 	struct ucl_stack *st;
 	/* The frame the outer chunk stopped in */
 	const ucl_object_t *frame = parser->stack->obj;
@@ -3497,12 +3497,17 @@ bool ucl_parser_insert_chunk(struct ucl_parser *parser, const unsigned char *dat
 		parser->stack->e.params.level = parser->stack->next->e.params.level;
 	}
 
-	res = ucl_parser_add_chunk_full(parser, data, len, parser->chunks->priority,
-									parser->chunks->strategy, parser->chunks->parse_type);
+	res = ucl_parser_add_chunk_full(parser, data, len, outer->priority,
+									outer->strategy, outer->parse_type);
 
-	/* Remove chunk from the stack */
-	chunk = parser->chunks;
-	if (chunk != NULL) {
+	/*
+	 * Remove the inserted chunk and resume the outer one. The insert can fail
+	 * before its chunk is added (a special handler refusing the data, for
+	 * one), and a failed .include in it leaves the included chunk on top, so
+	 * remove everything above the outer chunk rather than the head alone.
+	 */
+	while (parser->chunks != outer) {
+		chunk = parser->chunks;
 		parser->chunks = chunk->next;
 		ucl_chunk_free(chunk);
 		parser->recursion--;

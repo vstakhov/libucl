@@ -463,6 +463,122 @@ done:
 	return ok;
 }
 
+static bool
+check_unadded_chunk(void)
+{
+	/*
+	 * ucl_parser_add_chunk_full() can fail before it adds the chunk, as for
+	 * data == NULL with a length. ucl_parser_insert_chunk() removed the head
+	 * of parser->chunks anyway, which is the chunk of the caller, and the next
+	 * insert read parser->chunks through NULL.
+	 */
+	struct ucl_parser *parser = ucl_parser_new(0);
+	struct ucl_parser *control = ucl_parser_new(0);
+	ucl_object_t *result = NULL, *expected = NULL;
+	bool ok = true;
+
+	CHECK(parser != NULL && control != NULL, "cannot create parsers");
+	CHECK(ucl_parser_add_string(parser, "a = 1", 0), "base object failed");
+	CHECK(!ucl_parser_insert_chunk(parser, NULL, 5),
+		  "a NULL chunk must be rejected");
+	CHECK(ucl_parser_insert_chunk(parser, (const unsigned char *) "b = 2", 5),
+		  "an insert after a rejected chunk failed");
+	CHECK(ucl_parser_add_string(control, "a = 1; b = 2", 0),
+		  "control parse failed");
+	result = ucl_parser_get_object(parser);
+	expected = ucl_parser_get_object(control);
+	CHECK(same_document(result, expected),
+		  "a rejected chunk changed the document");
+
+done:
+	ucl_object_unref(expected);
+	ucl_object_unref(result);
+	ucl_parser_free(control);
+	ucl_parser_free(parser);
+	return ok;
+}
+
+struct insert_macro {
+	struct ucl_parser *parser;
+	bool inserted;
+};
+
+static bool
+insert_macro_handler(const unsigned char *data, size_t len,
+					 const ucl_object_t *arguments, void *ud)
+{
+	struct insert_macro *m = ud;
+
+	/* Go on whatever the insert returns, so the outer chunk is resumed */
+	m->inserted = ucl_parser_insert_chunk(m->parser, data, len);
+
+	return true;
+}
+
+static bool
+reject_handler(struct ucl_parser *parser, const unsigned char *source,
+			   size_t source_len, unsigned char **destination,
+			   size_t *dest_len, void *user_data)
+{
+	/* As a failed decryption or signature check would */
+	return false;
+}
+
+static bool
+check_macro_insert(const char *conf, bool inserted, const char *whole)
+{
+	/*
+	 * The .insert macro splices its value into the document with
+	 * ucl_parser_insert_chunk(), and the outer chunk resumes after it.
+	 * A value starting with XX is refused by a special handler, and $INC
+	 * names a file that fails with an unmatched brace.
+	 * With whole == NULL the document must be rejected.
+	 */
+	const char *dir = getenv("TEST_OUT_DIR");
+	struct ucl_parser *parser = ucl_parser_new(0);
+	struct ucl_parser *control = ucl_parser_new(0);
+	struct ucl_parser_special_handler rejecting = {
+		.magic = (const unsigned char *) "XX",
+		.magic_len = 2,
+		.handler = reject_handler,
+	};
+	struct insert_macro m = {parser, !inserted};
+	ucl_object_t *result = NULL, *expected = NULL;
+	char path[1024];
+	bool ok = true;
+
+	snprintf(path, sizeof(path), "%s/empty_chunks_insert.inc",
+			 dir != NULL ? dir : ".");
+	CHECK(parser != NULL && control != NULL, "cannot create parsers");
+	CHECK(write_file(path, "x {"), "cannot write the included file");
+	ucl_parser_register_variable(parser, "INC", path);
+	CHECK(ucl_parser_register_macro(parser, "insert", insert_macro_handler, &m),
+		  "cannot register the macro");
+	ucl_parser_add_special_handler(parser, &rejecting);
+	if (whole == NULL) {
+		CHECK(!ucl_parser_add_string(parser, conf, 0),
+			  "the document must be rejected");
+	}
+	else {
+		CHECK(ucl_parser_add_string(parser, conf, 0), "the document failed");
+		CHECK(ucl_parser_add_string(control, whole, 0),
+			  "control parse failed");
+		result = ucl_parser_get_object(parser);
+		expected = ucl_parser_get_object(control);
+		CHECK(same_document(result, expected),
+			  "the outer chunk did not resume after the insert");
+	}
+	CHECK(m.inserted == inserted, "unexpected result of the insert");
+
+done:
+	remove(path);
+	ucl_object_unref(expected);
+	ucl_object_unref(result);
+	ucl_parser_free(control);
+	ucl_parser_free(parser);
+	return ok;
+}
+
 int
 main(void)
 {
@@ -531,6 +647,13 @@ main(void)
 	ok = check_resumed_chunk("a { b = [1, ", "[2]]", "c = 3}", NULL) && ok;
 	ok = check_failed_insert("a = 1; b = }", "c = 2") && ok;
 	ok = check_failed_insert("a = [1, }", "[2") && ok;
+	ok = check_unadded_chunk() && ok;
+	/* Refused by a special handler before the chunk is added */
+	ok = check_macro_insert("a = 1; .insert \"XX\" b = 2", false,
+							"a = 1; b = 2") && ok;
+	/* A failed .include leaves its chunk above the inserted one */
+	ok = check_macro_insert("a { .insert \".include $INC; c = 1\" b = 2 } }",
+							false, "a { x { b = 2 } }") && ok;
 	ok = check_null_retyped_chunk("a = 1") && ok;
 	ok = check_null_retyped_chunk("a = \"str\"") && ok;
 	ok = check_keyless_include("a = 1", "[{}") && ok;
