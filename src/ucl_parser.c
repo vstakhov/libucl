@@ -1716,6 +1716,9 @@ ucl_parser_settle_merge(struct ucl_parser *parser, bool is_container)
 	return true;
 }
 
+static bool ucl_skip_macro_as_comment(struct ucl_parser *parser,
+									  struct ucl_chunk *chunk);
+
 /**
  * Parse a key in an object
  * @param parser
@@ -1785,7 +1788,14 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 				*end_of_object = true;
 				return true;
 			}
-			else if (*p == '.' && !(parser->flags & UCL_PARSER_DISABLE_MACRO)) {
+			else if (*p == '.' && (parser->flags & UCL_PARSER_DISABLE_MACRO)) {
+				/* Macros are comments then, so look for a key after it */
+				if (!ucl_skip_macro_as_comment(parser, chunk)) {
+					return false;
+				}
+				p = chunk->pos;
+			}
+			else if (*p == '.') {
 				ucl_chunk_skipc(chunk, p);
 				parser->prev_state = parser->state;
 				parser->state = UCL_STATE_MACRO_NAME;
@@ -2445,6 +2455,7 @@ ucl_parse_after_value(struct ucl_parser *parser, struct ucl_chunk *chunk)
 	const unsigned char *p;
 	bool got_sep = false;
 	struct ucl_stack *st;
+	ucl_object_t *closed;
 
 	p = chunk->pos;
 
@@ -2490,13 +2501,24 @@ ucl_parse_after_value(struct ucl_parser *parser, struct ucl_chunk *chunk)
 						/* A chunk's brace, which has taken no depth */
 						parser->stack = st->next;
 						UCL_FREE(sizeof(struct ucl_stack), st);
+						closed = NULL;
 					}
 					else {
+						closed = st->obj;
 						ucl_parser_pop_container(parser, st);
 					}
 
 					if (parser->cur_obj) {
 						ucl_attach_comment(parser, parser->cur_obj, true);
+					}
+
+					/*
+					 * Comments after the container that no key or value
+					 * takes follow it rather than the last value inside it,
+					 * as a macro read as a comment is none inside an array
+					 */
+					if (closed != NULL) {
+						parser->cur_obj = closed;
 					}
 
 					while (parser->stack != NULL) {
@@ -2548,110 +2570,6 @@ ucl_parse_after_value(struct ucl_parser *parser, struct ucl_chunk *chunk)
 	}
 
 	return true;
-}
-
-static bool
-ucl_skip_macro_as_comment(struct ucl_parser *parser,
-						  struct ucl_chunk *chunk)
-{
-	const unsigned char *p, *c;
-	enum {
-		macro_skip_start = 0,
-		macro_has_symbols,
-		macro_has_obrace,
-		macro_has_quote,
-		macro_has_backslash,
-		macro_has_sqbrace,
-		macro_save
-	} state = macro_skip_start,
-	  prev_state = macro_skip_start;
-
-	p = chunk->pos;
-	c = chunk->pos;
-
-	while (p < chunk->end) {
-		switch (state) {
-		case macro_skip_start:
-			if (!ucl_test_character(*p, UCL_CHARACTER_WHITESPACE)) {
-				state = macro_has_symbols;
-			}
-			else if (ucl_test_character(*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
-				state = macro_save;
-				continue;
-			}
-
-			ucl_chunk_skipc(chunk, p);
-			break;
-
-		case macro_has_symbols:
-			if (*p == '{') {
-				state = macro_has_sqbrace;
-			}
-			else if (*p == '(') {
-				state = macro_has_obrace;
-			}
-			else if (*p == '"') {
-				state = macro_has_quote;
-			}
-			else if (*p == '\n') {
-				state = macro_save;
-				continue;
-			}
-
-			ucl_chunk_skipc(chunk, p);
-			break;
-
-		case macro_has_obrace:
-			if (*p == '\\') {
-				prev_state = state;
-				state = macro_has_backslash;
-			}
-			else if (*p == ')') {
-				state = macro_has_symbols;
-			}
-
-			ucl_chunk_skipc(chunk, p);
-			break;
-
-		case macro_has_sqbrace:
-			if (*p == '\\') {
-				prev_state = state;
-				state = macro_has_backslash;
-			}
-			else if (*p == '}') {
-				state = macro_save;
-			}
-
-			ucl_chunk_skipc(chunk, p);
-			break;
-
-		case macro_has_quote:
-			if (*p == '\\') {
-				prev_state = state;
-				state = macro_has_backslash;
-			}
-			else if (*p == '"') {
-				state = macro_save;
-			}
-
-			ucl_chunk_skipc(chunk, p);
-			break;
-
-		case macro_has_backslash:
-			state = prev_state;
-			ucl_chunk_skipc(chunk, p);
-			break;
-
-		case macro_save:
-			if (parser->flags & UCL_PARSER_SAVE_COMMENTS) {
-				ucl_save_comment(parser, c, p - c);
-			}
-
-			return true;
-		}
-	}
-
-	return false;
 }
 
 /**
@@ -2862,6 +2780,99 @@ restore_chunk:
 			ucl_chunk_skipc(chunk, p);                                            \
 		}                                                                         \
 	} while (0)
+
+/*
+ * Skip a macro from its '.' to the end of its value as UCL_STATE_MACRO_NAME
+ * and UCL_STATE_MACRO read it, without looking its name up, parsing its
+ * arguments or calling it
+ */
+static bool
+ucl_skip_macro(struct ucl_parser *parser, struct ucl_chunk *chunk)
+{
+	const unsigned char *p = chunk->pos, *name, *value;
+	size_t value_len;
+	int obraces = 1, ebraces = 0;
+	bool quoted = false;
+
+	ucl_chunk_skipc(chunk, p);
+	name = p;
+
+	while (p < chunk->end &&
+		   !ucl_test_character(*p, UCL_CHARACTER_WHITESPACE_UNSAFE) &&
+		   *p != '(') {
+		ucl_chunk_skipc(chunk, p);
+	}
+
+	if (p == name) {
+		ucl_set_err(parser, UCL_ESYNTAX, "invalid macro name", &parser->err);
+		return false;
+	}
+
+	SKIP_SPACES_COMMENTS(parser, chunk, p);
+
+	/* Arguments end at their closing parenthesis, outside of strings */
+	if (chunk->remain >= 2 && *p == '(') {
+		ucl_chunk_skipc(chunk, p);
+
+		while (p < chunk->end && obraces != ebraces) {
+			if (quoted) {
+				if (*p == '"' && *(p - 1) != '\\') {
+					quoted = false;
+				}
+			}
+			else if (*p == '"') {
+				quoted = true;
+			}
+			else if (*p == '(') {
+				obraces++;
+			}
+			else if (*p == ')') {
+				ebraces++;
+			}
+
+			ucl_chunk_skipc(chunk, p);
+		}
+
+		SKIP_SPACES_COMMENTS(parser, chunk, p);
+	}
+
+	return ucl_parse_macro_value(parser, chunk, NULL, &value, &value_len);
+}
+
+/**
+ * With UCL_PARSER_DISABLE_MACRO, read a macro as a comment: skip it, and with
+ * UCL_PARSER_SAVE_COMMENTS save it as it is written, comments inside it
+ * included
+ * @param parser
+ * @param chunk the current chunk, at the '.' that starts the macro
+ * @return true if a whole macro has been skipped
+ */
+static bool
+ucl_skip_macro_as_comment(struct ucl_parser *parser, struct ucl_chunk *chunk)
+{
+	const unsigned char *beg = chunk->pos, *end;
+	int flags = parser->flags;
+	bool ret;
+
+	parser->flags &= ~UCL_PARSER_SAVE_COMMENTS;
+	ret = ucl_skip_macro(parser, chunk);
+	parser->flags = flags;
+
+	if (ret && (flags & UCL_PARSER_SAVE_COMMENTS)) {
+		/* Without the spaces and semicolons skipped after the value */
+		end = chunk->pos;
+
+		while (end > beg &&
+			   (ucl_test_character(end[-1], UCL_CHARACTER_WHITESPACE_UNSAFE) ||
+				end[-1] == ';')) {
+			end--;
+		}
+
+		ucl_save_comment(parser, (const char *) beg, end - beg);
+	}
+
+	return ret;
+}
 
 /**
  * Handle the main states of rcl parser
@@ -3120,59 +3131,41 @@ ucl_state_machine(struct ucl_parser *parser)
 			p = chunk->pos;
 			break;
 		case UCL_STATE_MACRO_NAME:
-			if (parser->flags & UCL_PARSER_DISABLE_MACRO) {
-				if (!ucl_skip_macro_as_comment(parser, chunk)) {
-					/* We have invalid macro */
+			if (!ucl_test_character(*p, UCL_CHARACTER_WHITESPACE_UNSAFE) &&
+				*p != '(') {
+				ucl_chunk_skipc(chunk, p);
+			}
+			else {
+				if (c != NULL && p - c > 0) {
+					/* We got macro name */
+					macro_len = (size_t) (p - c);
+					HASH_FIND(hh, parser->macroes, c, macro_len, macro);
+					if (macro == NULL) {
+						ucl_create_err(&parser->err,
+									   "error at %s:%d at column %d: "
+									   "unknown macro: '%.*s', character: '%c'",
+									   chunk->fname ? chunk->fname : "memory",
+									   chunk->line,
+									   chunk->column,
+									   (int) (p - c),
+									   c,
+									   *chunk->pos);
+						parser->state = UCL_STATE_ERROR;
+						return false;
+					}
+					/* Now we need to skip all spaces */
+					SKIP_SPACES_COMMENTS(parser, chunk, p);
+					parser->state = UCL_STATE_MACRO;
+				}
+				else {
+					/* We have invalid macro name */
 					ucl_create_err(&parser->err,
-								   "error at %s:%d at column %d: invalid macro",
+								   "error at %s:%d at column %d: invalid macro name",
 								   chunk->fname ? chunk->fname : "memory",
 								   chunk->line,
 								   chunk->column);
 					parser->state = UCL_STATE_ERROR;
 					return false;
-				}
-				else {
-					p = chunk->pos;
-					parser->state = parser->prev_state;
-				}
-			}
-			else {
-				if (!ucl_test_character(*p, UCL_CHARACTER_WHITESPACE_UNSAFE) &&
-					*p != '(') {
-					ucl_chunk_skipc(chunk, p);
-				}
-				else {
-					if (c != NULL && p - c > 0) {
-						/* We got macro name */
-						macro_len = (size_t) (p - c);
-						HASH_FIND(hh, parser->macroes, c, macro_len, macro);
-						if (macro == NULL) {
-							ucl_create_err(&parser->err,
-										   "error at %s:%d at column %d: "
-										   "unknown macro: '%.*s', character: '%c'",
-										   chunk->fname ? chunk->fname : "memory",
-										   chunk->line,
-										   chunk->column,
-										   (int) (p - c),
-										   c,
-										   *chunk->pos);
-							parser->state = UCL_STATE_ERROR;
-							return false;
-						}
-						/* Now we need to skip all spaces */
-						SKIP_SPACES_COMMENTS(parser, chunk, p);
-						parser->state = UCL_STATE_MACRO;
-					}
-					else {
-						/* We have invalid macro name */
-						ucl_create_err(&parser->err,
-									   "error at %s:%d at column %d: invalid macro name",
-									   chunk->fname ? chunk->fname : "memory",
-									   chunk->line,
-									   chunk->column);
-						parser->state = UCL_STATE_ERROR;
-						return false;
-					}
 				}
 			}
 			break;

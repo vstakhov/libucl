@@ -302,6 +302,59 @@ static const struct text_case text_cases[] = {
 	 "a = 1; /* c */",
 	 "{\"a\": 1}",
 	 "a = 1;\n/* c */\n"},
+	/*
+	 * Macros are comments with UCL_PARSER_DISABLE_MACRO: they are skipped
+	 * wherever they may be, and saved as they are written
+	 */
+	{"macros_as_comments", UCL_PARSER_DISABLE_MACRO,
+	 ".include \"${CURDIR}/x.conf\"\n"
+	 "a = 1;\n"
+	 "sec {\n    .inherit \"a\"\n    .priority 2\n    b = 2;\n}\n"
+	 ".include(glob=true, key=\"a)b\") \"y\"\n"
+	 ".priority 1\n"
+	 "c = 3;\n",
+	 "{\"a\": 1, \"sec\": {\"b\": 2}, \"c\": 3}",
+	 ".include \"${CURDIR}/x.conf\"\n"
+	 "a = 1;\n"
+	 "sec {\n    .inherit \"a\"\n    .priority 2\n    b = 2;\n}\n"
+	 ".include(glob=true, key=\"a)b\") \"y\"\n"
+	 ".priority 1\n"
+	 "c = 3;\n"},
+	{"macro_forms_as_comments", UCL_PARSER_DISABLE_MACRO,
+	 ".custom {\n  any text, even \"quotes\n}\n"
+	 ".priority 2; a = 1\n"
+	 ".include\n  \"x\"\n"
+	 "b = 2\n",
+	 "{\"a\": 1, \"b\": 2}",
+	 ".custom {\n  any text, even \"quotes\n}\n"
+	 ".priority 2\n"
+	 "a = 1;\n"
+	 ".include\n  \"x\"\n"
+	 "b = 2;\n"},
+	{"macro_in_array_as_comment", UCL_PARSER_DISABLE_MACRO,
+	 "arr [\n  {\n    .inherit \"x\"\n    a = 1;\n  }\n]\n",
+	 "{\"arr\": [{\"a\": 1}]}",
+	 "arr [\n    {\n        .inherit \"x\"\n        a = 1;\n    }\n]\n"},
+	{"macro_at_end_as_comment", UCL_PARSER_DISABLE_MACRO,
+	 "a = 1;\n.include \"x\"",
+	 "{\"a\": 1}",
+	 "a = 1;\n.include \"x\"\n"},
+	/*
+	 * Comments after a container follow it, at its level, not the last
+	 * value inside it, where a macro is no macro
+	 */
+	{"macro_after_container_as_comment", UCL_PARSER_DISABLE_MACRO,
+	 "a [1]\n.priority 1\n",
+	 "{\"a\": [1]}",
+	 "a [\n    1,\n]\n.priority 1\n"},
+	{"comments_after_containers", 0,
+	 "a {\n    b [1]\n    # c\n}\n# d\n",
+	 "{\"a\": {\"b\": [1]}}",
+	 "a {\n    b [\n        1,\n    ]\n# c\n}\n# d\n"},
+	{"comments_around_container", 0,
+	 "# before\na {\n    b = 1;\n}\n# after\n",
+	 "{\"a\": {\"b\": 1}}",
+	 "# before\na {\n    b = 1;\n}\n# after\n"},
 };
 
 /*

@@ -420,6 +420,11 @@ ucl_emitter_common_elt(struct ucl_emitter_context *ctx,
 			if (!(comment->flags & UCL_OBJECT_INHERITED)) {
 				DL_FOREACH(comment, cur_comment)
 				{
+					/* The comments after the value can follow these */
+					if (cur_comment->flags & UCL_OBJECT_INHERITED) {
+						break;
+					}
+
 					func->ucl_emitter_append_len(cur_comment->value.sv,
 												 cur_comment->len,
 												 func->ud);
@@ -427,7 +432,7 @@ ucl_emitter_common_elt(struct ucl_emitter_context *ctx,
 					ucl_add_tabs(func, ctx->indent, compact);
 				}
 
-				comment = NULL;
+				comment = cur_comment;
 			}
 		}
 	}
