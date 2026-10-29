@@ -2772,6 +2772,24 @@ ucl_state_machine(struct ucl_parser *parser)
 						return false;
 					}
 				}
+				else if (parser->state == UCL_STATE_KEY_OBRACE &&
+						 (parser->stack == NULL || parser->stack->obj == NULL ||
+						  parser->stack->obj->type != UCL_OBJECT)) {
+					/*
+					 * The mirror image: { opens the body of the current
+					 * object, so only an object frame can take it. On an
+					 * array frame UCL_STATE_KEY_OBRACE would mark the array
+					 * as braced before the key check in UCL_STATE_KEY could
+					 * reject it, and the array's ] would no longer close it.
+					 */
+					ucl_set_err(parser, UCL_ESYNTAX,
+								"key outside of an object",
+								&parser->err);
+					parser->prev_state = parser->state;
+					parser->state = UCL_STATE_ERROR;
+
+					return false;
+				}
 			}
 			break;
 		case UCL_STATE_KEY_OBRACE:
@@ -2791,6 +2809,21 @@ ucl_state_machine(struct ucl_parser *parser)
 				/* No objects are on stack, but we want to parse a key */
 				ucl_set_err(parser, UCL_ESYNTAX, "top object is finished but the parser "
 												 "expects a key",
+							&parser->err);
+				parser->prev_state = parser->state;
+				parser->state = UCL_STATE_ERROR;
+				return false;
+			}
+			if (parser->stack->obj->type != UCL_OBJECT) {
+				/*
+				 * Only an object frame can take a key. An array can be on top
+				 * here: an inserted chunk starts in UCL_STATE_INIT, which
+				 * picks this state for anything but [ or {, and .include
+				 * restores the state it was called in even if the included
+				 * chunk closed the enclosing object. ucl_parse_key() would
+				 * then pass the array's storage to ucl_hash_insert().
+				 */
+				ucl_set_err(parser, UCL_ESYNTAX, "key outside of an object",
 							&parser->err);
 				parser->prev_state = parser->state;
 				parser->state = UCL_STATE_ERROR;

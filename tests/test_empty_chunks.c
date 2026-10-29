@@ -176,6 +176,47 @@ done:
 }
 
 static bool
+check_keyed_chunk(const char *base, const char *chunk)
+{
+	/*
+	 * The mirror image of a keyless chunk: a chunk that starts with a key or
+	 * with { needs an object frame. In an array frame ucl_parse_key() passed
+	 * the array's storage to ucl_hash_insert() as if it were a hash, and {}
+	 * marked the array as braced, so that its own ] no longer closed it.
+	 */
+	struct ucl_parser *parser = ucl_parser_new(0);
+	struct ucl_parser *control = ucl_parser_new(0);
+	ucl_object_t *result = NULL, *expected = NULL;
+	char whole[256];
+	bool ok = true;
+
+	CHECK(parser != NULL && control != NULL, "cannot create parsers");
+	CHECK(!ucl_parser_add_string(parser, base, 0),
+		  "the base must leave an array frame open");
+	CHECK(!ucl_parser_insert_chunk(parser, (const unsigned char *) chunk,
+								   strlen(chunk)),
+		  "a keyed chunk must be rejected in an array frame");
+	CHECK(ucl_parser_get_error_code(parser) == UCL_ESYNTAX,
+		  "expected a syntax error");
+	/* The rejected chunk must leave the array frame as it was */
+	CHECK(ucl_parser_add_string(parser, "3]; z = 4", 0),
+		  "closing the array failed");
+	snprintf(whole, sizeof(whole), "%s3]; z = 4", base);
+	CHECK(ucl_parser_add_string(control, whole, 0), "control parse failed");
+	result = ucl_parser_get_object(parser);
+	expected = ucl_parser_get_object(control);
+	CHECK(same_document(result, expected),
+		  "a rejected chunk changed the document");
+
+done:
+	ucl_object_unref(expected);
+	ucl_object_unref(result);
+	ucl_parser_free(control);
+	ucl_parser_free(parser);
+	return ok;
+}
+
+static bool
 check_null_retyped_chunk(const char *base)
 {
 	/*
@@ -236,6 +277,42 @@ done:
 	return ok;
 }
 
+static bool
+check_closing_include(const char *base, const char *rest)
+{
+	/*
+	 * .include restores the state it was called in, so an included } that
+	 * closed an object inside an array left the parser expecting a key with
+	 * the array on top of the stack: the next key in the including file went
+	 * to ucl_hash_insert() with the array's storage.
+	 */
+	const char *dir = getenv("TEST_OUT_DIR");
+	struct ucl_parser *parser = ucl_parser_new(0);
+	char path[1024], conf[256];
+	FILE *out;
+	bool ok = true;
+
+	snprintf(path, sizeof(path), "%s/empty_chunks_closing.inc",
+			 dir != NULL ? dir : ".");
+	snprintf(conf, sizeof(conf), "%s\n.include \"$CLOSING_INC\"\n%s\n",
+			 base, rest);
+	CHECK(parser != NULL, "cannot create parser");
+	out = fopen(path, "w");
+	CHECK(out != NULL, "cannot create the included file");
+	fputs("}", out);
+	CHECK(fclose(out) == 0, "cannot write the included file");
+	ucl_parser_register_variable(parser, "CLOSING_INC", path);
+	CHECK(!ucl_parser_add_string(parser, conf, 0),
+		  "a key after the include must be rejected in an array frame");
+	CHECK(ucl_parser_get_error_code(parser) == UCL_ESYNTAX,
+		  "expected a syntax error after the include");
+
+done:
+	remove(path);
+	ucl_parser_free(parser);
+	return ok;
+}
+
 int
 main(void)
 {
@@ -280,9 +357,18 @@ main(void)
 	ok = check_keyless_chunk("a = \"str\"", "[{}") && ok;
 	/* Nothing parsed yet: the stale value is the root object */
 	ok = check_keyless_chunk(" ", "[5") && ok;
+	ok = check_keyed_chunk("a = [1, ", "b = 1") && ok;
+	ok = check_keyed_chunk("a = [1, ", "{b = 1}") && ok;
+	ok = check_keyed_chunk("a = [1, ", "{}") && ok;
+	ok = check_keyed_chunk("a = [1, ", ".priority 1") && ok;
+	/* The root itself is the array frame */
+	ok = check_keyed_chunk("[1, ", "b = 1") && ok;
+	ok = check_keyed_chunk("[1, ", "{b = 1}") && ok;
 	ok = check_null_retyped_chunk("a = 1") && ok;
 	ok = check_null_retyped_chunk("a = \"str\"") && ok;
 	ok = check_keyless_include("a = 1", "[{}") && ok;
 	ok = check_keyless_include("", "[5") && ok;
+	ok = check_closing_include("a = [{", "b = 1 }]") && ok;
+	ok = check_closing_include("[{", "b = 1 }]") && ok;
 	return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
