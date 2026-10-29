@@ -359,6 +359,12 @@ static const struct text_case text_cases[] = {
 	 "a {\n    x = 1;\n    y = 2; # after y\n    # more\n}\nb [\n    1,\n    2 # after 2\n]\n",
 	 "{\"a\": {\"x\": 1, \"y\": 2}, \"b\": [1, 2]}",
 	 "a {\n    x = 1;\n    y = 2;\n    # after y\n    # more\n}\nb [\n    1,\n    2,\n    # after 2\n]\n"},
+	/* A number ends where a comment starts, as at the end of any atom */
+	{"comments_after_numbers", 0,
+	 "a = 1 /* c */\nb = 2/* d */;\nc = 1kb # e\nd = 0x10 /* f */\n"
+	 "e [1 /* g */, 2.5/* h */]\n",
+	 "{\"a\": 1, \"b\": 2, \"c\": 1024, \"d\": 16, \"e\": [1, 2.5]}",
+	 NULL},
 };
 
 /*

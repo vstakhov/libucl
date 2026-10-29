@@ -358,6 +358,21 @@ ucl_lex_is_comment(const unsigned char c1, const unsigned char c2)
 	return false;
 }
 
+/*
+ * A number ends with the input, with an atom or where a comment starts,
+ * possibly after spaces
+ */
+static inline bool
+ucl_lex_is_number_end(const char *p, const char *end)
+{
+	while (p < end && ucl_test_character(*p, UCL_CHARACTER_WHITESPACE)) {
+		p++;
+	}
+
+	return p >= end || ucl_lex_is_atom_end(*p) ||
+		   (end - p >= 2 && ucl_lex_is_comment(p[0], p[1]));
+}
+
 /**
  * Check variable found
  * @param parser
@@ -1098,7 +1113,7 @@ int ucl_maybe_parse_number(ucl_object_t *obj,
 		p = end;
 		goto set_obj;
 	}
-	if (endptr == NULL || ucl_lex_is_atom_end(*endptr) || *endptr == '\0') {
+	if (endptr == NULL || ucl_lex_is_number_end(endptr, end) || *endptr == '\0') {
 		p = endptr;
 		goto set_obj;
 	}
@@ -1127,7 +1142,7 @@ int ucl_maybe_parse_number(ucl_object_t *obj,
 						dv *= ucl_lex_num_multiplier(*p, false);
 					}
 					p += 2;
-					if (end - p > 0 && !ucl_lex_is_atom_end(*p)) {
+					if (!ucl_lex_is_number_end(p, end)) {
 						*pos = start;
 						return EINVAL;
 					}
@@ -1147,13 +1162,13 @@ int ucl_maybe_parse_number(ucl_object_t *obj,
 						return ERANGE;
 					}
 					p += 2;
-					if (end - p > 0 && !ucl_lex_is_atom_end(*p)) {
+					if (!ucl_lex_is_number_end(p, end)) {
 						*pos = start;
 						return EINVAL;
 					}
 					goto set_obj;
 				}
-				else if (ucl_lex_is_atom_end(p[1])) {
+				else if (ucl_lex_is_number_end(p + 1, end)) {
 					if (need_double) {
 						dv *= ucl_lex_num_multiplier(*p, false);
 					}
@@ -1176,7 +1191,7 @@ int ucl_maybe_parse_number(ucl_object_t *obj,
 						is_time = true;
 						dv *= 60.;
 						p += 3;
-						if (end - p > 0 && !ucl_lex_is_atom_end(*p)) {
+						if (!ucl_lex_is_number_end(p, end)) {
 							*pos = start;
 							return EINVAL;
 						}
@@ -1193,7 +1208,7 @@ int ucl_maybe_parse_number(ucl_object_t *obj,
 					return ERANGE;
 				}
 				p++;
-				if (end - p > 0 && !ucl_lex_is_atom_end(*p)) {
+				if (!ucl_lex_is_number_end(p, end)) {
 					*pos = start;
 					return EINVAL;
 				}
@@ -1203,7 +1218,7 @@ int ucl_maybe_parse_number(ucl_object_t *obj,
 		case 'S':
 		case 's':
 			if (allow_time &&
-				(p == end - 1 || ucl_lex_is_atom_end(p[1]))) {
+				ucl_lex_is_number_end(p + 1, end)) {
 				if (!need_double) {
 					need_double = true;
 					dv = lv;
@@ -1222,7 +1237,7 @@ int ucl_maybe_parse_number(ucl_object_t *obj,
 		case 'Y':
 		case 'y':
 			if (allow_time &&
-				(p == end - 1 || ucl_lex_is_atom_end(p[1]))) {
+				ucl_lex_is_number_end(p + 1, end)) {
 				if (!need_double) {
 					need_double = true;
 					dv = lv;
@@ -1238,7 +1253,7 @@ int ucl_maybe_parse_number(ucl_object_t *obj,
 			while (p < end && ucl_test_character(*p, UCL_CHARACTER_WHITESPACE)) {
 				p++;
 			}
-			if (p == end || ucl_lex_is_atom_end(*p))
+			if (ucl_lex_is_number_end(p, end))
 				goto set_obj;
 			break;
 		}
