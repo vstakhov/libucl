@@ -217,6 +217,37 @@ done:
 }
 
 static bool
+check_keyed_chunk_error(const char *chunk)
+{
+	/*
+	 * The first error message is kept, so after the unmatched brace that the
+	 * base leaves behind, a rejected keyed chunk shows only in the error code.
+	 * With that error cleared first, the message names the problem as well.
+	 */
+	struct ucl_parser *parser = ucl_parser_new(0);
+	const char *err;
+	bool ok = true;
+
+	CHECK(parser != NULL, "cannot create parser");
+	CHECK(!ucl_parser_add_string(parser, "a = [1, ", 0),
+		  "the base must leave an array frame open");
+	CHECK(ucl_parser_get_error_code(parser) == UCL_EUNPAIRED,
+		  "expected an unmatched brace");
+	ucl_parser_clear_error(parser);
+	CHECK(!ucl_parser_insert_chunk(parser, (const unsigned char *) chunk,
+								   strlen(chunk)),
+		  "a keyed chunk must be rejected in an array frame");
+	err = ucl_parser_get_error(parser);
+	CHECK(ucl_parser_get_error_code(parser) == UCL_ESYNTAX && err != NULL &&
+			  strstr(err, "key outside of an object") != NULL,
+		  "expected a key outside of an object error");
+
+done:
+	ucl_parser_free(parser);
+	return ok;
+}
+
+static bool
 check_resumed_chunk(const char *base, const char *chunk, const char *rest,
 					const char *whole)
 {
@@ -483,6 +514,8 @@ main(void)
 	/* The root itself is the array frame */
 	ok = check_keyed_chunk("[1, ", "b = 1") && ok;
 	ok = check_keyed_chunk("[1, ", "{b = 1}") && ok;
+	ok = check_keyed_chunk_error("b = 1") && ok;
+	ok = check_keyed_chunk_error("{b = 1}") && ok;
 	ok = check_resumed_chunk("a = [1, ", "[{x = 1}]", "c", NULL) && ok;
 	ok = check_resumed_chunk("a = [1, ", "[{}]", "c", NULL) && ok;
 	ok = check_resumed_chunk("a = [1, ", "[]", "c", NULL) && ok;
