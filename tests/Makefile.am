@@ -122,4 +122,6 @@ test_dup_error_key_CFLAGS = $(common_test_cflags)
 
 test_special_handlers_SOURCES = test_special_handlers.c
 test_special_handlers_LDADD = $(common_test_ldadd)
-test_special_handlers_CFLAGS = $(common_test_cflags) -I$(top_srcdir)/klib
+# Includes ucl_parser.c, which libucl itself builds with -Wno-pointer-sign
+test_special_handlers_CFLAGS = $(common_test_cflags) -I$(top_srcdir)/klib \
+					-Wno-pointer-sign
