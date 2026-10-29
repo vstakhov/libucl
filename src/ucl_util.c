@@ -27,6 +27,7 @@
 #include "ucl_chartable.h"
 #include "kvec.h"
 #include <limits.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h> /* for snprintf */
 
@@ -4057,10 +4058,21 @@ int ucl_object_compare(const ucl_object_t *o1, const ucl_object_t *o2)
 			  (ucl_object_toint(o1) < ucl_object_toint(o2));
 		break;
 	case UCL_FLOAT:
-	case UCL_TIME:
-		ret = (ucl_object_todouble(o1) > ucl_object_todouble(o2)) -
-			  (ucl_object_todouble(o1) < ucl_object_todouble(o2));
+	case UCL_TIME: {
+		double d1 = ucl_object_todouble(o1), d2 = ucl_object_todouble(o2);
+
+		if (isnan(d1) || isnan(d2)) {
+			/*
+			 * NaN is neither less nor greater than anything, which would
+			 * make it equal to every number: put it after all of them
+			 */
+			ret = (isnan(d1) != 0) - (isnan(d2) != 0);
+		}
+		else {
+			ret = (d1 > d2) - (d1 < d2);
+		}
 		break;
+	}
 	case UCL_BOOLEAN:
 		ret = ucl_object_toboolean(o1) - ucl_object_toboolean(o2);
 		break;

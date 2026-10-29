@@ -38,6 +38,7 @@
 #undef NDEBUG
 #endif
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -344,6 +345,42 @@ test_binary_string_compare(void)
 	ucl_object_unref(schema);
 }
 
+/*
+ * NaN is neither less nor greater than any number, which made it equal to
+ * every number for "enum" and "uniqueItems"
+ */
+static void
+test_nan_compare(void)
+{
+	struct ucl_schema_error err;
+	ucl_object_t *schema, *nan_obj, *num;
+
+	nan_obj = ucl_object_fromdouble(NAN);
+	num = ucl_object_fromdouble(1.5);
+	assert(ucl_object_compare(nan_obj, num) > 0);
+	assert(ucl_object_compare(num, nan_obj) < 0);
+	assert(ucl_object_compare(nan_obj, nan_obj) == 0);
+	ucl_object_unref(num);
+	ucl_object_unref(nan_obj);
+
+	schema = parse("{\"enum\": [1.5]}");
+	assert(validate(schema, NULL, "{\"v\": 1.5}", &err));
+	assert(!validate(schema, NULL, "{\"v\": nan}", &err));
+	assert(err.code == UCL_SCHEMA_CONSTRAINT);
+	ucl_object_unref(schema);
+
+	schema = parse("{\"enum\": [nan]}");
+	assert(validate(schema, NULL, "{\"v\": nan}", &err));
+	assert(!validate(schema, NULL, "{\"v\": 1.5}", &err));
+	ucl_object_unref(schema);
+
+	schema = parse("{\"uniqueItems\": true}");
+	assert(validate(schema, NULL, "{\"v\": [1.5, nan, 2.5]}", &err));
+	assert(!validate(schema, NULL, "{\"v\": [nan, 1.5, nan]}", &err));
+	assert(err.code == UCL_SCHEMA_CONSTRAINT);
+	ucl_object_unref(schema);
+}
+
 #ifndef _WIN32
 /*
  * A $ref to a file or URL is fetched and parsed, and everything this
@@ -416,6 +453,7 @@ int main(int argc, char **argv)
 	test_malformed_type_array();
 	test_binary_string_pattern();
 	test_binary_string_compare();
+	test_nan_compare();
 #ifndef _WIN32
 	test_external_ref();
 #endif
