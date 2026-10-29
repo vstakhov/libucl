@@ -446,6 +446,41 @@ test_external_ref(void)
 }
 #endif
 
+/*
+ * Lengths are unsigned 32 bit, so subtracting them gave the wrong sign once
+ * they were 2^31 or more apart. The lengths are faked: the contents are only
+ * read when they are equal.
+ */
+static void
+test_len_compare(void)
+{
+	ucl_object_t *objs[2][3];
+	unsigned i, j;
+
+	for (i = 0; i < 2; i++) {
+		objs[i][0] = ucl_object_fromstring("x");
+		objs[i][1] = ucl_object_typed_new(UCL_ARRAY);
+		objs[i][2] = ucl_object_typed_new(UCL_OBJECT);
+	}
+
+	for (j = 0; j < 3; j++) {
+		uint32_t short_len = objs[0][j]->len, long_len = objs[1][j]->len;
+
+		objs[0][j]->len = 1;
+		objs[1][j]->len = 0x80000002U;
+		assert(ucl_object_compare(objs[0][j], objs[1][j]) < 0);
+		assert(ucl_object_compare(objs[1][j], objs[0][j]) > 0);
+		objs[0][j]->len = short_len;
+		objs[1][j]->len = long_len;
+	}
+
+	for (i = 0; i < 2; i++) {
+		for (j = 0; j < 3; j++) {
+			ucl_object_unref(objs[i][j]);
+		}
+	}
+}
+
 int main(int argc, char **argv)
 {
 	(void) argc;
@@ -459,6 +494,7 @@ int main(int argc, char **argv)
 	test_binary_string_pattern();
 	test_binary_string_compare();
 	test_nan_compare();
+	test_len_compare();
 #ifndef _WIN32
 	test_external_ref();
 #endif

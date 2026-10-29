@@ -4102,7 +4102,7 @@ int ucl_object_compare(const ucl_object_t *o1, const ucl_object_t *o2)
 			ret = memcmp(o1->value.sv, o2->value.sv, o1->len);
 		}
 		else {
-			ret = o1->len - o2->len;
+			ret = (o1->len > o2->len) - (o1->len < o2->len);
 		}
 		break;
 	case UCL_INT:
@@ -4159,7 +4159,7 @@ int ucl_object_compare(const ucl_object_t *o1, const ucl_object_t *o2)
 			}
 		}
 		else {
-			ret = o1->len - o2->len;
+			ret = (o1->len > o2->len) - (o1->len < o2->len);
 		}
 		break;
 	case UCL_OBJECT:
@@ -4178,7 +4178,7 @@ int ucl_object_compare(const ucl_object_t *o1, const ucl_object_t *o2)
 			ucl_object_iterate_end(o1, &iter);
 		}
 		else {
-			ret = o1->len - o2->len;
+			ret = (o1->len > o2->len) - (o1->len < o2->len);
 		}
 		break;
 	default:
