@@ -1080,6 +1080,8 @@ ucl_schema_validate(const ucl_object_t *schema,
 	elt = ucl_object_lookup(schema, "anyOf");
 	if (elt != NULL && elt->type == UCL_ARRAY) {
 		iter = NULL;
+		/* An empty anyOf has no subschema to match, as for oneOf */
+		ret = false;
 		while ((cur = ucl_object_iterate(elt, &iter, true)) != NULL) {
 			ret = ucl_schema_validate(cur, obj, true, err, root, external_refs, refs);
 			if (ret) {
