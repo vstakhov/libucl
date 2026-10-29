@@ -3,8 +3,22 @@
 *.plist
 
 test_basic
+test_cbor
+test_cbor_vectors
+test_copy_failure
+test_csexp
+test_dup_error_key
+test_empty_chunks
 test_generate
+test_limits
 test_msgpack
+test_msgpack_malformed
+test_object_free
+test_roundtrip
 test_schema
+test_schema_refs
+test_size_overflow
 test_speed
 test_streamline
+test_strnstr
+test_variables
