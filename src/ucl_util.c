@@ -1849,7 +1849,17 @@ ucl_include_common(const unsigned char *data, size_t len,
 		}
 		else if (data != NULL) {
 			/* Try to load a file */
-			return ucl_include_file(data, len, parser, &params, args);
+			if (ucl_include_file(data, len, parser, &params, args)) {
+				return true;
+			}
+
+			/*
+			 * .try_include of a file that cannot be included goes on with
+			 * the parse: only a file that has been read and does not parse
+			 * stops it
+			 */
+			return params.soft_fail && !params.parse_failed &&
+				   parser->err == NULL;
 		}
 	}
 	else {

@@ -915,6 +915,67 @@ test_failed_glob_include(void)
 		remove(path[i]);
 	}
 }
+
+/*
+ * .try_include of a file that cannot be included, missing or the including
+ * file itself, goes on with the parse. It made the macro fail with no error,
+ * so the rest of the document was dropped, and a glob member ending with it
+ * failed to parse, which ends the glob.
+ */
+static void
+test_skipped_try_include(void)
+{
+	const char *dir = getenv("TEST_OUT_DIR");
+	char path[2][PATH_MAX], doc[PATH_MAX + 64], content[3 * PATH_MAX + 64];
+	struct ucl_parser *p;
+	ucl_object_t *top;
+	int n;
+
+	if (dir == NULL) {
+		dir = ".";
+	}
+
+	snprintf(path[0], sizeof(path[0]), "%s/limits_try_1.inc", dir);
+	n = snprintf(content, sizeof(content),
+				 ".try_include \"%s/limits_absent.inc\"\na = 1\n"
+				 ".try_include \"%s\"\n",
+				 dir, path[0]);
+	assert(n > 0 && (size_t) n < sizeof(content));
+	write_include(path[0], sizeof(path[0]), "limits_try_1.inc", content);
+	write_include(path[1], sizeof(path[1]), "limits_try_2.inc", "b = 2\n");
+
+	n = snprintf(doc, sizeof(doc),
+				 "x = 1\n.try_include(glob=true) \"%s/limits_try_*.inc\"\n",
+				 dir);
+	assert(n > 0 && (size_t) n < sizeof(doc));
+	p = make_parser(NULL);
+	assert(parse(p, doc, n) == true);
+	assert(ucl_parser_get_error(p) == NULL);
+	assert(p->chunks != NULL && p->chunks->next == NULL);
+	assert(p->recursion == 1);
+	top = ucl_parser_get_object(p);
+	assert(top != NULL);
+	assert(ucl_object_toint(ucl_object_lookup(top, "x")) == 1);
+	assert(ucl_object_toint(ucl_object_lookup(top, "a")) == 1);
+	assert(ucl_object_toint(ucl_object_lookup(top, "b")) == 2);
+	ucl_object_unref(top);
+	ucl_parser_free(p);
+
+	n = snprintf(doc, sizeof(doc),
+				 ".try_include \"%s/limits_absent.inc\"\nz = 4\n", dir);
+	assert(n > 0 && (size_t) n < sizeof(doc));
+	p = make_parser(NULL);
+	assert(parse(p, doc, n) == true);
+	assert(ucl_parser_get_error(p) == NULL);
+	top = ucl_parser_get_object(p);
+	assert(top != NULL);
+	assert(ucl_object_toint(ucl_object_lookup(top, "z")) == 4);
+	ucl_object_unref(top);
+	ucl_parser_free(p);
+
+	remove(path[0]);
+	remove(path[1]);
+}
 #endif
 
 int main(int argc, char **argv)
@@ -936,6 +997,7 @@ int main(int argc, char **argv)
 	test_sequential_includes();
 	test_failed_insert_include();
 	test_failed_glob_include();
+	test_skipped_try_include();
 #endif
 
 	printf("All limits tests passed\n");
