@@ -4136,19 +4136,14 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 			new->len = 0;
 		}
 
-		/* deep copy of values stored */
-		if (other->trash_stack[UCL_TRASH_KEY] != NULL) {
-			if (other->key == (const char *) other->trash_stack[UCL_TRASH_KEY]) {
-				if (ucl_size_add(other->keylen, 1, &alloc_len)) {
-					new->trash_stack[UCL_TRASH_KEY] = UCL_ALLOC(alloc_len);
-				}
-				if (new->trash_stack[UCL_TRASH_KEY] == NULL) {
-					goto fail;
-				}
-				memcpy(new->trash_stack[UCL_TRASH_KEY], other->trash_stack[UCL_TRASH_KEY], other->keylen);
-				new->trash_stack[UCL_TRASH_KEY][other->keylen] = '\0';
-				new->key = new->trash_stack[UCL_TRASH_KEY];
-			}
+		/*
+		 * deep copy of values stored. The key is copied even when the
+		 * source does not own it: it may live in another object of the
+		 * source tree or in the parser input, neither of which the copy
+		 * keeps alive.
+		 */
+		if (other->key != NULL && ucl_copy_key_trash(new) == NULL) {
+			goto fail;
 		}
 		if (other->trash_stack[UCL_TRASH_VALUE] != NULL) {
 			if (new->type == UCL_STRING) {

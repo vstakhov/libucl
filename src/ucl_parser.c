@@ -1510,9 +1510,24 @@ ucl_parser_append_elt(struct ucl_parser *parser, ucl_hash_t *cont,
 				return false;
 			}
 
+			/*
+			 * The array needs a key of its own: `top` can leave it or be
+			 * freed before it (ucl_array_pop_first), and ucl_object_copy
+			 * keeps a key it does not own pointing where it did, so a copy
+			 * would outlive the buffer of `top` once the original is gone.
+			 */
 			nobj->key = top->key;
 			nobj->keylen = top->keylen;
 			nobj->flags |= UCL_OBJECT_MULTIVALUE;
+
+			if (ucl_copy_key_trash(nobj) == NULL) {
+				ucl_object_unref(nobj);
+				ucl_set_err(parser, UCL_EINTERNAL,
+							"cannot allocate memory for a key",
+							&parser->err);
+
+				return false;
+			}
 
 			if (!ucl_array_append(nobj, top) ||
 				!ucl_array_append(nobj, elt)) {
