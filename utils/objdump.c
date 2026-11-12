@@ -1,4 +1,6 @@
-/* Copyright (c) 2013, Dmitriy V. Reshetnikov
+/* SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2013, Dmitriy V. Reshetnikov
  * Copyright (c) 2013, Vsevolod Stakhov
  * All rights reserved.
  *
