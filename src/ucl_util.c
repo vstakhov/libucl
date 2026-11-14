@@ -4115,6 +4115,10 @@ ucl_object_copy_internal(const ucl_object_t *other, bool allow_array)
 	size_t sz = sizeof(*new), alloc_len;
 
 	if (other->type == UCL_USERDATA) {
+		/* There is no callback to duplicate an owned userdata payload. */
+		if (((const struct ucl_object_userdata *) other)->dtor != NULL) {
+			return NULL;
+		}
 		sz = sizeof(struct ucl_object_userdata);
 	}
 	new = UCL_ALLOC(sz);
