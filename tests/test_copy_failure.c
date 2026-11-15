@@ -170,28 +170,164 @@ static int userdata_freed;
 static void
 test_userdata_dtor(void *ptr)
 {
-	(void) ptr;
 	userdata_freed++;
+	free(ptr);
+}
+
+static const char *
+test_userdata_emitter(void *ptr)
+{
+	return ptr;
+}
+
+static ucl_object_t *
+new_test_userdata(bool owning)
+{
+	char *payload = malloc(sizeof("userdata"));
+	ucl_object_t *obj;
+
+	assert(payload != NULL);
+	memcpy(payload, "userdata", sizeof("userdata"));
+	obj = ucl_object_new_userdata(owning ? test_userdata_dtor : NULL,
+								 test_userdata_emitter, payload);
+	assert(obj != NULL);
+	return obj;
+}
+
+/* An opaque destructor cannot be duplicated safely, even for a NULL payload. */
+static void
+test_userdata_copy_rejected(void)
+{
+	ucl_object_t *obj, *copy;
+	size_t baseline;
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		userdata_freed = 0;
+		obj = i == 0 ? new_test_userdata(true) :
+					   ucl_object_new_userdata(test_userdata_dtor, NULL, NULL);
+		assert(obj != NULL);
+		baseline = live;
+		copy = ucl_object_copy(obj);
+		assert(copy == NULL && live == baseline && userdata_freed == 0);
+		assert(obj->ref == 1);
+		if (obj->value.ud != NULL) {
+			assert(strcmp(obj->value.ud, "userdata") == 0);
+		}
+		ucl_object_unref(obj);
+		assert(userdata_freed == 1 && live == 0);
+	}
+}
+
+/* Sharing the object keeps its payload alive until the last reference. */
+static void
+test_userdata_shared_refs(bool original_first)
+{
+	ucl_object_t *obj = new_test_userdata(true);
+	ucl_object_t *shared = ucl_object_ref(obj);
+	ucl_object_t *remaining = original_first ? shared : obj;
+
+	userdata_freed = 0;
+	assert(shared == obj && obj->ref == 2);
+	ucl_object_unref(original_first ? obj : shared);
+	assert(userdata_freed == 0 && remaining->ref == 1);
+	assert(strcmp(remaining->value.ud, "userdata") == 0);
+	ucl_object_unref(remaining);
+	assert(userdata_freed == 1 && live == 0);
+}
+
+/* Non-owning copies have independent wrappers and borrow the same payload. */
+static void
+test_userdata_nonowning_copy(bool original_first)
+{
+	ucl_object_t *obj = new_test_userdata(false);
+	ucl_object_t *copy = ucl_object_copy(obj);
+	ucl_object_t *remaining = original_first ? copy : obj;
+	void *payload = obj->value.ud;
+
+	userdata_freed = 0;
+	assert(copy != NULL && copy != obj);
+	assert(obj->ref == 1 && copy->ref == 1);
+	assert(copy->type == UCL_USERDATA && copy->value.ud == payload);
+	assert(((struct ucl_object_userdata *) copy)->dtor == NULL);
+	assert(((struct ucl_object_userdata *) copy)->emitter == test_userdata_emitter);
+	ucl_object_unref(original_first ? obj : copy);
+	assert(userdata_freed == 0 && remaining->ref == 1);
+	assert(strcmp(remaining->value.ud, "userdata") == 0);
+	ucl_object_unref(remaining);
+	assert(userdata_freed == 0 && live == 0);
+	assert(strcmp(payload, "userdata") == 0);
+	free(payload);
 }
 
 static void
 test_userdata_failure(void)
 {
-	ucl_object_t *obj = ucl_object_new_userdata(test_userdata_dtor, NULL, NULL);
+	char payload[] = "userdata";
+	ucl_object_t *obj = ucl_object_new_userdata(NULL, test_userdata_emitter, payload);
 	ucl_object_t *holder = ucl_object_new();
 	ucl_object_t *copy;
 	size_t baseline;
 
+	userdata_freed = 0;
 	assert(obj != NULL && holder != NULL);
 	assert(ucl_object_insert_key(holder, obj, "userdata", 8, true));
 	baseline = live;
 	allocations = 0;
-	fail_at = 2; /* The userdata object copies, but its key allocation fails. */
+	fail_at = 2; /* The non-owning wrapper copies, but its key allocation fails. */
 	copy = ucl_object_copy(obj);
 	fail_at = 0;
+	assert(allocations == 2);
 	assert(copy == NULL && live == baseline && userdata_freed == 0);
+	assert(obj->ref == 1 && obj->value.ud == payload);
+	assert(strcmp(ucl_object_key(obj), "userdata") == 0);
 	ucl_object_unref(holder);
-	assert(userdata_freed == 1 && live == 0);
+	assert(userdata_freed == 0 && live == 0);
+}
+
+/* Failure after copying a borrowed wrapper must leave the source tree intact. */
+static void
+test_userdata_container_failure(void)
+{
+	ucl_object_t *root, *inner, *obj, *borrowed, *copy;
+	size_t baseline;
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		userdata_freed = 0;
+		root = ucl_object_typed_new(i == 0 ? UCL_ARRAY : UCL_OBJECT);
+		obj = new_test_userdata(true);
+		borrowed = ucl_object_new_userdata(NULL, test_userdata_emitter, obj->value.ud);
+		assert(root != NULL && borrowed != NULL);
+
+		if (i == 2) {
+			/* An implicit array starts with non-owning userdata. */
+			assert(ucl_object_insert_key(root, borrowed, "key", 3, true));
+			assert(ucl_object_insert_key(root, obj, "key", 3, true));
+			assert(borrowed->next == obj);
+		}
+		else {
+			inner = ucl_object_typed_new(UCL_ARRAY);
+			assert(inner != NULL && ucl_array_append(inner, obj));
+			if (i == 0) {
+				assert(ucl_array_append(root, borrowed));
+				assert(ucl_array_append(root, inner));
+			}
+			else {
+				assert(ucl_object_insert_key(root, borrowed, "borrowed", 8, true));
+				assert(ucl_object_insert_key(root, inner, "inner", 5, true));
+			}
+		}
+
+		baseline = live;
+		copy = ucl_object_copy(root);
+		assert(copy == NULL && live == baseline && userdata_freed == 0);
+		assert(obj->ref == 1 && borrowed->ref == 1);
+		assert(strcmp(obj->value.ud, "userdata") == 0);
+		assert(borrowed->value.ud == obj->value.ud);
+		ucl_object_unref(root);
+		assert(userdata_freed == 1 && live == 0);
+	}
 }
 
 static bool
@@ -539,7 +675,13 @@ int main(void)
 {
 	test_copy_failures();
 	test_escaped_sizes();
+	test_userdata_copy_rejected();
+	test_userdata_shared_refs(true);
+	test_userdata_shared_refs(false);
+	test_userdata_nonowning_copy(true);
+	test_userdata_nonowning_copy(false);
 	test_userdata_failure();
+	test_userdata_container_failure();
 	test_include_frame_failure();
 	test_include_failures();
 	test_discarded_value();

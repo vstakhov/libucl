@@ -323,6 +323,8 @@ UCL_EXTERN ucl_object_t *ucl_object_new_full(ucl_type_t type, unsigned priority)
 
 /**
  * Create new object with userdata dtor
+ * The destructor is called when the last reference is released. With a NULL
+ * destructor, the caller retains ownership of ptr.
  * @param dtor destructor function
  * @param emitter emitter for userdata
  * @param ptr opaque pointer
@@ -332,9 +334,13 @@ UCL_EXTERN ucl_object_t *ucl_object_new_userdata(ucl_userdata_dtor dtor,
 												 ucl_userdata_emitter emitter, void *ptr) UCL_WARN_UNUSED_RESULT;
 
 /**
- * Perform deep copy of an object copying everything
+ * Perform a deep copy of an object.
+ * Userdata with a destructor cannot be copied; use ucl_object_ref() to share
+ * its ownership instead. Userdata without a destructor is copied with the
+ * same opaque pointer and emitter, and the caller retains payload ownership.
  * @param other object to copy
- * @return new object with refcount equal to 1
+ * @return new object with refcount equal to 1, or NULL on allocation failure
+ * or if userdata with a destructor is encountered
  */
 UCL_EXTERN ucl_object_t *ucl_object_copy(const ucl_object_t *other)
 	UCL_WARN_UNUSED_RESULT;
