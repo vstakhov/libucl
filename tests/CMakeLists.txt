@@ -27,6 +27,7 @@ IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	add_ucl_test(test_basic test_basic.c basic.test)
 	add_ucl_test(test_speed test_speed.c speed.test)
 	add_ucl_test(test_schema test_schema.c schema.test)
+	add_ucl_test(test_macro_eof test_macro_eof.c macro_eof.test)
 ENDIF()
 
 # Portable tests
