@@ -1971,7 +1971,7 @@ ucl_parse_key(struct ucl_parser *parser, struct ucl_chunk *chunk,
 		}
 	}
 
-	if (p >= chunk->end && got_content) {
+	if (p >= chunk->end) {
 		ucl_set_err(parser, UCL_ESYNTAX, "unfinished key", &parser->err);
 		return false;
 	}
