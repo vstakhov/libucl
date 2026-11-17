@@ -4,6 +4,7 @@ test_scripts = basic.test \
 		empty_chunks.test \
 		schema.test \
 		msgpack.test \
+		macro_eof.test \
 		msgpack_malformed.test \
 		csexp.test \
 		cbor.test \
@@ -71,6 +72,10 @@ test_msgpack_SOURCES = test_msgpack.c
 test_msgpack_LDADD = $(common_test_ldadd)
 test_msgpack_CFLAGS = $(common_test_cflags)
 
+test_macro_eof_SOURCES = test_macro_eof.c
+test_macro_eof_LDADD = $(common_test_ldadd)
+test_macro_eof_CFLAGS = $(common_test_cflags)
+
 test_msgpack_malformed_SOURCES = test_msgpack_malformed.c
 test_msgpack_malformed_LDADD = $(common_test_ldadd)
 test_msgpack_malformed_CFLAGS = $(common_test_cflags)
@@ -93,7 +98,7 @@ test_roundtrip_CFLAGS = $(common_test_cflags)
 
 check_PROGRAMS = test_basic test_speed test_generate test_variables test_empty_chunks test_schema \
 		 test_schema_refs test_limits \
-		 test_streamline test_msgpack test_msgpack_malformed test_csexp test_cbor test_cbor_vectors \
+		 test_streamline test_msgpack test_macro_eof test_msgpack_malformed test_csexp test_cbor test_cbor_vectors \
 		 test_roundtrip test_strnstr test_size_overflow test_copy_failure test_object_free \
 		 test_dup_error_key test_special_handlers test_key_alias
 

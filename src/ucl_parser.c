@@ -3271,6 +3271,9 @@ ucl_state_machine(struct ucl_parser *parser)
 			}
 			if (!ucl_parse_macro_value(parser, chunk, macro,
 									   &macro_start, &macro_len)) {
+				if (macro_args) {
+					ucl_object_unref(macro_args);
+				}
 				parser->prev_state = parser->state;
 				parser->state = UCL_STATE_ERROR;
 				return false;
