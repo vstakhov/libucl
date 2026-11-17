@@ -1394,8 +1394,9 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 
 	if (params->use_prefix && params->prefix == NULL) {
 		/* Auto generate a key name based on the included filename */
-		params->prefix = basename(realbuf);
-		ext = strrchr(params->prefix, '.');
+		char *prefix = basename(realbuf);
+		params->prefix = prefix;
+		ext = strrchr(prefix, '.');
 		if (ext != NULL && (strcmp(ext, ".conf") == 0 || strcmp(ext, ".ucl") == 0)) {
 			/* Strip off .conf or .ucl */
 			*ext = '\0';
