@@ -4,75 +4,70 @@
 
 static PyObject *SchemaError;
 
-static PyObject *
-_basic_ucl_type (ucl_object_t const *obj)
+static PyObject* _build_pyobject(const ucl_object_t *obj);
+
+static PyObject*
+_build_pylist(const ucl_object_t *obj)
 {
-	switch (obj->type) {
-	case UCL_INT:
-		return Py_BuildValue ("L", (long long)ucl_object_toint (obj));
-	case UCL_FLOAT:
-		return Py_BuildValue ("d", ucl_object_todouble (obj));
-	case UCL_STRING:
-		return Py_BuildValue ("s", ucl_object_tostring (obj));
-	case UCL_BOOLEAN:
-		return PyBool_FromLong (ucl_object_toboolean (obj));
-	case UCL_TIME:
-		return Py_BuildValue ("d", ucl_object_todouble (obj));
-	case UCL_NULL:
-		Py_RETURN_NONE;
+	const ucl_object_t *cur = NULL;
+	ucl_object_iter_t it = NULL;
+	PyObject* list = PyList_New(0);
+	if (obj->type == UCL_ARRAY) {
+		while ((cur = ucl_object_iterate(obj, &it, true))) {
+			PyList_Append(list, _build_pyobject(cur));
+		}
+	} else {
+		cur = obj;
+		while (cur) {
+			PyList_Append(list, _build_pyobject(cur));
+			cur = cur->next;
+		}
 	}
-	return NULL;
+	return list;
 }
 
-static PyObject *
-_iterate_valid_ucl (ucl_object_t const *obj)
+static PyObject*
+_build_pydict(const ucl_object_t *obj)
 {
-	const ucl_object_t *tmp;
+	const ucl_object_t *cur = NULL;
 	ucl_object_iter_t it = NULL;
-
-	tmp = obj;
-
-	while ((obj = ucl_object_iterate (tmp, &it, false))) {
-		PyObject *val;
-
-		val = _basic_ucl_type(obj);
-		if (!val) {
-			PyObject *key = NULL;
-
-			if (obj->key != NULL) {
-				key = Py_BuildValue("s", ucl_object_key(obj));
-			}
-
-			if (obj->type == UCL_OBJECT) {
-				const ucl_object_t *cur;
-				ucl_object_iter_t it_obj = NULL;
-
-				val = PyDict_New();
-
-				while ((cur = ucl_object_iterate (obj, &it_obj, true))) {
-					PyObject *keyobj = Py_BuildValue("s",ucl_object_key(cur));
-					PyDict_SetItem(val, keyobj, _iterate_valid_ucl(cur));
-				}
-			} else if (obj->type == UCL_ARRAY) {
-				const ucl_object_t *cur;
-				ucl_object_iter_t it_obj = NULL;
-
-				val = PyList_New(0);
-
-				while ((cur = ucl_object_iterate (obj, &it_obj, true))) {
-					PyList_Append(val, _iterate_valid_ucl(cur));
-				}
-			} else if (obj->type == UCL_USERDATA) {
-				// XXX: this should be
-				// PyBytes_FromStringAndSize; where is the
-				// length from?
-				val = PyBytes_FromString(obj->value.ud);
-			}
+	PyObject* dict = PyDict_New();
+	while ((cur = ucl_object_iterate(obj, &it, true))) {
+		PyObject *key = Py_BuildValue("s", ucl_object_key(cur));
+		if (cur->next != NULL) {
+			PyDict_SetItem(dict, key, _build_pylist(cur));
+		} else {
+			PyDict_SetItem(dict, key, _build_pyobject(cur));
 		}
-		return val;
 	}
+	return dict;
+}
 
-	PyErr_SetString(PyExc_SystemError, "unhandled type");
+static PyObject*
+_build_pyobject(const ucl_object_t *obj)
+{
+	switch (obj->type) {
+		case UCL_OBJECT:
+			return _build_pydict(obj);
+		case UCL_ARRAY:
+			return _build_pylist(obj);
+		case UCL_USERDATA:
+			return PyBytes_FromString(obj->value.ud);
+		case UCL_INT:
+			return Py_BuildValue("L", (long long)ucl_object_toint(obj));
+		case UCL_FLOAT:
+			return Py_BuildValue("d", ucl_object_todouble(obj));
+		case UCL_STRING:
+			return Py_BuildValue("s", ucl_object_tostring(obj));
+		case UCL_BOOLEAN:
+			return PyBool_FromLong(ucl_object_toboolean(obj));
+		case UCL_TIME:
+			return Py_BuildValue("d", ucl_object_todouble(obj));
+		case UCL_NULL:
+			Py_RETURN_NONE;
+		default:
+			PyErr_SetString(PyExc_SystemError, "unhandled type");
+	}
 	return NULL;
 }
 
@@ -81,18 +76,17 @@ _internal_load_ucl (char *uclstr)
 {
 	PyObject *ret;
 	struct ucl_parser *parser =
-	    ucl_parser_new (UCL_PARSER_NO_TIME|UCL_PARSER_NO_IMPLICIT_ARRAYS);
+	    ucl_parser_new (UCL_PARSER_NO_TIME);
 	bool r = ucl_parser_add_string(parser, uclstr, 0);
 
 	if (r) {
 		if (ucl_parser_get_error (parser)) {
 			PyErr_SetString(PyExc_ValueError, ucl_parser_get_error(parser));
-			ucl_parser_free(parser);
 			ret = NULL;
 			goto return_with_parser;
 		} else {
 			ucl_object_t *uclobj = ucl_parser_get_object(parser);
-			ret = _iterate_valid_ucl(uclobj);
+			ret = _build_pyobject(uclobj);
 			ucl_object_unref(uclobj);
 			goto return_with_parser;
 		}
